@@ -176,7 +176,7 @@ width: 100vw;
 background: var(--bg-container);
 border-radius: 0;
 box-shadow: var(--shadow-base);
-overflow: hidden;
+ /* overflow: hidden; */ /* ← この行を削除またはコメントアウトします */
 transition: background 0.5s, box-shadow 0.5s;
 display: flex;
 flex-direction: column;
@@ -184,16 +184,22 @@ flex-grow: 1;
 }
 
 .header {
-background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-color: white;
-padding: 8px 15px;
-position: relative;
-flex-shrink: 0;
-display: flex;
-justify-content: space-between;
-align-items: center;
-gap: 15px;
-}
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    color: white;
+    padding: 8px 15px;
+    position: relative;
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    /* ▼▼▼【ここから追加】▼▼▼ */
+    position: -webkit-sticky; /* Safari用の互換性設定 */
+    position: sticky;       /* ヘッダーを固定するための設定 */
+    top: 0;                 /* 画面の最上部に固定する */
+    z-index: 1010;          /* 他の要素より手前に表示するための設定 */
+    /* ▲▲▲【追加ここまで】▲▲▲ */
+    }
 
 .header-left { display: flex; align-items: center; gap: 15px; flex-shrink: 1; min-width: 0; }
 .header h1 { font-size: 24px; margin-bottom: 0; flex-shrink: 0; white-space: nowrap; }
@@ -2493,7 +2499,7 @@ body.dark-mode .input-row .input-group #addressInput {
 <!-- ▼▼▼ プロジェクト管理モーダル ▼▼▼ -->
 <div class="modal-overlay" id="project-modal">
     <div class="modal-content">
-        <button type="button" class="modal-close-btn" onclick="closeProjectModal()" title="閉じる" aria-label="プロジェクト管理を閉じる">&times;</button>
+<button type="button" class="modal-close-btn" id="project-modal-close-btn-x" title="閉じる" aria-label="プロジェクト管理を閉じる">&times;</button>
         <h3>📁 プロジェクト管理</h3>
         <div class="project-list-container">
             <ul id="projectManagementList">
@@ -2513,7 +2519,7 @@ body.dark-mode .input-row .input-group #addressInput {
             <input type="file" id="import-project-file-input" accept=".json" style="display: none;">
         </div>
         <div class="modal-buttons">
-            <button type="button" class="btn-modal-cancel" onclick="closeProjectModal()">閉じる</button>
+           <button type="button" class="btn-modal-cancel" id="project-modal-close-btn-bottom">閉じる</button>
         </div>
     </div>
 </div>
@@ -5308,18 +5314,17 @@ function initProjectManagementModal() {
         reader.readAsText(file);
         event.target.value = ''; // Reset input
     });
+    // ▼▼▼【ここに追加】閉じるボタンのイベント設定をこの場所に移動しました ▼▼▼
+    document.getElementById('project-modal-close-btn-x').addEventListener('click', closeProjectModal);
+    document.getElementById('project-modal-close-btn-bottom').addEventListener('click', closeProjectModal);
+    // ▲▲▲【追加ここまで】▲▲▲
+
 }
 // ▲▲▲ ここまで ▲▲▲
 // ▼▼▼【ここから追加】サイドパネル幅を監視してタブ表示を切り替える ▼▼▼
 const rightPanelForTabs = document.querySelector('.right-panel');
 if (window.ResizeObserver) {
-    const tabThreshold = 420; // この幅 (px) より狭くなるとタブ名が短縮される
-    const observer = new ResizeObserver(entries => {
-        for (let entry of entries) {
-            const { width } = entry.contentRect;
-            entry.target.classList.toggle('narrow-tabs', width < tabThreshold);
-        }
-    });
+    // ... (省略) ...
     observer.observe(rightPanelForTabs);
 }
 // ▲▲▲【追加ここまで】▲▲▲
