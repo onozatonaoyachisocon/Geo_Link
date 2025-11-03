@@ -2325,10 +2325,10 @@ body.dark-mode #settings-modal .btn-modal-cancel:hover {
         <button class="btn-base btn-icon btn-save-bookmark" onclick="saveCurrentAsBookmark()" aria-label="ブックマークに保存" title="ブックマークに保存">⭐</button>
         <span class="input-button-label">ブックマーク</span>
     </div>
-    <div class="input-button-wrapper mobile-grid-item-fmt">
-        <button class="btn-base btn-icon btn-format-toggle" id="coord-format-toggle" aria-label="表示形式切替" title="表示形式切替">⚙️</button>
-        <span class="input-button-label">形式切替</span>
-    </div>
+<div class="input-button-wrapper mobile-grid-item-fmt">
+    <button class="btn-base btn-icon btn-format-toggle" id="coord-format-toggle" aria-label="表示形式切替" title="表示形式切替">⚙️</button>
+    <span class="input-button-label" id="coord-format-label">形式切替</span>
+</div>
 
     <!-- ▼▼▼【緯度欄を修正】▼▼▼ -->
     <div class="input-group latlon-group mobile-grid-item-lat" title="世界測地系緯度">
@@ -3057,6 +3057,14 @@ function applySettings() {
     document.body.classList.toggle('dark-mode', currentSettings.theme === 'dark');
     document.getElementById('modeToggle').textContent = currentSettings.theme === 'dark' ? '☀️' : '🌙';
     isDMSFormat = (currentSettings.coordFormat === 'dms');
+    
+    // ▼▼▼【ここから追加】ボタンのラベルを更新する処理 ▼▼▼
+    const labelElement = document.getElementById('coord-format-label');
+    if (labelElement) {
+        labelElement.textContent = isDMSFormat ? '度分秒' : '十進数';
+    }
+    // ▲▲▲【追加ここまで】▲▲▲
+
     updateLatLonInputs(currentLatLon.lat, currentLatLon.lon);
     MAX_HISTORY = parseInt(currentSettings.historySize, 10);
     const historyHeader = $historyPopup.querySelector('h4');
