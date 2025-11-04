@@ -977,7 +977,24 @@ color: var(--text-dark);
 .btn-mylink-edit { background-color: var(--primary-color); }
 .btn-mylink-delete { background-color: var(--error-color); }
 .btn-mylink-edit:hover, .btn-mylink-delete:hover { opacity: 0.8; }
-.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 2000; display: none; }
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    /* ▼▼▼【変更箇所】align-items を center から flex-start に変更 ▼▼▼ */
+    align-items: flex-start;
+    justify-content: center;
+    z-index: 2000;
+    display: none;
+    /* ▼▼▼【追加】上下に余白を追加して、ウィンドウが画面端にくっつかないようにする ▼▼▼ */
+    padding-top: 5vh;
+    padding-bottom: 5vh;
+    overflow-y: auto; /* ウィンドウが画面より大きい場合にスクロールできるようにする */
+}
 .modal-content { background: var(--bg-container); padding: 25px; border-radius: var(--radius-base); width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
 .modal-content h3 { margin-top: 0; color: var(--primary-color); margin-bottom: 20px; }
 .modal-form-group { margin-bottom: 15px; }
@@ -2495,6 +2512,68 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
 }
 
 /* ▲▲▲【追加ここまで】▲▲▲ */
+
+/* --- 設定モーダルのタブUIスタイル --- */
+.settings-tabs {
+    display: flex;
+    border-bottom: 2px solid var(--border-color);
+    margin: 0 -15px 15px -15px; /* 左右の余白を広げ、下のコンテンツとの間に余白を設ける */
+    padding: 0 15px;
+}
+
+.settings-tab {
+    padding: 10px 18px;
+    cursor: pointer;
+    background: none;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-medium);
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s ease;
+    margin-bottom: -2px; /* 枠線と重なるように調整 */
+}
+
+.settings-tab:hover {
+    color: var(--text-dark);
+    background-color: var(--bg-light);
+}
+
+.settings-tab.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+}
+
+/* タブコンテンツの表示/非表示 */
+.settings-tab-content {
+    display: none;
+    animation: fadeIn 0.3s;
+}
+
+.settings-tab-content.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* スクロールバーがコンテンツエリア内に収まるように調整 */
+#settings-form {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* コンテンツラッパーでスクロールを制御 */
+}
+.settings-tab-content-wrapper {
+    flex-grow: 1;
+    overflow-y: auto;
+    /* スクロールバーが見やすいように少し右に余白を追加 */
+    padding-right: 10px;
+    margin-right: -10px;
+}
+
+
 </style>
 </head>
 <body>
@@ -2990,10 +3069,24 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
         <button type="button" class="modal-close-btn" onclick="closeSettingsModal()" title="閉じる" aria-label="設定を閉じる">&times;</button>
         <h3>⚙️ 設定</h3>
         <form id="settings-form">
-            <div class="modal-buttons">
-                <button type="button" class="btn-modal-cancel" id="btn-settings-modal-cancel">キャンセル</button>
-                <button type="submit" class="btn-modal-save">設定を保存</button>
-            </div>
+    <div class="modal-buttons">
+        <button type="button" class="btn-modal-cancel" id="btn-settings-modal-cancel">キャンセル</button>
+        <button type="submit" class="btn-modal-save">設定を保存</button>
+    </div>
+
+    <!-- ▼▼▼【ここから追加】タブボタンのコンテナ ▼▼▼ -->
+    <div class="settings-tabs">
+        <button type="button" class="settings-tab active" data-tab="basic">⚙️ 基本設定</button>
+        <button type="button" class="settings-tab" data-tab="customize">🎨 カスタマイズ</button>
+        <button type="button" class="settings-tab" data-tab="data">💾 データ管理</button>
+    </div>
+    <!-- ▲▲▲【追加ここまで】▲▲▲ -->
+
+    <!-- ▼▼▼【ここから追加】タブコンテンツのラッパー ▼▼▼ -->
+    <div class="settings-tab-content-wrapper">
+        <!-- 【基本設定】タブのコンテンツ -->
+        <div class="settings-tab-content active" data-tab-content="basic">
+            <!-- 元の「基本設定」関連の modal-form-group をここに移動 -->
             <div class="modal-form-group">
                 <label for="settings-default-layer">デフォルトの地図レイヤー</label>
                 <select id="settings-default-layer"></select>
@@ -3042,8 +3135,11 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
                 <input type="range" id="settings-zoom" min="1" max="20" step="1">
                 <small>起動時の地図のズームレベルを設定します。</small>
             </div>
+        </div>
 
-            <!-- ▼▼▼【ここから変更】地図リンク関連の設定をグループ化 ▼▼▼ -->
+        <!-- 【カスタマイズ】タブのコンテンツ -->
+        <div class="settings-tab-content" data-tab-content="customize">
+            <!-- 元の「地図リンクパネルのカスタマイズ」関連の項目をここに移動 -->
             <hr style="margin: 25px 0; border: none; border-top: 1px solid var(--border-color);">
             <div class="modal-form-group">
                 <h4>🗺️ 地図リンクパネルのカスタマイズ</h4>
@@ -3070,15 +3166,42 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
                     </div>
                     <small>カードのカテゴリ配置と、カテゴリの並び順を初期状態に戻します。</small>
                 </div>
+                <!-- ▼▼▼【ここから新規追加】非固定時パネル幅の設定セクション ▼▼▼ -->
+                <hr style="margin: 25px 0; border: none; border-top: 1px solid var(--border-color);">
+                <div class="modal-form-group" id="panel-width-section">
+                    <h4>📐 サイドパネル幅の設定 (非固定時)</h4>
+                    <small>ピン留めされていない状態で各タブを開いたときのパネルの幅を設定します。(PC表示のみ)</small>
+                    
+                    <div class="modal-form-group">
+                        <label for="settings-panel-width-map-links">🗺️ 地図リンク: <span id="settings-panel-width-map-links-value">500</span>px</label>
+                        <input type="range" id="settings-panel-width-map-links" min="320" max="1200" step="10">
+                    </div>
+                    
+                    <div class="modal-form-group">
+                        <label for="settings-panel-width-history">⏱️ 履歴一覧: <span id="settings-panel-width-history-value">1200</span>px</label>
+                        <input type="range" id="settings-panel-width-history" min="320" max="1400" step="10">
+                    </div>
+            
+                    <div class="modal-form-group">
+                        <label for="settings-panel-width-bookmarks">⭐ ブックマーク: <span id="settings-panel-width-bookmarks-value">1300</span>px</label>
+                        <input type="range" id="settings-panel-width-bookmarks" min="320" max="1500" step="10">
+                    </div>
+                    
+                    <div style="margin-top: 10px;">
+                         <button type="button" id="reset-panel-widths-unpinned" style="padding: 6px 10px; font-size: 12px;">デフォルト幅にリセット</button>
+                    </div>
+                </div>
+                <!-- ▲▲▲【新規追加ここまで】▲▲▲ -->
             </div>
-            <!-- ▲▲▲【変更ここまで】▲▲▲ -->
+        </div>
 
+        <!-- 【データ管理】タブのコンテンツ -->
+        <div class="settings-tab-content" data-tab-content="data">
+            <!-- 元の「データの書き出しと読み込み」関連の項目をここに移動 -->
             <hr style="margin: 25px 0; border: none; border-top: 1px solid var(--border-color);">
-
             <div class="data-sync-section">
                 <h4>💾 データの書き出しと読み込み</h4>
                 <small>現在の設定やブックマークなどをファイルに保存したり、ファイルから復元したりします。</small>
-
                 <div class="modal-form-group">
                     <label>対象データを選択</label>
                     <div class="data-sync-checklist" id="data-sync-checklist">
@@ -3089,16 +3212,19 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
                         <label><input type="checkbox" value="geoLinkNaviTabOrder"> 📑タブの並び順</label>
                         <label><input type="checkbox" value="geoLinkNaviSettings"> ⚙️各種設定</label>
                     </div>
-                <div class="data-sync-controls">
-                    <button type="button" id="btn-check-all">✅ 全選択</button>
-                    <button type="button" id="btn-uncheck-all">❌ 全解除</button>
-                    <button type="button" id="btn-export-data">📤 書き出し</button>
-                    <button type="button" id="btn-import-data">📥 読み込み</button>
-                    <input type="file" id="import-file-input" accept=".json" style="display: none;">
-                </div>
+                    <div class="data-sync-controls">
+                        <button type="button" id="btn-check-all">✅ 全選択</button>
+                        <button type="button" id="btn-uncheck-all">❌ 全解除</button>
+                        <button type="button" id="btn-export-data">📤 書き出し</button>
+                        <button type="button" id="btn-import-data">📥 読み込み</button>
+                        <input type="file" id="import-file-input" accept=".json" style="display: none;">
+                    </div>
                 </div>
             </div>
-        </form>
+        </div>
+    </div>
+    <!-- ▲▲▲【追加ここまで】▲▲▲ -->
+</form>
     </div>
 </div>
 <div class="modal-overlay" id="qr-modal" onclick="closeQrModal()">
@@ -3307,7 +3433,12 @@ const defaultProjectData = {
         categoryOrder: ['terrain', 'geology', 'weather', 'disaster', 'survey', 'other', 'mylink'],
         categoryNameOverrides: {},
         mapCategoryOverrides: {},
-        mapOrderInCategory: {}
+        mapOrderInCategory: {},
+        unpinnedPanelWidths: { // ← ★★★【新規追加】★★★
+            'map-links': 500,
+            'history': 1200,
+            'bookmarks': 1300
+        }
     },
     geoLinkNaviTabOrder: ['map-links', 'history', 'bookmarks']
 };
@@ -3341,7 +3472,12 @@ const defaultSettings = {
     categoryOrder: ['terrain', 'geology', 'weather', 'disaster', 'survey', 'other', 'mylink'],
     categoryNameOverrides: {},
     mapCategoryOverrides: {},
-    mapOrderInCategory: {}
+    mapOrderInCategory: {},
+    unpinnedPanelWidths: { // ← ★★★【新規追加】★★★
+        'map-links': 500,
+        'history': 1200,
+        'bookmarks': 1300
+    }
 };
 let currentSettings = {};
 
@@ -3385,17 +3521,6 @@ const PREFECTURE_ORDER = [
 ];
 // ▲▲▲【追加ここまで】▲▲▲
 // ▲▲▲【注意】▲▲▲
-
-// ▼▼▼【ここから追加】▼▼▼
-// 他のグローバル変数（MAP_DEFINITIONSなど）が定義されているエリアに追加するのがおすすめです。
-
-const TAB_WIDTHS = {
-    'map-links': '1000px',   // 「地図リンク」タブの幅
-    'history': '1200px',  // 「履歴一覧」タブの幅
-    'bookmarks': '1300px', // 「ブックマーク」タブの幅
-    'default': '500px'      // フォールバック用のデフォルト幅
-};
-// ▲▲▲【追加ここまで】▲▲▲
 
 // ▼▼▼ プロジェクトデータ管理関数 ▼▼▼
 function loadProjects() {
@@ -3592,6 +3717,17 @@ function openSettingsModal() {
     document.getElementById('settings-coord-format').value = currentSettings.coordFormat;
     document.getElementById('settings-history-size').value = currentSettings.historySize;
     document.getElementById('settings-panel-state').value = currentSettings.panelState;
+
+    // ▼▼▼【新規追加】非固定時パネル幅の設定をモーダルに反映 ▼▼▼
+    const widths = currentSettings.unpinnedPanelWidths || defaultSettings.unpinnedPanelWidths;
+    document.getElementById('settings-panel-width-map-links').value = widths['map-links'];
+    document.getElementById('settings-panel-width-map-links-value').textContent = widths['map-links'];
+    document.getElementById('settings-panel-width-history').value = widths['history'];
+    document.getElementById('settings-panel-width-history-value').textContent = widths['history'];
+    document.getElementById('settings-panel-width-bookmarks').value = widths['bookmarks'];
+    document.getElementById('settings-panel-width-bookmarks-value').textContent = widths['bookmarks'];
+    // ▲▲▲【新規追加ここまで】▲▲▲
+
     populateMapVisibilitySettings();
     populateCategoryNameSettings();
     document.getElementById('settings-modal').style.display = 'flex';
@@ -3610,6 +3746,14 @@ function saveSettings(e) {
     currentSettings.coordFormat = document.getElementById('settings-coord-format').value;
     currentSettings.historySize = document.getElementById('settings-history-size').value;
     currentSettings.panelState = document.getElementById('settings-panel-state').value;
+
+    // ▼▼▼【新規追加】非固定時パネル幅の設定を保存 ▼▼▼
+    currentSettings.unpinnedPanelWidths = {
+        'map-links': document.getElementById('settings-panel-width-map-links').value,
+        'history': document.getElementById('settings-panel-width-history').value,
+        'bookmarks': document.getElementById('settings-panel-width-bookmarks').value
+    };
+    // ▲▲▲【新規追加ここまで】▲▲▲
 
     const hiddenMaps = [];
     document.querySelectorAll('#settings-map-visibility-list input[type="checkbox"]:checked').forEach(cb => {
@@ -4356,7 +4500,8 @@ async function selectAutocompleteItem(index) {
     }
 }
 function openMap(mapData, showPopup=true) { const {lat,lon}=currentLatLon, zoom=Math.min(parseInt($zoom.value,10),18); if((isNaN(lat)||isNaN(lon))&&!mapData.noCoords) return showNotification('有効な座標を入力してください','error'); const url = mapData.isCustom ? mapData.url.replace('{lat}',lat).replace('{lon}',lon).replace('{z}',zoom) : mapData.url(lat,lon,zoom); if(showPopup)showNotification(`${mapData.name}を開いています...`); window.open(url,'_blank'); }
-function openCheckedMaps(catKey) { const chks = document.querySelectorAll(`.map-card[data-category="${catKey}"] .map-checkbox:checked`); if (chks.length === 0) return showNotification('開きたい地図にチェックを入れてください。', 'error'); showNotification(`${chks.length}件のリンクを開きます。`); const allMaps = getCombinedMapDefinitions(); chks.forEach(cb => { const mapToOpen = allMaps.find(m => m.id === cb.dataset.mapId); if (mapToOpen) openMap(mapToOpen, false); }); }
+function openCheckedMaps(catKey) { const chks =
+document.querySelectorAll(`.map-card[data-category="${catKey}"] .map-checkbox:checked`); if (chks.length === 0) return showNotification('開きたい地図にチェックを入れてください。', 'error'); showNotification(`${chks.length}件のリンクを開きます。`); const allMaps = getCombinedMapDefinitions(); chks.forEach(cb => { const mapToOpen = allMaps.find(m => m.id === cb.dataset.mapId); if (mapToOpen) openMap(mapToOpen, false); }); }
 function toggleAllCheckboxes(catKey, btn) {
 const chks = document.querySelectorAll(`.map-card[data-category="${catKey}"] .map-checkbox`);
 const allChecked = Array.from(chks).every(cb => cb.checked);
@@ -5235,42 +5380,34 @@ function toggleRightPanel() {
     const isPinned = document.querySelector('.main-layout').classList.contains('pinned');
     const isOpening = rightPanel.classList.contains('hidden');
 
-    // パネルを開く時（かつピン留めされていない時）のみ幅を設定します
     if (isOpening && !isPinned) {
-        // スマホ表示の場合は、これまで通り画面幅の90%で開く
         if (window.innerWidth <= 768) {
             const mobileWidth = '90vw';
             rightPanel.style.width = mobileWidth;
             rightPanel.style.maxWidth = mobileWidth;
         } else {
-            // PC表示の場合は、現在アクティブなタブに応じた幅で開く
             const activeTab = document.querySelector('.panel-tab.active');
-            const activeTabId = activeTab ? activeTab.dataset.tab : 'map-links'; // 見つからない場合はデフォルト
-            const newWidth = TAB_WIDTHS[activeTabId] || TAB_WIDTHS['default'];
-
+            const activeTabId = activeTab ? activeTab.dataset.tab : 'map-links';
+            const unpinnedWidths = currentSettings.unpinnedPanelWidths || defaultSettings.unpinnedPanelWidths;
+            const newWidth = `${unpinnedWidths[activeTabId] || 500}px`;
             rightPanel.style.width = newWidth;
-            rightPanel.style.maxWidth = newWidth;
+            rightPanel.style.maxWidth = '80vw';
         }
     } else if (!isOpening && !isPinned) {
-        // パネルを閉じる時は、インラインスタイルをクリアして元のCSS定義に戻します
         rightPanel.style.width = '';
         rightPanel.style.maxWidth = '';
     }
 
-    // パネルの表示/非表示を切り替えます
     rightPanel.classList.toggle('hidden');
 
-    // ボタンのアイコンとツールチップテキストを現在の状態に合わせて更新します
     const isNowHidden = rightPanel.classList.contains('hidden');
     btns.forEach(btn => {
         btn.innerHTML = isNowHidden ? '◀' : '▶';
         btn.title = isNowHidden ? 'パネルを開く' : 'パネルを閉じる';
     });
 
-    // オーバーレイの表示/非表示を切り替えます
     overlay.classList.toggle('show', !isNowHidden);
 
-    // 地図がリサイズされるように少し遅延させてから通知します
     setTimeout(() => {
         if (window.osmMap) window.osmMap.invalidateSize();
     }, 400);
@@ -6546,22 +6683,18 @@ tabs.forEach(tab => {
         if (targetContent) targetContent.classList.add('active');
         toggleCatBtn.disabled = (tab.dataset.tab !== 'map-links');
 
-        // ▼▼▼【ここから追加】タブのIDに基づいてパネル幅を調整する処理 ▼▼▼
         const tabId = tab.dataset.tab;
         const rightPanel = document.querySelector('.right-panel');
         const mainLayout = document.querySelector('.main-layout');
 
-        // ピン留めされておらず、パネルが表示されている場合のみ幅を変更
         if (!mainLayout.classList.contains('pinned') && !rightPanel.classList.contains('hidden')) {
-            const newWidth = TAB_WIDTHS[tabId] || TAB_WIDTHS['default'];
-            
-            // スマホ表示の場合は何もしない（CSSで幅が制御されているため）
             if (window.innerWidth > 768) {
+                const unpinnedWidths = currentSettings.unpinnedPanelWidths || defaultSettings.unpinnedPanelWidths;
+                const newWidth = `${unpinnedWidths[tabId] || 500}px`;
                 rightPanel.style.width = newWidth;
-                rightPanel.style.maxWidth = newWidth;
+                rightPanel.style.maxWidth = '80vw'; 
             }
         }
-        // ▲▲▲【追加ここまで】▲▲▲
     });
 });
 
@@ -6644,6 +6777,23 @@ document.getElementById('reset-panel-width').addEventListener('click', () => {
     document.getElementById('settings-panel-width-value').textContent = val; 
     updatePanelWidth(val); 
 });
+
+// ▼▼▼【新規追加】非固定時パネル幅のスライダーイベントリスナー ▼▼▼
+document.getElementById('settings-panel-width-map-links').addEventListener('input', e => { document.getElementById('settings-panel-width-map-links-value').textContent = e.target.value; });
+document.getElementById('settings-panel-width-history').addEventListener('input', e => { document.getElementById('settings-panel-width-history-value').textContent = e.target.value; });
+document.getElementById('settings-panel-width-bookmarks').addEventListener('input', e => { document.getElementById('settings-panel-width-bookmarks-value').textContent = e.target.value; });
+document.getElementById('reset-panel-widths-unpinned').addEventListener('click', () => {
+    const defaultWidths = defaultSettings.unpinnedPanelWidths;
+    document.getElementById('settings-panel-width-map-links').value = defaultWidths['map-links'];
+    document.getElementById('settings-panel-width-map-links-value').textContent = defaultWidths['map-links'];
+    document.getElementById('settings-panel-width-history').value = defaultWidths['history'];
+    document.getElementById('settings-panel-width-history-value').textContent = defaultWidths['history'];
+    document.getElementById('settings-panel-width-bookmarks').value = defaultWidths['bookmarks'];
+    document.getElementById('settings-panel-width-bookmarks-value').textContent = defaultWidths['bookmarks'];
+    showNotification('パネル幅をデフォルトにリセットしました。');
+});
+// ▲▲▲【新規追加ここまで】▲▲▲
+
 document.getElementById('navBack').addEventListener('click', () => { if (historyIndex > 0) { historyIndex--; const state = navigationHistory[historyIndex]; updateLatLonInputs(state.lat, state.lon); setZoomLevel(state.zoom); updateCurrentCoords(state, true, true); } });
 document.getElementById('navForward').addEventListener('click', () => { if (historyIndex < navigationHistory.length - 1) { historyIndex++; const state = navigationHistory[historyIndex]; updateLatLonInputs(state.lat, state.lon); setZoomLevel(state.zoom); updateCurrentCoords(state, true, true); } });
 document.getElementById('toggleAllCategoriesBtn').addEventListener('click', (e) => { const btn = e.currentTarget, isCollapsed = document.querySelector('.category-header')?.classList.contains('collapsed'); if(isCollapsed){ document.querySelectorAll('.category-header').forEach(h => { h.classList.remove('collapsed'); h.nextElementSibling.classList.remove('hidden'); }); btn.textContent = '➖ すべて折りたたみ'; } else { document.querySelectorAll('.category-header').forEach(h => { h.classList.add('collapsed'); h.nextElementSibling.classList.add('hidden'); }); btn.textContent = '➕ すべて展開'; } });
@@ -7112,6 +7262,33 @@ if (window.ResizeObserver) {
     initializeProfileModal();
 
 // ▲▲▲【挿入ここまで】▲▲▲
+    // ▼▼▼【ここから追加】設定モーダルのタブ切り替え機能 ▼▼▼
+    const settingsTabsContainer = document.querySelector('#settings-modal .settings-tabs');
+    if (settingsTabsContainer) {
+        const settingsTabs = settingsTabsContainer.querySelectorAll('.settings-tab');
+        const settingsTabContents = document.querySelectorAll('#settings-modal .settings-tab-content');
+    
+        settingsTabsContainer.addEventListener('click', (e) => {
+            const targetTab = e.target.closest('.settings-tab');
+            if (!targetTab) return;
+    
+            const tabName = targetTab.dataset.tab;
+    
+            // 1. すべてのタブから 'active' クラスを削除
+            settingsTabs.forEach(tab => tab.classList.remove('active'));
+            // 2. クリックされたタブに 'active' クラスを追加
+            targetTab.classList.add('active');
+    
+            // 3. すべてのコンテンツを非表示に
+            settingsTabContents.forEach(content => content.classList.remove('active'));
+            // 4. 対応するコンテンツを表示
+            const targetContent = document.querySelector(`.settings-tab-content[data-tab-content="${tabName}"]`);
+            if(targetContent) {
+                targetContent.classList.add('active');
+            }
+        });
+    }
+    // ▲▲▲【追加ここまで】▲▲▲
 
 });
 
