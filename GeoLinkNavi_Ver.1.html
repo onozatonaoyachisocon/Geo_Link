@@ -7,10 +7,17 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet/dist/leaflet.js" defer></script>
     <!-- Leaflet.fullscreen plugin -->
+<!-- ▼▼▼【ここから追加】マーカークラスタリング用プラグイン ▼▼▼ -->
+    <!-- Leaflet.markercluster plugin -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.1/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.1/dist/leaflet.markercluster.js" defer></script>
+    <!-- ▲▲▲【追加ここまで】▲▲▲ -->
     <link href="https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/leaflet.fullscreen.css" rel="stylesheet" />
     <script src="https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/Leaflet.fullscreen.min.js" defer></script>
-    <!-- Proj4JS for Coordinate Conversion -->
+    <!-- ▼▼▼【変更箇所】proj4.jsの読み込みを追加 ▼▼▼ -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.11.0/proj4.js" defer></script>
+    <!-- ▲▲▲【変更箇所】▲▲▲ -->
     <!-- GPX/KML Importer Plugin -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.7.0/gpx.min.js" defer></script>
     <!-- QRコード生成ライブラリ -->
@@ -934,10 +941,6 @@ body.dark-mode .analysis-tools-overlay { background: rgba(31, 41, 55, 0.8); box-
 .analysis-tools-controls input[type="number"] { height: 32px; width: 60px; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 12px; background-color: var(--card-bg); color: var(--text-dark); }
 .btn-measure { background-color: #2962FF; }
 .btn-measure:hover { background-color: #0039cb; }
-.btn-buffer { background-color: #03A9F4; }
-.btn-buffer:hover { background-color: #0288D1; }
-.btn-clear-analysis { background-color: var(--error-color); }
-.btn-clear-analysis:hover { background-color: #C62828; }
 .btn-measure.active { background-color: #004D40; box-shadow: inset 0 2px 4px rgba(0,0,0,0.4); }
 
 .btn-area { background-color: #9C27B0; }
@@ -1416,6 +1419,56 @@ body.dark-mode #btn-uncheck-all {
 }
 /* --- ここまでテーブル用の共通スタイル --- */
 
+/* ▼▼▼【変更箇所】座標変換ウィンドウ用のスタイルを追加 ▼▼▼ */
+#coord-converter-modal .modal-content {
+    max-width: 800px;
+}
+.converter-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 20px;
+    align-items: center;
+}
+.converter-panel {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-base);
+    padding: 15px;
+    background-color: var(--bg-light);
+}
+.converter-panel h4 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: var(--secondary-color);
+    font-size: 16px;
+}
+.converter-arrows {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+.converter-arrows button {
+    width: 50px;
+    height: 50px;
+    font-size: 24px;
+    border-radius: 50%;
+    background-color: var(--bg-light);
+    color: var(--text-dark);
+    border: 1px solid var(--border-color);
+}
+.converter-arrows button:hover {
+    background-color: var(--primary-color);
+    color: white;
+}
+.converter-actions {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+/* ▲▲▲【変更箇所】▲▲▲ */
+
 @media (min-width: 1800px) {
     .left-panel {
         flex: 5;
@@ -1515,6 +1568,17 @@ body.dark-mode #btn-uncheck-all {
     #osmClickMap {
         height: 50vh;
     }
+    /* ▼▼▼【変更箇所】座標変換ウィンドウのレスポンシブ対応 ▼▼▼ */
+    .converter-grid {
+        grid-template-columns: 1fr;
+    }
+    .converter-arrows {
+        flex-direction: row;
+        justify-content: center;
+        transform: rotate(90deg);
+        margin: 10px 0;
+    }
+    /* ▲▲▲【変更箇所】▲▲▲ */
 }
 
 .right-panel.hidden {
@@ -1766,14 +1830,14 @@ body.dark-mode #btn-uncheck-all {
 
 /* ▼▼▼【ここから追加】▼▼▼ */
 /* 「座標変換」ボタンのスタイル */
-#btn-open-survey-calc {
+#btn-open-coord-converter {
     background-color: var(--btn-googlemap-bg); /* Googleマップボタンの緑色変数を使用 */
     color: white;
     min-width: 85px;
 }
 
 /* 「座標変換」ボタンのホバーエフェクト */
-#btn-open-survey-calc:hover {
+#btn-open-coord-converter:hover {
     background-color: var(--btn-googlemap-hover-bg); /* Googleマップボタンのホバー色変数を使用 */
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(52, 168, 83, 0.4); /* 緑系の影に変更 */
@@ -2125,6 +2189,200 @@ body.dark-mode #settings-modal .btn-modal-cancel:hover {
 
 /* ▲▲▲【追加ここまで】▲▲▲ */
 
+/* ▼▼▼【変更箇所】座標変換ウィンドウのボタンスタイルを追加・修正 ▼▼▼ */
+
+/* モーダル内のボタン共通のホバーエフェクト */
+#coord-converter-modal .btn-base:hover:not(:disabled),
+#coord-converter-modal .converter-arrows button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+/* 変換矢印ボタンの配色 */
+#btn-convert-to-xy, #btn-convert-to-latlon {
+    background-color: var(--secondary-color);
+    color: white;
+}
+#btn-convert-to-xy:hover, #btn-convert-to-latlon:hover {
+    background-color: var(--primary-color);
+}
+
+/* 「メイン画面の座標を取得」ボタンの配色 */
+#btn-get-main-coords {
+    background-color: var(--btn-paste-bg);
+}
+#btn-get-main-coords:hover {
+    background-color: var(--btn-paste-hover-bg);
+}
+
+/* 「結果をメイン画面に反映」ボタンの配色 */
+#btn-apply-coords {
+    background-color: var(--success-color);
+}
+#btn-apply-coords:hover {
+    background-color: #145315; /* より濃い緑 */
+}
+
+/* 「地理院サイトで確認」ボタンの配色 */
+#btn-open-gsi-calc-site {
+     background-color: var(--btn-googlemap-bg);
+}
+#btn-open-gsi-calc-site:hover {
+    background-color: var(--btn-googlemap-hover-bg);
+}
+
+/* 下部アクションボタンのレイアウト調整 */
+.converter-actions {
+    display: flex;
+    align-items: center; /* ボタンの高さを揃える */
+}
+/* 「地理院サイトで確認」ボタンを右端に配置 */
+#btn-open-gsi-calc-site {
+    margin-left: auto;
+}
+/* ▲▲▲【変更箇所】▲▲▲ */
+
+/* ▼▼▼【変更箇所】座標変換ウィンドウのボタンスタイルを追加 ▼▼▼ */
+
+/* 緯度経度の形式変換ボタンの配色 */
+#btn-conv-to-dec, #btn-conv-to-dms {
+    background-color: var(--btn-format-toggle-bg);
+    color: var(--text-dark);
+}
+#btn-conv-to-dec:hover, #btn-conv-to-dms:hover {
+    background-color: var(--btn-format-toggle-hover-bg);
+    color: white;
+}
+
+/* 「結果をコピー」ボタンの配色 */
+#btn-copy-conv-result {
+    background-color: var(--btn-paste-bg);
+}
+#btn-copy-conv-result:hover {
+     background-color: var(--btn-paste-hover-bg);
+}
+
+/* ▲▲▲【変更箇所】▲▲▲ */
+
+/* ▼▼▼【変更箇所】座標変換ウィンドウの入力欄スタイルを追加 ▼▼▼ */
+#coord-converter-modal .modal-form-group input[type="text"],
+#coord-converter-modal .modal-form-group select {
+    /* ライトモード用の設定 */
+    background-color: #ffffff; /* 背景を白に */
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1); /* 内側に影 */
+    border: 1px solid #c8cdd3; /* 境界線を少し濃く */
+}
+
+#coord-converter-modal .modal-form-group input[type="text"]:focus,
+#coord-converter-modal .modal-form-group select:focus {
+    /* フォーカス時のスタイルをメイン画面と統一 */
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+}
+
+/* ダークモード用の設定 */
+body.dark-mode #coord-converter-modal .modal-form-group input[type="text"],
+body.dark-mode #coord-converter-modal .modal-form-group select {
+    background-color: #4b5563; /* 背景を少し明るいグレーに */
+    border-color: #6b7280; /* 境界線も少し明るく */
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+/* ▲▲▲【変更箇所】▲▲▲ */
+
+/* ▼▼▼【ここから追加】ウィンドウの最終コンパクト化とボタンはみ出し修正 ▼▼▼ */
+
+/* --- 1. プロジェクト管理ウィンドウのコンパクト化 --- */
+#project-modal .modal-content {
+    padding: 15px;
+    max-width: 500px;
+}
+#project-modal h3 {
+    margin-bottom: 12px;
+    font-size: 1.1em;
+}
+.project-list-container {
+    margin-bottom: 12px;
+    max-height: 250px; /* リストの高さを少し制限 */
+}
+#projectManagementList li {
+    padding: 8px 12px;
+    font-size: 13px;
+}
+.project-actions {
+    padding-top: 12px;
+    gap: 8px;
+}
+#project-modal .project-actions button {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+#project-modal .modal-buttons {
+    margin-top: 15px;
+}
+
+/* --- 2. 座標変換ウィンドウのコンパクト化 --- */
+#coord-converter-modal .modal-content {
+    padding: 15px;
+    max-width: 700px; /* PCでの最大幅を少し狭める */
+}
+#coord-converter-modal h3 {
+    margin-bottom: 12px;
+    font-size: 1.1em;
+}
+.converter-grid {
+    gap: 12px;
+}
+.converter-panel {
+    padding: 12px;
+}
+.converter-panel h4 {
+    margin-bottom: 10px;
+    font-size: 1em;
+}
+#coord-converter-modal .modal-form-group {
+    margin-bottom: 10px;
+}
+#coord-converter-modal .modal-form-group label {
+    font-size: 13px; /* ラベル文字を少し小さく */
+    margin-bottom: 3px;
+}
+#coord-converter-modal .modal-form-group input,
+#coord-converter-modal .modal-form-group select {
+    padding: 8px; /* 入力欄の余白を少し詰める */
+    font-size: 13px;
+}
+
+
+/* --- 3. 座標変換ウィンドウ下部ボタンのレイアウト修正 --- */
+.converter-actions {
+    display: flex;
+    flex-wrap: wrap; /* ★重要：ボタンがはみ出さずに折り返す */
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+}
+
+/* 全てのボタンに共通の柔軟な幅設定を適用 */
+.converter-actions .btn-base {
+    padding: 8px 10px;
+    font-size: 12px;
+    /* ★重要：min-widthを削除し、flexboxで幅を自動調整させる */
+    flex: 1 1 auto; /* 画面幅に応じて伸び縮みし、折り返すようにする */
+}
+
+/* PC表示時 (幅が広い画面) のみ、「地理院サイト」ボタンを右端に配置 */
+@media (min-width: 769px) {
+    #btn-open-gsi-calc-site {
+        flex-grow: 0; /* このボタンだけは伸ばさない */
+        margin-left: auto; /* 右端に配置 */
+    }
+}
+
+/* ▲▲▲【追加ここまで】▲▲▲ */
+
 </style>
 </head>
 <body>
@@ -2350,12 +2608,12 @@ body.dark-mode #settings-modal .btn-modal-cancel:hover {
     </div>
     <!-- ▲▲▲【修正ここまで】▲▲▲ -->
 
-    <!-- ▼▼▼【ここに追加】▼▼▼ -->
+    <!-- ▼▼▼【変更箇所】ボタンのIDを変更し、ラベルを調整 ▼▼▼ -->
     <div class="input-button-wrapper mobile-grid-item-conv">
-        <button id="btn-open-survey-calc" class="btn-base">📔座標変換</button>
-        <span class="input-button-label">地理院サイト</span>
+        <button id="btn-open-coord-converter" class="btn-base">XY変換</button>
+        <span class="input-button-label">平面直角座標</span>
     </div>
-    <!-- ▲▲▲【追加ここまで】▲▲▲ -->
+    <!-- ▲▲▲【変更箇所】▲▲▲ -->
 
    <!-- ▼▼▼ ここから追加 ▼▼▼ -->
     <div class="mobile-address-row">
@@ -2778,6 +3036,74 @@ body.dark-mode #settings-modal .btn-modal-cancel:hover {
 </div>
 <!-- ▲▲▲ ここまで ▲▲▲ -->
 
+<!-- ▼▼▼【変更箇所】座標変換ウィンドウのHTML構造を全面的に更新 ▼▼▼ -->
+<div class="modal-overlay" id="coord-converter-modal">
+    <div class="modal-content">
+        <button type="button" class="modal-close-btn" id="coord-converter-close-btn" title="閉じる">&times;</button>
+        <h3>🧭緯度経度 ⇔ 平面直角座標 変換</h3>
+        
+        <div class="converter-grid">
+            <!-- 左パネル：緯度経度 -->
+            <div class="converter-panel">
+                <h4>🌐世界測地系 (JGD2011)</h4>
+                <div class="modal-form-group">
+                    <label for="conv-lat">緯度</label>
+                    <input type="text" id="conv-lat" placeholder="例: 35.681074 または 35°40'51.87"">
+                </div>
+                <div class="modal-form-group">
+                    <label for="conv-lon">経度</label>
+                    <input type="text" id="conv-lon" placeholder="例: 139.767843 または 139°46'4.24"">
+                </div>
+                <!-- 形式変換ボタンを追加 -->
+                <div class="modal-form-group" style="display: flex; gap: 10px;">
+                    <button type="button" class="btn-base" id="btn-conv-to-dec" style="flex: 1;">十進数に変換</button>
+                    <button type="button" class="btn-base" id="btn-conv-to-dms" style="flex: 1;">度分秒に変換</button>
+                </div>
+                 <button type="button" class="btn-base" id="btn-get-main-coords" style="width:100%;">メイン画面の座標を取得</button>
+            </div>
+
+            <!-- 中央パネル：変換ボタン -->
+            <div class="converter-arrows">
+                <button type="button" id="btn-convert-to-xy" title="XY座標へ変換">▶</button>
+                <button type="button" id="btn-convert-to-latlon" title="緯度経度へ変換">◀</button>
+            </div>
+
+            <!-- 右パネル：XY座標 -->
+            <div class="converter-panel">
+                <h4>📐平面直角座標系 (JGD2011)</h4>
+                <!-- 都道府県選択を追加 -->
+                <div class="modal-form-group">
+                    <label for="conv-pref">都道府県</label>
+                    <select id="conv-pref">
+                        <option value="">自動判別</option>
+                        <!-- JSで生成 -->
+                    </select>
+                </div>
+                <div class="modal-form-group">
+                    <label for="conv-zone">座標系</label>
+                    <select id="conv-zone"></select>
+                </div>
+                <div class="modal-form-group">
+                    <label for="conv-x">X座標 (m)</label>
+                    <input type="text" id="conv-x" placeholder="北方向の座標">
+                </div>
+                <div class="modal-form-group">
+                    <label for="conv-y">Y座標 (m)</label>
+                    <input type="text" id="conv-y" placeholder="東方向の座標">
+                </div>
+            </div>
+        </div>
+
+        <!-- 下部アクションボタン -->
+        <div class="converter-actions">
+            <button type="button" class="btn-base" id="btn-apply-coords">✔ 結果をメイン画面に反映</button>
+            <!-- 結果をコピーボタンを追加 -->
+            <button type="button" class="btn-base" id="btn-copy-conv-result">📋 結果をコピー</button>
+            <button type="button" class="btn-base" id="btn-open-gsi-calc-site">🌏 地理院サイトで確認</button>
+        </div>
+    </div>
+</div>
+<!-- ▲▲▲【変更箇所】▲▲▲ -->
 
 <script>
 /**
@@ -2797,7 +3123,7 @@ function convertWgs84ToTokyo(lat, lon) {
     showNotification('日本測地系への座標変換に失敗しました。', 'warning');
     return { lat: lat, lon: lon };
   }
-} // ← ★★★ 閉じ括弧をここに移動します ★★★
+}
 
 /**
  * 10進数の緯度経度を国土地理院の計算サイト形式 (dddmmss.s) に変換する
@@ -2831,14 +3157,12 @@ const MAP_DEFINITIONS = [ { id: 'gsi_std', name: '地理院地図', desc: '国�
 
 const $lat = document.getElementById('latitude'), $lon = document.getElementById('longitude'), $coordsDisplay = document.getElementById('currentCoords'), $zoom = document.getElementById('zoomLevel'), $zoomDisplay = document.getElementById('zoomLevelDisplay'), $container = document.getElementById('map-categories-container'), $notification = document.getElementById('notification'), $mapPreview = document.getElementById('mapPreview'), $previewContainer = document.getElementById('previewContainer'), $historyPopup = document.getElementById('historyPopup'), $historyList = document.getElementById('historyList'), $bookmarkPopup = document.getElementById('bookmarkPopup'), $bookmarkList = document.getElementById('bookmarkList'), $currentZoom = document.getElementById('currentZoom'), $addressInput = document.getElementById('addressInput'), $autocompleteList = document.getElementById('autocompleteList'), $coordFormatToggle = document.getElementById('coord-format-toggle'), $areaDisplay = document.getElementById('area-display'), $mainMapContainer = document.getElementById('mainMapContainer');
 
-// ▼▼▼ プロジェクト機能関連の変数 ▼▼▼
 const PROJECTS_KEY = 'geoLinkNaviProjects';
 let projectsData = {};
 let activeProjectId = null;
 const LEGACY_KEYS = ['coordinateBookmarks', 'myCustomLinks', 'favoriteSets', 'geoLinkNaviSettings', 'geoLinkNaviTabOrder', 'coordinateHistory'];
 const DATA_KEYS = ['coordinateBookmarks', 'coordinateHistory', 'myCustomLinks', 'favoriteSets', 'geoLinkNaviSettings', 'geoLinkNaviTabOrder'];
 
-// ▼▼▼【ここから変更】デフォルト設定にカテゴリ関連の項目を追加 ▼▼▼
 const defaultProjectData = {
     coordinateBookmarks: [],
     coordinateHistory: [],
@@ -2860,7 +3184,6 @@ const defaultProjectData = {
     },
     geoLinkNaviTabOrder: ['map-links', 'history', 'bookmarks']
 };
-// ▲▲▲【変更ここまで】▲▲▲
 
 
 let MAX_HISTORY = 100;
@@ -2879,7 +3202,6 @@ let isHistoryVisibleOnMap = false, isBookmarksVisibleOnMap = false;
 
 let startIcon, endIcon;
 
-// ▼▼▼【ここから変更】デフォルト設定にカテゴリ関連の項目を追加 ▼▼▼
 const defaultSettings = { 
     theme: 'light', 
     defaultZoom: 16, 
@@ -2894,13 +3216,48 @@ const defaultSettings = {
     mapCategoryOverrides: {},
     mapOrderInCategory: {}
 };
-// ▲▲▲【変更ここまで】▲▲▲
 let currentSettings = {};
 
 let historySortState = { column: 'timestamp', order: 'desc' };
 const $historyTableBody = document.getElementById('historyTableBody');
 let bookmarkSortState = { column: 'name', order: 'asc' };
 const $bookmarkTableBody = document.getElementById('bookmarkTableBody');
+
+// ▼▼▼【注意】このブロックはDOMContentLoadedの外側に残します ▼▼▼
+const coordinateSystems = [
+  {num:1, lat0:33, lon0:129.5, epsg:6669}, {num:2, lat0:33, lon0:131, epsg:6670},
+  {num:3, lat0:36, lon0:132.1666667, epsg:6671}, {num:4, lat0:33, lon0:133.5, epsg:6672},
+  {num:5, lat0:36, lon0:134.3333333, epsg:6673}, {num:6, lat0:36, lon0:136, epsg:6674},
+  {num:7, lat0:36, lon0:137.1666667, epsg:6675}, {num:8, lat0:36, lon0:138.5, epsg:6676},
+  {num:9, lat0:36, lon0:139.8333333, epsg:6677}, {num:10, lat0:40, lon0:140.8333333, epsg:6678},
+  {num:11, lat0:44, lon0:140.25, epsg:6679}, {num:12, lat0:44, lon0:142.25, epsg:6680},
+  {num:13, lat0:44, lon0:144.25, epsg:6681}, {num:14, lat0:26, lon0:142, epsg:6682},
+  {num:15, lat0:26, lon0:127.5, epsg:6683}, {num:16, lat0:26, lon0:124, epsg:6684},
+  {num:17, lat0:26, lon0:131, epsg:6685}, {num:18, lat0:20, lon0:136, epsg:6686},
+  {num:19, lat0:26, lon0:154, epsg:6687}
+];
+// ▼▼▼【ここから追加】▼▼▼
+const prefectureToSystem = {
+  "北海道":[11,12,13],"青森県":[10],"岩手県":[10],"宮城県":[10],"秋田県":[10],"山形県":[10],
+  "福島県":[9],"茨城県":[9],"栃木県":[9],"群馬県":[9],"埼玉県":[9],"千葉県":[9],"東京都":[9,14,18,19],
+  "神奈川県":[9],"新潟県":[8],"富山県":[7],"石川県":[7],"福井県":[6],"山梨県":[8],"長野県":[8],
+  "岐阜県":[7],"静岡県":[8],"愛知県":[7],"三重県":[6],"滋賀県":[6],"京都府":[6],"大阪府":[6],
+  "兵庫県":[5],"奈良県":[6],"和歌山県":[6],"鳥取県":[5],"島根県":[3],"岡山県":[5],"広島県":[3],
+  "山口県":[3],"徳島県":[4],"香川県":[4],"愛媛県":[4],"高知県":[4],"福岡県":[2],"佐賀県":[2],
+  "長崎県":[1],"熊本県":[2],"大分県":[2],"宮崎県":[2],"鹿児島県":[1,2],"沖縄県":[15,16,17]
+};
+// ▼▼▼【ここから追加】▼▼▼
+const PREFECTURE_ORDER = [
+  "北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県",
+  "茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県",
+  "新潟県", "富山県", "石川県", "福井県", "山梨県", "長野県", "岐阜県",
+  "静岡県", "愛知県", "三重県", "滋賀県", "京都府", "大阪府", "兵庫県",
+  "奈良県", "和歌山県", "鳥取県", "島根県", "岡山県", "広島県", "山口県",
+  "徳島県", "香川県", "愛媛県", "高知県", "福岡県", "佐賀県", "長崎県",
+  "熊本県", "大分県", "宮崎県", "鹿児島県", "沖縄県"
+];
+// ▲▲▲【追加ここまで】▲▲▲
+// ▲▲▲【注意】▲▲▲
 
 
 // ▼▼▼ プロジェクトデータ管理関数 ▼▼▼
@@ -3424,8 +3781,10 @@ function initOSMClickMap(lat, lon, zoom) {
         });
         osmMap.on('mousemove', e => { if (isMeasuring) handleMeasureMouseMove(e); });
 
-        historyLayer = L.layerGroup().addTo(osmMap);
-        bookmarkLayer = L.layerGroup().addTo(osmMap);
+// ▼▼▼【ここから変更】マーカークラスタリングを有効化 ▼▼▼
+        historyLayer = L.markerClusterGroup().addTo(osmMap);
+        bookmarkLayer = L.markerClusterGroup().addTo(osmMap);
+        // ▲▲▲【変更ここまで】▲▲▲
 
 osmMarker = L.marker(latlng).addTo(osmMap)
                .bindPopup("情報を読み込み中...");
@@ -4349,7 +4708,7 @@ function drawProfileChart(data) {
             text: '標高 (m)'
         }
     };
-    if (yToggle.checked) yOpts.min = 0;
+if (yToggle.checked) yOpts.min = 0;
     profileChartInstance = new Chart(ctx, {
         type: 'line',
         data: {
@@ -4406,21 +4765,6 @@ function drawProfileChart(data) {
         }
     });
     modal.style.display = 'flex';
-}
-
-function exportProfileDataToCSV() {
-    if (!lastProfileData || lastProfileData.length === 0) return showNotification('書き出すデータがありません。', 'error');
-    const headers = 'No,始点からの距離(m),標高(m),緯度,経度';
-    const rows = lastProfileData.map((p, i) => `${i+1},${p.distance.toFixed(2)},${p.elevation !== null ? p.elevation : ''},${p.lat.toFixed(8)},${p.lon.toFixed(8)}`);
-    const csv = `${headers}\n${rows.join('\n')}`;
-    const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `profile_data_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showNotification('断面図データをCSVで書き出しました。');
 }
 // ▲▲▲ 断面図関連の関数群（ここまで）▲▲▲
 function updateNavButtons() {
@@ -5580,8 +5924,333 @@ function saveMapOrderInCategory(categoryKey) {
     setProjectData(SETTINGS_KEY, currentSettings);
 }
 
+// ▼▼▼【変更箇所】座標変換モーダルのための関数群を追加 ▼▼▼
+/**
+ * 座標変換モーダルを開きます。
+ */
+function openCoordConverterModal() {
+    const lat = isDMSFormat ? dmsToDecimal($lat.value) : parseFloat($lat.value);
+    const lon = isDMSFormat ? dmsToDecimal($lon.value) : parseFloat($lon.value);
+
+    document.getElementById('conv-lat').value = isNaN(lat) ? '' : lat.toFixed(8);
+    document.getElementById('conv-lon').value = isNaN(lon) ? '' : lon.toFixed(8);
+    document.getElementById('conv-x').value = '';
+    document.getElementById('conv-y').value = '';
+
+    // 最も近い座標系を自動選択
+    if (!isNaN(lat) && !isNaN(lon)) {
+        let min = Infinity, bestSys = null;
+        for (const s of coordinateSystems) {
+            const d = Math.sqrt(Math.pow(lat - s.lat0, 2) + Math.pow((lon - s.lon0) * Math.cos(lat * Math.PI / 180), 2));
+            if (d < min) { min = d; bestSys = s; }
+        }
+        if (bestSys) {
+            document.getElementById('conv-zone').value = bestSys.epsg;
+        }
+    }
+
+    document.getElementById('coord-converter-modal').style.display = 'flex';
+}
+
+/**
+ * 座標変換モーダルを閉じます。
+ */
+function closeCoordConverterModal() {
+    document.getElementById('coord-converter-modal').style.display = 'none';
+}
+
+// ▼▼▼【変更箇所】convertToXY関数を度分秒入力に対応させる ▼▼▼
+
+/**
+ * 緯度経度からXY座標へ変換します。
+ */
+function convertToXY() {
+    try {
+        const latInput = document.getElementById('conv-lat').value;
+        const lonInput = document.getElementById('conv-lon').value;
+        const epsg = document.getElementById('conv-zone').value;
+
+        // 度分秒形式かどうかの簡易判定
+        const isDmsLat = /[°'"NSEW]/i.test(latInput);
+        const isDmsLon = /[°'"NSEW]/i.test(lonInput);
+
+        // 入力値に応じてパーサーを切り替え
+        const lat = isDmsLat ? dmsToDecimal(latInput) : parseFloat(latInput);
+        const lon = isDmsLon ? dmsToDecimal(lonInput) : parseFloat(lonInput);
+
+        if (isNaN(lat) || isNaN(lon) || !epsg) {
+            throw new Error('緯度、経度、座標系を正しく入力してください。');
+        }
+
+        const [y, x] = proj4('EPSG:4326', `EPSG:${epsg}`, [lon, lat]);
+        document.getElementById('conv-x').value = x.toFixed(4);
+        document.getElementById('conv-y').value = y.toFixed(4);
+        showNotification('XY座標に変換しました。');
+    } catch (e) {
+        showNotification(`変換エラー: ${e.message}`, 'error');
+    }
+}
+// ▲▲▲【変更箇所】▲▲▲
+
+// ▼▼▼【変更箇所】convertToLatLon関数を修正 ▼▼▼
+/**
+ * XY座標から緯度経度へ変換します。
+ */
+function convertToLatLon() {
+    try {
+        const x = parseFloat(document.getElementById('conv-x').value);
+        const y = parseFloat(document.getElementById('conv-y').value);
+        const epsg = document.getElementById('conv-zone').value;
+
+        if (isNaN(x) || isNaN(y) || !epsg) {
+            throw new Error('X座標、Y座標、座標系を正しく入力してください。');
+        }
+
+        const [lon, lat] = proj4(`EPSG:${epsg}`, 'EPSG:4326', [y, x]);
+        document.getElementById('conv-lat').value = lat.toFixed(8);
+        document.getElementById('conv-lon').value = lon.toFixed(8);
+        
+        // 変換後の緯度経度に基づいてセレクタを更新
+        updateSelectorsByCoords(lat, lon);
+
+        showNotification('緯度経度に変換しました。');
+    } catch (e) {
+        showNotification(`変換エラー: ${e.message}`, 'error');
+    }
+}
+// ▲▲▲【変更箇所】▲▲▲
+
+/**
+ * 変換結果をメイン画面に反映します。
+ */
+function applyConverterResult() {
+    const lat = parseFloat(document.getElementById('conv-lat').value);
+    const lon = parseFloat(document.getElementById('conv-lon').value);
+
+    if (isNaN(lat) || isNaN(lon)) {
+        showNotification('メイン画面に反映できる有効な緯度経度がありません。', 'error');
+        return;
+    }
+
+    updateLatLonInputs(lat, lon);
+    updateCurrentCoords({ lat, lon });
+    closeCoordConverterModal();
+    showNotification('変換結果をメイン画面に反映しました。');
+}
+
+// ▼▼▼【変更箇所】座標変換モーダルの関数群を全面的に更新 ▼▼▼
+
+// ▼▼▼【変更箇所】initCoordConverter関数を修正 ▼▼▼
+/**
+ * 座標変換モーダルの初期設定を行います。
+ */
+function initCoordConverter() {
+    const zoneSelect = document.getElementById('conv-zone');
+    coordinateSystems.forEach(sys => {
+        const option = document.createElement('option');
+        option.value = sys.epsg;
+        option.textContent = `${sys.num}系`;
+        zoneSelect.appendChild(option);
+    });
+    
+    const prefSelect = document.getElementById('conv-pref');
+    // PREFECTURE_ORDER配列の順でプルダウンを生成
+    PREFECTURE_ORDER.forEach(p => {
+        const o = document.createElement('option'); o.value = p; o.textContent = p; prefSelect.appendChild(o);
+    });
+
+    // イベントリスナー
+    document.getElementById('btn-open-coord-converter').addEventListener('click', openCoordConverterModal);
+    document.getElementById('coord-converter-close-btn').addEventListener('click', closeCoordConverterModal);
+    document.getElementById('btn-convert-to-xy').addEventListener('click', convertToXY);
+    document.getElementById('btn-convert-to-latlon').addEventListener('click', convertToLatLon);
+    document.getElementById('btn-apply-coords').addEventListener('click', applyConverterResult);
+    document.getElementById('btn-copy-conv-result').addEventListener('click', copyConverterResult);
+    document.getElementById('btn-conv-to-dec').addEventListener('click', () => toggleConvFormat('decimal'));
+    document.getElementById('btn-conv-to-dms').addEventListener('click', () => toggleConvFormat('dms'));
+    prefSelect.addEventListener('change', updateZoneSelectByPref);
+    
+    document.getElementById('btn-get-main-coords').addEventListener('click', () => {
+         const lat = isDMSFormat ? dmsToDecimal($lat.value) : parseFloat($lat.value);
+         const lon = isDMSFormat ? dmsToDecimal($lon.value) : parseFloat($lon.value);
+         document.getElementById('conv-lat').value = isNaN(lat) ? '' : lat.toFixed(8);
+         document.getElementById('conv-lon').value = isNaN(lon) ? '' : lon.toFixed(8);
+         showNotification('メイン画面の座標を取得しました。');
+    });
+
+    document.getElementById('btn-open-gsi-calc-site').addEventListener('click', () => {
+        const url = 'https://vldb.gsi.go.jp/sokuchi/surveycalc/surveycalc/bl2xyf.html';
+        const latValue = parseFloat(document.getElementById('conv-lat').value);
+        const lonValue = parseFloat(document.getElementById('conv-lon').value);
+
+        if (isNaN(latValue) || isNaN(lonValue)) {
+            window.open(url, '_blank');
+            showNotification('地理院サイトを開きます。', 'warning');
+            return;
+        }
+        const textToCopy = `${decimalToGsiDms(latValue)}\n${decimalToGsiDms(lonValue)}`;
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            window.open(url, '_blank');
+            showNotification('座標をコピーしました。地理院サイトに貼り付けてください。');
+        }).catch(err => {
+            showNotification('コピーに失敗しました。', 'error');
+            window.open(url, '_blank');
+        });
+    });
+}
+// ▲▲▲【変更箇所】▲▲▲
+
+/**
+ * 座標変換モーダルを開きます。
+ */
+function openCoordConverterModal() {
+    const lat = isDMSFormat ? dmsToDecimal($lat.value) : parseFloat($lat.value);
+    const lon = isDMSFormat ? dmsToDecimal($lon.value) : parseFloat($lon.value);
+
+    document.getElementById('conv-lat').value = isNaN(lat) ? '' : lat.toFixed(8);
+    document.getElementById('conv-lon').value = isNaN(lon) ? '' : lon.toFixed(8);
+    document.getElementById('conv-x').value = '';
+    document.getElementById('conv-y').value = '';
+    
+    updateSelectorsByCoords(lat, lon);
+    
+    document.getElementById('coord-converter-modal').style.display = 'flex';
+}
+
+/**
+ * 座標変換モーダル内の緯度経度表示形式をトグルします。
+ * @param {'decimal' | 'dms'} toFormat - 変換先のフォーマット
+ */
+function toggleConvFormat(toFormat) {
+    const latInput = document.getElementById('conv-lat');
+    const lonInput = document.getElementById('conv-lon');
+    try {
+        if (toFormat === 'dms') {
+            latInput.value = decimalToDMS(parseFloat(latInput.value), true);
+            lonInput.value = decimalToDMS(parseFloat(lonInput.value), false);
+        } else { // to decimal
+            latInput.value = dmsToDecimal(latInput.value).toFixed(8);
+            lonInput.value = dmsToDecimal(lonInput.value).toFixed(8);
+        }
+    } catch (e) {
+        showNotification('有効な座標ではありません。', 'error');
+    }
+}
+
+/**
+ * 都道府県の選択に応じて、座標系の選択肢を更新します。
+ */
+function updateZoneSelectByPref() {
+    const pref = document.getElementById('conv-pref').value;
+    const systemsForPref = prefectureToSystem[pref] || [];
+    const zoneSelect = document.getElementById('conv-zone');
+    
+    let firstVisibleOption = null;
+
+    for (const option of zoneSelect.options) {
+        const systemNum = parseInt(option.textContent, 10);
+        const shouldShow = pref === "" || systemsForPref.includes(systemNum);
+        option.style.display = shouldShow ? '' : 'none';
+        if (shouldShow && !firstVisibleOption) {
+            firstVisibleOption = option;
+        }
+    }
+    // 現在選択されているものが非表示になった場合、表示されている最初のものを選ぶ
+    if (zoneSelect.selectedOptions.length > 0 && zoneSelect.selectedOptions[0].style.display === 'none') {
+        if (firstVisibleOption) {
+            zoneSelect.value = firstVisibleOption.value;
+        }
+    }
+}
+
+/**
+ * 座標に基づいて都道府県と座標系を自動選択します。
+ */
+function updateSelectorsByCoords(lat, lon) {
+    const prefSelect = document.getElementById('conv-pref');
+    const zoneSelect = document.getElementById('conv-zone');
+
+    if (isNaN(lat) || isNaN(lon)) {
+        prefSelect.value = "";
+        updateZoneSelectByPref();
+        return;
+    };
+
+    let min = Infinity, bestSys = null;
+    for (const s of coordinateSystems) {
+        const d = Math.sqrt(Math.pow(lat - s.lat0, 2) + Math.pow((lon - s.lon0) * Math.cos(lat * Math.PI / 180), 2));
+        if (d < min) { min = d; bestSys = s; }
+    }
+    
+    if (bestSys) {
+        let foundPref = false;
+        for (const pref in prefectureToSystem) {
+            if (prefectureToSystem[pref].includes(bestSys.num)) {
+                prefSelect.value = pref;
+                foundPref = true;
+                break;
+            }
+        }
+        if (!foundPref) {
+             prefSelect.value = "";
+        }
+        updateZoneSelectByPref();
+        zoneSelect.value = bestSys.epsg;
+    }
+}
+
+/**
+ * 変換結果を指定のフォーマットでクリップボードにコピーします。
+ */
+function copyConverterResult() {
+    try {
+        const zoneSelect = document.getElementById('conv-zone');
+        const selectedOption = zoneSelect.options[zoneSelect.selectedIndex];
+        const epsg = selectedOption.value;
+        const systemText = selectedOption.textContent;
+        
+        const x = document.getElementById('conv-x').value;
+        const y = document.getElementById('conv-y').value;
+        const latDec = parseFloat(document.getElementById('conv-lat').value);
+        const lonDec = parseFloat(document.getElementById('conv-lon').value);
+
+        if (!epsg || x === '' || y === '' || isNaN(latDec) || isNaN(lonDec)) {
+            throw new Error('コピーする有効な変換結果がありません。');
+        }
+
+        const latDms = decimalToDMS(latDec, true);
+        const lonDms = decimalToDMS(lonDec, false);
+
+        const textToCopy = `座標系: ${systemText} (EPSG:${epsg})
+X (北方向): ${x} m
+Y (東方向): ${y} m
+緯度: ${latDec.toFixed(8)}°
+経度: ${lonDec.toFixed(8)}°
+緯度:${latDms}
+経度:${lonDms}`;
+
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            showNotification('変換結果をコピーしました。');
+        }).catch(err => {
+            throw new Error('クリップボードへのコピーに失敗しました。');
+        });
+
+    } catch (e) {
+        showNotification(e.message, 'error');
+    }
+}
+
+// ▲▲▲【変更箇所】▲▲▲
 
 document.addEventListener('DOMContentLoaded', () => {
+    // ▼▼▼【修正】このブロックをDOMContentLoaded内に移動しました ▼▼▼
+    coordinateSystems.forEach(d => {
+        const s = `+proj=tmerc +lat_0=${d.lat0} +lon_0=${d.lon0} +k=0.9999 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs`;
+        // この時点でproj4は必ず読み込まれているので、typeofチェックは不要
+        proj4.defs("EPSG:" + d.epsg, s);
+    });
+    // ▲▲▲【修正】▲▲▲
+
     // ▼▼▼ プロジェクト機能の初期化を最優先で実行 ▼▼▼
     migrateOldData();
     loadProjects();
@@ -5668,6 +6337,9 @@ initProjectSwitcher();
 initProjectManagementModal();
 // ▲▲▲ ここまで ▲▲▲
 
+// ▼▼▼【変更箇所】座標変換モーダルの初期化を追加 ▼▼▼
+initCoordConverter();
+// ▲▲▲【変更箇所】▲▲▲
 
 const today = new Date();
 document.getElementById('lastUpdated').textContent = `最終更新日: ${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
@@ -5811,69 +6483,6 @@ function handleUndoLastPoint(e) {
         } 
     } 
 }
-// ▼▼▼【変更】変換ボタンの処理を、平面直角座標→緯度経度の一方向のみに修正します ▼▼▼
-document.getElementById('btn-open-survey-calc').addEventListener('click', () => {
-    const url = 'https://vldb.gsi.go.jp/sokuchi/surveycalc/surveycalc/bl2xyf.html';
-    
-    // isDMSFormat は度分秒形式かどうかを判定するグローバル変数です
-    const latValue = isDMSFormat ? dmsToDecimal(document.getElementById('latitude').value) : parseFloat(document.getElementById('latitude').value);
-    const lonValue = isDMSFormat ? dmsToDecimal(document.getElementById('longitude').value) : parseFloat(document.getElementById('longitude').value);
-
-    if (isNaN(latValue) || isNaN(lonValue)) {
-        showNotification('有効な緯度経度がありません。', 'error');
-        return;
-    }
-
-    // ▼▼▼【ここから変更】▼▼▼
-    // 新しい関数を使って、指定の形式に変換
-    const latForGsi = decimalToGsiDms(latValue);
-    const lonForGsi = decimalToGsiDms(lonValue);
-
-    // クリップボードに緯度と経度をコピー（改行で区切る）
-    const textToCopy = `${latForGsi}\n${lonForGsi}`;
-    // ▲▲▲【変更ここまで】▲▲▲
-
-    navigator.clipboard.writeText(textToCopy).then(() => {
-        // 新しいタブでサイトを開く
-        window.open(url, '_blank');
-        // ユーザーに通知
-        showNotification('座標変換形式の座標をコピーしました。サイトに貼り付けてください。', 'success');
-    }).catch(err => {
-        showNotification('クリップボードへのコピーに失敗しました。', 'error');
-    });
-});
-
-// ▼▼▼ ここからこのブロックを丸ごと追加 ▼▼▼
-/**
- * fetchにリトライ処理を追加したラッパー関数
- * @param {string} url - fetchするURL
- * @param {number} maxRetries - 最大リトライ回数
- * @param {number} delay - 初期待機時間(ms)
- * @returns {Promise<Response|null>} fetchのレスポンス、または失敗時にnull
- */
-async function fetchWithRetry(url, maxRetries = 3, delay = 1000) {
-    for (let i = 0; i < maxRetries; i++) {
-        try {
-            const response = await fetch(url);
-            // 429 (Too Many Requests) または 5xx (Server Error) の場合にリトライ
-            if (response.status === 429 || response.status >= 500) {
-                console.warn(`API request failed with status ${response.status}. Retrying in ${delay * (i + 1)}ms...`);
-                await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
-                continue; // 次のループで再試行
-            }
-            return response; // 成功したレスポンスを返す
-        } catch (error) {
-            console.error(`Fetch network error for ${url}:`, error);
-            if (i === maxRetries - 1) {
-                showNotification('ネットワークエラーが発生しました。', 'error');
-                return null; // 全てのリトライに失敗した場合
-            }
-            await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
-        }
-    }
-    return null; // ループが完了しても成功しなかった場合
-}
-// ▲▲▲ 追加はここまで ▲▲▲
 
 async function generateProfileChart(points) {
     if (points.length < 2) return;
