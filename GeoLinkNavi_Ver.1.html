@@ -4295,7 +4295,7 @@ function createMapCard(map, catKey, categoryHeader) {
 }
 
 
-function decimalToDMS(dd, isLat) { const dir = dd < 0 ? (isLat ? 'S' : 'W') : (isLat ? 'N' : 'E'); dd = Math.abs(dd); const d = Math.floor(dd), m = Math.floor((dd - d) * 60), s = (((dd - d) * 60 - m) * 60).toFixed(3); return `${d}°${String(m).padStart(2,'0')}'${String(s).padStart(6,'0')}" ${dir}`; }
+function decimalToDMS(dd, isLat) { const dir = dd < 0 ? (isLat ? 'S' : 'W') : (isLat ? 'N' : 'E'); dd = Math.abs(dd); const d = Math.floor(dd), m = Math.floor((dd - d) * 60), s = (((dd - d) * 60 - m) * 60).toFixed(5); return `${d}°${String(m).padStart(2,'0')}'${String(s).padStart(6,'0')}" ${dir}`; }
 function dmsToDecimal(dms) { dms = String(dms).trim().toUpperCase(); const parts = dms.match(/(-?\d+\.?\d*)[°D\s]+(\d+)[`'’\s]+([\d.]+)[S"”\s]*\s*([NSEW])?/); if (!parts) throw new Error("Invalid DMS format"); let dd = Math.abs(parseFloat(parts[1])) + parseFloat(parts[2])/60 + parseFloat(parts[3])/3600; if (parseFloat(parts[1]) < 0 || parts[4] === 'S' || parts[4] === 'W') dd = -dd; return dd; }
 function toggleCoordFormat() {
     currentSettings.coordFormat = isDMSFormat ? 'decimal' : 'dms';
@@ -6126,9 +6126,19 @@ function toggleConvFormat(toFormat) {
     const lonInput = document.getElementById('conv-lon');
     try {
         if (toFormat === 'dms') {
+            // ▼▼▼【ここから追加】すでに度分秒形式なら何もしないチェック ▼▼▼
+            if (/[°'"]/.test(latInput.value) || /[°'"]/.test(lonInput.value)) {
+                return; // 既に度分秒形式なので処理を中断
+            }
+            // ▲▲▲【追加ここまで】▲▲▲
             latInput.value = decimalToDMS(parseFloat(latInput.value), true);
             lonInput.value = decimalToDMS(parseFloat(lonInput.value), false);
         } else { // to decimal
+            // ▼▼▼【ここから追加】すでに十進数形式なら何もしないチェック ▼▼▼
+            if (!/[°'"]/.test(latInput.value) && !/[°'"]/.test(lonInput.value)) {
+                return; // 既に十進数形式なので処理を中断
+            }
+            // ▲▲▲【追加ここまで】▲▲▲
             latInput.value = dmsToDecimal(latInput.value).toFixed(8);
             lonInput.value = dmsToDecimal(lonInput.value).toFixed(8);
         }
