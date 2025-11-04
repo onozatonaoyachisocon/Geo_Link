@@ -2388,6 +2388,19 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
 
 /* ▲▲▲【追加ここまで】▲▲▲ */
 
+/* ▼▼▼【ここから追加】座標変換ウィンドウのコンパクト化対応 ▼▼▼ */
+#coord-converter-modal .converter-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+#coord-converter-modal .converter-row .modal-form-group {
+    flex: 1;
+    margin-bottom: 0;
+}
+/* ▲▲▲【追加ここまで】▲▲▲ */
+
 </style>
 </head>
 <body>
@@ -3051,13 +3064,15 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
             <!-- 左パネル：緯度経度 -->
             <div class="converter-panel">
                 <h4>🌐世界測地系 (JGD2011)</h4>
-                <div class="modal-form-group">
-                    <label for="conv-lat">緯度</label>
-                    <input type="text" id="conv-lat" placeholder="例: 35.681074 または 35°40'51.87"">
-                </div>
-                <div class="modal-form-group">
-                    <label for="conv-lon">経度</label>
-                    <input type="text" id="conv-lon" placeholder="例: 139.767843 または 139°46'4.24"">
+                <div class="converter-row">
+                    <div class="modal-form-group">
+                        <label for="conv-lat">緯度</label>
+                        <input type="text" id="conv-lat" placeholder="例: 35.681074">
+                    </div>
+                    <div class="modal-form-group">
+                        <label for="conv-lon">経度</label>
+                        <input type="text" id="conv-lon" placeholder="例: 139.767843">
+                    </div>
                 </div>
                 <!-- 形式変換ボタンを追加 -->
                 <div class="modal-form-group" style="display: flex; gap: 10px;">
@@ -3076,25 +3091,28 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
             <!-- 右パネル：XY座標 -->
             <div class="converter-panel">
                 <h4>📐平面直角座標系 (JGD2011)</h4>
-                <!-- 都道府県選択を追加 -->
-                <div class="modal-form-group">
-                    <label for="conv-pref">都道府県</label>
-                    <select id="conv-pref">
-                        <option value="">自動判別</option>
-                        <!-- JSで生成 -->
-                    </select>
+                <div class="converter-row">
+                    <div class="modal-form-group">
+                        <label for="conv-pref">都道府県</label>
+                        <select id="conv-pref">
+                            <option value="">自動判別</option>
+                            <!-- JSで生成 -->
+                        </select>
+                    </div>
+                    <div class="modal-form-group">
+                        <label for="conv-zone">座標系</label>
+                        <select id="conv-zone"></select>
+                    </div>
                 </div>
-                <div class="modal-form-group">
-                    <label for="conv-zone">座標系</label>
-                    <select id="conv-zone"></select>
-                </div>
-                <div class="modal-form-group">
-                    <label for="conv-x">X座標 (m)</label>
-                    <input type="text" id="conv-x" placeholder="北方向の座標">
-                </div>
-                <div class="modal-form-group">
-                    <label for="conv-y">Y座標 (m)</label>
-                    <input type="text" id="conv-y" placeholder="東方向の座標">
+                <div class="converter-row">
+                    <div class="modal-form-group">
+                        <label for="conv-x">X座標 (m)</label>
+                        <input type="text" id="conv-x" placeholder="北方向の座標">
+                    </div>
+                    <div class="modal-form-group">
+                        <label for="conv-y">Y座標 (m)</label>
+                        <input type="text" id="conv-y" placeholder="東方向の座標">
+                    </div>
                 </div>
             </div>
         </div>
@@ -4466,7 +4484,8 @@ function handleMeasureDoubleClick(e) {
     toggleMeasureMode(true);
 }
 function updateMeasureTooltip(latlng) {
-if (!measureTooltip) return;
+if (!measureTooltip)
+return;
 const totalDistance = calculateTotalDistance([...measurePoints, latlng]);
 const distText = totalDistance > 1000 ? (totalDistance / 1000).toFixed(2) + ' km' : totalDistance.toFixed(1) + ' m';
 measureTooltip.setLatLng(latlng).setContent(`総距離: ${distText}<br>ダブルクリックで終了`);
