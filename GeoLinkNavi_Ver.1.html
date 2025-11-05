@@ -1901,7 +1901,7 @@ body.dark-mode #coord-converter-modal .modal-form-group input[type="text"], body
 
 
 .input-row .input-group.latlon-group {
-    flex: 1 1 120px;
+    flex: 0 1 250px;
     min-width: 120px;
 }
 .input-row .input-group.zone-group {
@@ -1983,6 +1983,7 @@ body.dark-mode #coord-converter-modal .modal-form-group input[type="text"], body
         grid-area: addr-row;
         display: flex;
         gap: 8px;
+        flex-grow: 1; 
     }
 
     .mobile-address-row .input-group.address-group {
@@ -2494,10 +2495,11 @@ body.dark-mode #settings-modal .btn-modal-cancel:hover {
 
     <h4>■ 保存・共有・設定機能</h4>
     <ul>
-        <li><strong>共有・QRコード:</strong> 「🔗 リンク共有」「📱 QRコードで共有」ボタンで、現在の座標やチェックした地図の状態を含むURLを共有や生成ができます。他の人に同じ状態を共有する際に便利です。</li><li><strong>ブックマーク:</strong> 「⭐ ブックマークに保存」ボタンで、お気に入りの場所に名前をつけて保存できます。ヘッダーの「⭐」ボタンからいつでも呼び出せます。</li>
+       <li><strong>共有・QRコード:</strong> 「🔗 リンク共有」「📱 QRコードで共有」ボタンで、現在の座標やチェックした地図の状態を含むURLを共有や生成ができます。他の人に同じ状態を共有する際に便利です。</li><li><strong>ブックマーク:</strong> 「⭐ ブックマークに保存」ボタンで、名前をつけて保存できます。ヘッダーの「⭐」ボタンからいつでも呼び出せます。また、CSVファイルに記載された情報もブックマークに登録できます。</li>
         <li><strong>履歴:</strong> クリックした地点の座標は自動で履歴に保存されます。ヘッダーの「⏱️」ボタンから確認できます。ブックマークと履歴は、CSVまたはKML形式で書き出すことができます。</li>
-        <li><strong>設定とカスタマイズ:</strong> 「⚙️設定」ボタンから、起動時のズームレベル、テーマカラー、パネルの表示など、起動時の状態をカスタマイズできます。</li>
-<li><strong>ダーク・ライトモード:</strong> 「🌙モード切替」ボタンから、ダークモードとライトモードを切り替えることができます。</li>
+               <li><strong>CSVデータ管理:</strong> ヘッダーの「📄 CSVデータ」ボタンから、CSVファイルに記載された地点情報を地図上に一括表示（プロット）したり、地点を順番に確認できる「巡回ナビゲーター」機能を利用したりできます。</li>
+               <li><strong>設定とカスタマイズ:</strong> 「⚙️設定」ボタンから、起動時のズームレベル、テーマカラー、パネルの表示など、起動時の状態をカスタマイズできます。</li>
+        <li><strong>ダーク・ライトモード:</strong> 「🌙モード切替」ボタンから、ダークモードとライトモードを切り替えることができます。</li>
 　　</ul>
     <h4>■ パネル展開・地図リンクと外部地図連携／履歴一覧管理</h4>
     <ul>
