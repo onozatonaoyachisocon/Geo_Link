@@ -1776,8 +1776,7 @@ body.dark-mode #btn-uncheck-all {
 /* 元のレスポンシブスタイルを上書き */
 @media (max-width: 1400px) {
     .input-row {
-        flex-direction: column;
-        align-items: stretch;
+        justify-content: center; /* ← この行を追加して要素を中央揃えにする */
     }
 }
 @media (max-width: 768px) {
@@ -1876,8 +1875,8 @@ body.dark-mode #btn-uncheck-all {
 /* 元のレスポンシブスタイルを上書き */
 @media (max-width: 1400px) {
     .input-row {
-        flex-direction: column;
-        align-items: stretch; /* 縦並びの時は幅を揃える */
+        /* 要素を中央揃えにし、自然な折り返しを促します */
+        justify-content: center;
     }
 }
 @media (max-width: 768px) {
@@ -2583,6 +2582,27 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
     margin-right: -10px;
 }
 
+/* ▼▼▼【ここから追加】タブレット表示でのレイアウト崩れを修正する最終コード ▼▼▼ */
+@media (max-width: 1400px) {
+    .input-row {
+        flex-direction: row !important; /* 横並びを維持 */
+        flex-wrap: wrap !important;     /* 自動で折り返し */
+        justify-content: center !important; /* 中央に配置 */
+        align-items: flex-end !important;   /* 下端揃えを維持 */
+    }
+}
+/* ▲▲▲【追加ここまで】▲▲▲ */
+
+/* ▼▼▼【ここから追加】プロジェクト管理ウィンドウの表示位置を調整 ▼▼▼ */
+@media (min-width: 1025px) { /* PCなど画面幅が広い場合にのみ適用 */
+    #project-modal {
+        /* 横方向の配置を中央揃えから「左揃え」に変更します */
+        justify-content: flex-start;
+        /* 左端に少し余白を追加して、ヘッダーのボタン位置に近づけます */
+        padding-left: 140px; 
+    }
+}
+/* ▲▲▲【追加ここまで】▲▲▲ */
 
 </style>
 </head>
