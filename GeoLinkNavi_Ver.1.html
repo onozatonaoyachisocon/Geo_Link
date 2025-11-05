@@ -898,7 +898,7 @@ font-size: 16px;
 .map-description { display: none; }
 .manual-input-warning { color: var(--red-alert); font-size: 11px; margin-top: 5px; font-weight: 600; }
 
-.status-bar { background: var(--bg-light); padding: 10px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-medium); gap: 15px; flex-shrink: 0; }
+.status-bar { background: var(--bg-light); padding: 3px 10px; border-top: 1px solid var(--border-color); display: flex; justify-content:  center; align-items: center; font-size: 12px; color: var(--text-medium); gap: 15px; flex-shrink: 0; }
 .status-bar strong { color: var(--text-dark); }
 .notification { position: fixed; top: 20px; right: 20px; background: var(--success-color); color: white; padding: 15px 25px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: none; animation: slideIn 0.3s ease; z-index: 2000; font-weight: 600; }
 .notification.error { background: var(--error-color); }
@@ -3013,19 +3013,39 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
 </div>
 </div>
 
-<footer class="legal-notice" style="font-size: 11px; text-align: center; padding: 10px; color: var(--text-medium); background: var(--bg-container);">
-  <p style="margin-bottom: 5px; font-weight: bold;">
-    Copyright &copy; 2025 (株)地圏総合コンサルタント All Rights Reserved.
-  </p>
-  <p style="margin-bottom: 15px; font-size: 11px; color: var(--text-medium);">
-    Developed by: Naoya.Onozato
-  </p>
+<style>
+  .legal-notice p {
+    margin-top: 0;
+    margin-bottom: 3px; /* 段落ごとの間隔をここで調整 */
+  }
+  .legal-notice .copyright,
+  .legal-notice .developer {
+    margin-bottom: 2px; /* 上部の段落は少し詰める */
+  }
+</style>
 
-  本サービスの利用によって生じたいかなる損害についても、作成者は一切の責任を負いません。
-  <br><br>
-  本サービスは以下のオープンソースライブラリおよび公的機関のデータを使用しています:<br>
-  - 地図データ: © 国土地理院, © OpenStreetMap contributors
-  - ライブラリ: Leaflet (BSD-2), QRCode.js (MIT), proj4js (MIT)
+<footer class="legal-notice" style="font-size: 11px; text-align: center; padding: 5px 0; color: var(--text-medium); background: var(--bg-container);">
+  <!-- クリックする部分 -->
+  <div id="legal-toggle" style="cursor: pointer; font-weight: bold; padding: 5px;">
+    免責事項 (クリックで表示)
+  </div>
+  <!-- 詳細が表示される部分 (最初は非表示) -->
+  <div id="legal-details" style="display: none; margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 10px;">
+    <p class="copyright" style="font-weight: bold;">
+      Copyright &copy; 2025 (株)地圏総合コンサルタント All Rights Reserved.
+    </p>
+    <p class="developer" style="font-size: 11px; color: var(--text-medium);">
+      Developed by: Naoya.Onozato
+    </p>
+    <p>
+      本サービスの利用によって生じたいかなる損害についても、作成者は一切の責任を負いません。
+    </p>
+    <p>
+      本サービスは以下のオープンソースライブラリおよび公的機関のデータを使用しています:<br>
+      - 地図データ: © 国土地理院, © OpenStreetMap contributors<br>
+      - ライブラリ: Leaflet (BSD-2), QRCode.js (MIT), proj4js (MIT)
+    </p>
+  </div>
 </footer>
 
 <div class="modal-overlay" id="mylink-modal">
@@ -7254,6 +7274,17 @@ if (window.ResizeObserver) {
             if(targetContent) {
                 targetContent.classList.add('active');
             }
+        });
+    }
+    // ▲▲▲【追加ここまで】▲▲▲
+// ▼▼▼【ここから追加】免責事項の開閉機能 ▼▼▼
+    const legalToggle = document.getElementById('legal-toggle');
+    const legalDetails = document.getElementById('legal-details');
+    if (legalToggle && legalDetails) {
+        legalToggle.addEventListener('click', () => {
+            const isHidden = legalDetails.style.display === 'none';
+            legalDetails.style.display = isHidden ? 'block' : 'none';
+            legalToggle.textContent = isHidden ? '免責事項 (クリックで非表示)' : '免責事項 (クリックで表示)';
         });
     }
     // ▲▲▲【追加ここまで】▲▲▲
