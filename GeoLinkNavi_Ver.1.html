@@ -2609,9 +2609,9 @@ body.dark-mode #settings-modal .btn-modal-cancel:hover {
     <span class="input-button-label" id="coord-format-label">形式切替</span>
 </div>
 
-    <div class="input-group latlon-group mobile-grid-item-lat" title="世界測地系緯度">
+<div class="input-group latlon-group mobile-grid-item-lat" title="世界測地系緯度">
         <div class="input-wrapper">
-            <input type="text" id="latitude" value="35.68107447" placeholder="例: 35.681074">
+            <input type="text" id="latitude" value="35.72985474" placeholder="例: 35.681074">
             <button type="button" class="btn-copy-input" title="緯度をコピー" onclick="copyInputToClipboard('latitude')">📋</button>
         </div>
         <label for="latitude">📍緯度 (Latitude)</label>
@@ -2619,7 +2619,7 @@ body.dark-mode #settings-modal .btn-modal-cancel:hover {
 
     <div class="input-group latlon-group mobile-grid-item-lon" title="世界測地系経度">
         <div class="input-wrapper">
-            <input type="text" id="longitude" value="139.76784396" placeholder="例: 139.767843">
+            <input type="text" id="longitude" value="139.77110828" placeholder="例: 139.767843">
             <button type="button" class="btn-copy-input" title="経度をコピー" onclick="copyInputToClipboard('longitude')">📋</button>
         </div>
         <label for="longitude">📍経度 (Longitude)</label>
@@ -3328,7 +3328,7 @@ const defaultProjectData = {
 
 let MAX_HISTORY = 100;
 const BOOKMARK_KEY = 'coordinateBookmarks', MYLINK_KEY = 'myCustomLinks', FAVORITE_SETS_KEY = 'favoriteSets', SETTINGS_KEY = 'geoLinkNaviSettings', TAB_ORDER_KEY = 'geoLinkNaviTabOrder';
-let osmMap = null, osmMarker = null, autocompleteTimer = null, currentAutocompleteResults = [], selectedAutocompleteIndex = -1, isDMSFormat = false, currentLatLon = { lat: 35.68107447, lon: 139.76784396 };
+let osmMap = null, osmMarker = null, autocompleteTimer = null, currentAutocompleteResults = [], selectedAutocompleteIndex = -1, isDMSFormat = false, currentLatLon = { lat: 35.72985474, lon: 139.77110828 };
 let navigationHistory = [], historyIndex = -1, MAX_NAV_HISTORY = 100;
 let currentCoordsRequestId = 0;
 let profileChartInstance = null;
