@@ -2253,11 +2253,17 @@ body.dark-mode #settings-modal .btn-modal-cancel:hover {
     background-color: #145315; /* より濃い緑 */
 }
 
-/* 「地理院サイトで確認」ボタンの配色 */
-#btn-open-gsi-calc-site {
+/* 「地理院サイトで確認」ボタンの配色 → 新しいボタンにも適用 */
+#btn-open-gsi-calc-site, /* ← 既存のセレクタ（削除してもOK） */
+#btn-open-gsi-bl2xy,     /* ← 新しいボタンのIDを追加 */
+#btn-open-gsi-xy2bl      /* ← 新しいボタンのIDを追加 */
+{
      background-color: var(--btn-googlemap-bg);
 }
-#btn-open-gsi-calc-site:hover {
+#btn-open-gsi-calc-site:hover, /* ← 既存のセレクタ（削除してもOK） */
+#btn-open-gsi-bl2xy:hover,     /* ← 新しいボタンのIDを追加 */
+#btn-open-gsi-xy2bl:hover      /* ← 新しいボタンのIDを追加 */
+{
     background-color: var(--btn-googlemap-hover-bg);
 }
 
@@ -2265,11 +2271,10 @@ body.dark-mode #settings-modal .btn-modal-cancel:hover {
 .converter-actions {
     display: flex;
     align-items: center; /* ボタンの高さを揃える */
+    flex-wrap: wrap;     /* ★ボタンがはみ出したら折り返す設定を追加 */
+    gap: 8px;            /* ★ボタン間の隙間を少し設定 */
 }
-/* 「地理院サイトで確認」ボタンを右端に配置 */
-#btn-open-gsi-calc-site {
-    margin-left: auto;
-}
+
 /* ▲▲▲【変更箇所】▲▲▲ */
 
 /* ▼▼▼【変更箇所】座標変換ウィンドウのボタンスタイルを追加 ▼▼▼ */
@@ -3375,9 +3380,11 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
         <!-- 下部アクションボタン -->
         <div class="converter-actions">
             <button type="button" class="btn-base" id="btn-apply-coords">✔ 結果をメイン画面に反映</button>
-            <!-- 結果をコピーボタンを追加 -->
             <button type="button" class="btn-base" id="btn-copy-conv-result">📋 結果をコピー</button>
-            <button type="button" class="btn-base" id="btn-open-gsi-calc-site">🌏 地理院サイトで確認</button>
+            <!-- ▼▼▼ ここからが変更箇所です ▼▼▼ -->
+            <button type="button" class="btn-base" id="btn-open-gsi-bl2xy" title="緯度・経度をクリップボードにコピーしてサイトを開きます">🌏 地理院(緯経→XY)</button>
+            <button type="button" class="btn-base" id="btn-open-gsi-xy2bl" title="XY座標・系番号をクリップボードにコピーしてサイトを開きます">🌏 地理院(XY→緯経)</button>
+            <!-- ▲▲▲ 変更はここまでです ▲▲▲ -->
         </div>
     </div>
 </div>
@@ -6443,25 +6450,66 @@ function initCoordConverter() {
          showNotification('メイン画面の座標を取得しました。');
     });
 
-    document.getElementById('btn-open-gsi-calc-site').addEventListener('click', () => {
-        const url = 'https://vldb.gsi.go.jp/sokuchi/surveycalc/surveycalc/bl2xyf.html';
-        const latValue = parseFloat(document.getElementById('conv-lat').value);
-        const lonValue = parseFloat(document.getElementById('conv-lon').value);
+  // ▼▼▼ ここからが変更箇所です ▼▼▼
 
-        if (isNaN(latValue) || isNaN(lonValue)) {
-            window.open(url, '_blank');
-            showNotification('地理院サイトを開きます。', 'warning');
-            return;
+    // 「地理院(緯経→XY)」ボタンの処理
+    document.getElementById('btn-open-gsi-bl2xy').addEventListener('click', () => {
+        const url = 'https://vldb.gsi.go.jp/sokuchi/surveycalc/surveycalc/bl2xyf.html';
+        try {
+            const latValue = parseFloat(document.getElementById('conv-lat').value);
+            const lonValue = parseFloat(document.getElementById('conv-lon').value);
+
+            if (isNaN(latValue) || isNaN(lonValue)) {
+                throw new Error('有効な緯度経度が入力されていません。');
+            }
+
+            // 地理院サイトの入力形式(dddmmss.s)に変換
+            const textToCopy = `${decimalToGsiDms(latValue)}\n${decimalToGsiDms(lonValue)}`;
+            
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                window.open(url, '_blank');
+                showNotification('緯度経度をコピーしました。地理院サイトに貼り付けてください。');
+            }).catch(err => {
+                showNotification('コピーに失敗しました。サイトのみ開きます。', 'error');
+                window.open(url, '_blank');
+            });
+        } catch(e) {
+            showNotification(e.message, 'error');
+            window.open(url, '_blank'); // エラーでもサイトは開く
         }
-        const textToCopy = `${decimalToGsiDms(latValue)}\n${decimalToGsiDms(lonValue)}`;
-        navigator.clipboard.writeText(textToCopy).then(() => {
-            window.open(url, '_blank');
-            showNotification('座標をコピーしました。地理院サイトに貼り付けてください。');
-        }).catch(err => {
-            showNotification('コピーに失敗しました。', 'error');
-            window.open(url, '_blank');
-        });
     });
+
+    // 「地理院(XY→緯経)」ボタンの処理
+    document.getElementById('btn-open-gsi-xy2bl').addEventListener('click', () => {
+        const url = 'https://vldb.gsi.go.jp/sokuchi/surveycalc/surveycalc/xy2blf.html';
+        try {
+            const xValue = document.getElementById('conv-x').value;
+            const yValue = document.getElementById('conv-y').value;
+            const zoneSelect = document.getElementById('conv-zone');
+            const systemNum = zoneSelect.options[zoneSelect.selectedIndex].textContent.replace('系', '');
+
+            if (xValue.trim() === '' || yValue.trim() === '' || !systemNum) {
+                throw new Error('有効なXY座標と座標系が選択されていません。');
+            }
+
+            // 地理院サイトの入力順（Y座標, X座標, 系番号）に合わせて文字列を作成
+            const textToCopy = `${yValue}\n${xValue}\n${systemNum}`;
+            
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                window.open(url, '_blank');
+                showNotification('XY座標と系番号をコピーしました。地理院サイトに貼り付けてください。');
+            }).catch(err => {
+                showNotification('コピーに失敗しました。サイトのみ開きます。', 'error');
+                window.open(url, '_blank');
+            });
+        } catch(e) {
+            showNotification(e.message, 'error');
+            window.open(url, '_blank'); // エラーでもサイトは開く
+        }
+    });
+
+    // ▲▲▲ 変更はここまでです ▲▲▲
+
 }
 
 /**
