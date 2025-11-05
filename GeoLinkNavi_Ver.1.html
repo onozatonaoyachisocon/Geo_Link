@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Geo Link Navi</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🗺️%3C/text%3E%3C/svg%3E">
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet/dist/leaflet.js" defer></script>
     <!-- Leaflet.fullscreen plugin -->
@@ -2524,24 +2525,28 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
 .settings-tab {
     padding: 10px 18px;
     cursor: pointer;
-    background: none;
-    border: none;
+    background-color: var(--bg-light); /* 背景色を追加 */
+    border: 2px solid var(--border-color); /* 枠線を追加 */
+    border-bottom: none; /* 下の枠線を消す */
     font-size: 14px;
     font-weight: 600;
     color: var(--text-medium);
-    border-bottom: 3px solid transparent;
     transition: all 0.2s ease;
-    margin-bottom: -2px; /* 枠線と重なるように調整 */
+    margin-bottom: -2px; /* 下の境界線に重ねる */
+    border-top-left-radius: 8px; /* 左上の角を丸める */
+    border-top-right-radius: 8px; /* 右上の角を丸める */
 }
 
 .settings-tab:hover {
     color: var(--text-dark);
-    background-color: var(--bg-light);
+    background-color: var(--border-color); /* ホバー時の背景色を少し濃くする */
 }
 
 .settings-tab.active {
     color: var(--primary-color);
-    border-bottom-color: var(--primary-color);
+    background-color: var(--bg-container); /* アクティブなタブの背景をコンテンツと同じ色に */
+    border-bottom-color: var(--bg-container); /* 下の境界線を背景と同じ色にして一体化させる */
+    z-index: 1; /* 他の要素より手前に表示 */
 }
 
 /* タブコンテンツの表示/非表示 */
@@ -6281,10 +6286,14 @@ function saveMapOrderInCategory(categoryKey) {
 }
 
 // ▼▼▼【変更箇所】座標変換モーダルのための関数群を追加 ▼▼▼
+
+// ★★★【ここからが新しいコードです】★★★
+
 /**
  * 座標変換モーダルを開きます。
+ * (async化し、住所情報取得を待つように変更)
  */
-function openCoordConverterModal() {
+async function openCoordConverterModal() { // ★★★ 変更点: async を追加 ★★★
     const lat = isDMSFormat ? dmsToDecimal($lat.value) : parseFloat($lat.value);
     const lon = isDMSFormat ? dmsToDecimal($lon.value) : parseFloat($lon.value);
 
@@ -6292,19 +6301,10 @@ function openCoordConverterModal() {
     document.getElementById('conv-lon').value = isNaN(lon) ? '' : lon.toFixed(8);
     document.getElementById('conv-x').value = '';
     document.getElementById('conv-y').value = '';
-
-    // 最も近い座標系を自動選択
-    if (!isNaN(lat) && !isNaN(lon)) {
-        let min = Infinity, bestSys = null;
-        for (const s of coordinateSystems) {
-            const d = Math.sqrt(Math.pow(lat - s.lat0, 2) + Math.pow((lon - s.lon0) * Math.cos(lat * Math.PI / 180), 2));
-            if (d < min) { min = d; bestSys = s; }
-        }
-        if (bestSys) {
-            document.getElementById('conv-zone').value = bestSys.epsg;
-        }
-    }
-
+    
+    // ★★★ 変更点: 座標から住所を取得し、都道府県と系を更新する処理を待つ ★★★
+    await updateSelectorsByCoords(lat, lon);
+    
     document.getElementById('coord-converter-modal').style.display = 'flex';
 }
 
@@ -6315,8 +6315,6 @@ function closeCoordConverterModal() {
     document.getElementById('coord-converter-modal').style.display = 'none';
 }
 
-// ▼▼▼【変更箇所】convertToXY関数を度分秒入力に対応させる ▼▼▼
-
 /**
  * 緯度経度からXY座標へ変換します。
  */
@@ -6326,11 +6324,9 @@ function convertToXY() {
         const lonInput = document.getElementById('conv-lon').value;
         const epsg = document.getElementById('conv-zone').value;
 
-        // 度分秒形式かどうかの簡易判定
         const isDmsLat = /[°'"NSEW]/i.test(latInput);
         const isDmsLon = /[°'"NSEW]/i.test(lonInput);
 
-        // 入力値に応じてパーサーを切り替え
         const lat = isDmsLat ? dmsToDecimal(latInput) : parseFloat(latInput);
         const lon = isDmsLon ? dmsToDecimal(lonInput) : parseFloat(lonInput);
 
@@ -6346,13 +6342,12 @@ function convertToXY() {
         showNotification(`変換エラー: ${e.message}`, 'error');
     }
 }
-// ▲▲▲【変更箇所】▲▲▲
 
-// ▼▼▼【変更箇所】convertToLatLon関数を修正 ▼▼▼
 /**
  * XY座標から緯度経度へ変換します。
+ * (変換後に都道府県と系のプルダウンも更新するように変更)
  */
-function convertToLatLon() {
+async function convertToLatLon() { // ★★★ 変更点: async を追加 ★★★
     try {
         const x = parseFloat(document.getElementById('conv-x').value);
         const y = parseFloat(document.getElementById('conv-y').value);
@@ -6366,15 +6361,14 @@ function convertToLatLon() {
         document.getElementById('conv-lat').value = lat.toFixed(8);
         document.getElementById('conv-lon').value = lon.toFixed(8);
         
-        // 変換後の緯度経度に基づいてセレクタを更新
-        updateSelectorsByCoords(lat, lon);
+        // ★★★ 変更点: 変換後の緯度経度に基づいてセレクタを更新 ★★★
+        await updateSelectorsByCoords(lat, lon);
 
         showNotification('緯度経度に変換しました。');
     } catch (e) {
         showNotification(`変換エラー: ${e.message}`, 'error');
     }
 }
-// ▲▲▲【変更箇所】▲▲▲
 
 /**
  * 変換結果をメイン画面に反映します。
@@ -6394,9 +6388,6 @@ function applyConverterResult() {
     showNotification('変換結果をメイン画面に反映しました。');
 }
 
-// ▼▼▼【変更箇所】座標変換モーダルの関数群を全面的に更新 ▼▼▼
-
-// ▼▼▼【変更箇所】initCoordConverter関数を修正 ▼▼▼
 /**
  * 座標変換モーダルの初期設定を行います。
  */
@@ -6410,12 +6401,10 @@ function initCoordConverter() {
     });
     
     const prefSelect = document.getElementById('conv-pref');
-    // PREFECTURE_ORDER配列の順でプルダウンを生成
     PREFECTURE_ORDER.forEach(p => {
         const o = document.createElement('option'); o.value = p; o.textContent = p; prefSelect.appendChild(o);
     });
 
-    // イベントリスナー
     document.getElementById('btn-open-coord-converter').addEventListener('click', openCoordConverterModal);
     document.getElementById('coord-converter-close-btn').addEventListener('click', closeCoordConverterModal);
     document.getElementById('btn-convert-to-xy').addEventListener('click', convertToXY);
@@ -6454,47 +6443,20 @@ function initCoordConverter() {
         });
     });
 }
-// ▲▲▲【変更箇所】▲▲▲
-
-/**
- * 座標変換モーダルを開きます。
- */
-function openCoordConverterModal() {
-    const lat = isDMSFormat ? dmsToDecimal($lat.value) : parseFloat($lat.value);
-    const lon = isDMSFormat ? dmsToDecimal($lon.value) : parseFloat($lon.value);
-
-    document.getElementById('conv-lat').value = isNaN(lat) ? '' : lat.toFixed(8);
-    document.getElementById('conv-lon').value = isNaN(lon) ? '' : lon.toFixed(8);
-    document.getElementById('conv-x').value = '';
-    document.getElementById('conv-y').value = '';
-    
-    updateSelectorsByCoords(lat, lon);
-    
-    document.getElementById('coord-converter-modal').style.display = 'flex';
-}
 
 /**
  * 座標変換モーダル内の緯度経度表示形式をトグルします。
- * @param {'decimal' | 'dms'} toFormat - 変換先のフォーマット
  */
 function toggleConvFormat(toFormat) {
     const latInput = document.getElementById('conv-lat');
     const lonInput = document.getElementById('conv-lon');
     try {
         if (toFormat === 'dms') {
-            // ▼▼▼【ここから追加】すでに度分秒形式なら何もしないチェック ▼▼▼
-            if (/[°'"]/.test(latInput.value) || /[°'"]/.test(lonInput.value)) {
-                return; // 既に度分秒形式なので処理を中断
-            }
-            // ▲▲▲【追加ここまで】▲▲▲
+            if (/[°'"]/.test(latInput.value) || /[°'"]/.test(lonInput.value)) { return; }
             latInput.value = decimalToDMS(parseFloat(latInput.value), true);
             lonInput.value = decimalToDMS(parseFloat(lonInput.value), false);
-        } else { // to decimal
-            // ▼▼▼【ここから追加】すでに十進数形式なら何もしないチェック ▼▼▼
-            if (!/[°'"]/.test(latInput.value) && !/[°'"]/.test(lonInput.value)) {
-                return; // 既に十進数形式なので処理を中断
-            }
-            // ▲▲▲【追加ここまで】▲▲▲
+        } else {
+            if (!/[°'"]/.test(latInput.value) && !/[°'"]/.test(lonInput.value)) { return; }
             latInput.value = dmsToDecimal(latInput.value).toFixed(8);
             lonInput.value = dmsToDecimal(lonInput.value).toFixed(8);
         }
@@ -6510,7 +6472,6 @@ function updateZoneSelectByPref() {
     const pref = document.getElementById('conv-pref').value;
     const systemsForPref = prefectureToSystem[pref] || [];
     const zoneSelect = document.getElementById('conv-zone');
-    
     let firstVisibleOption = null;
 
     for (const option of zoneSelect.options) {
@@ -6521,7 +6482,6 @@ function updateZoneSelectByPref() {
             firstVisibleOption = option;
         }
     }
-    // 現在選択されているものが非表示になった場合、表示されている最初のものを選ぶ
     if (zoneSelect.selectedOptions.length > 0 && zoneSelect.selectedOptions[0].style.display === 'none') {
         if (firstVisibleOption) {
             zoneSelect.value = firstVisibleOption.value;
@@ -6531,8 +6491,9 @@ function updateZoneSelectByPref() {
 
 /**
  * 座標に基づいて都道府県と座標系を自動選択します。
+ * (住所取得APIを呼び出し、より正確に都道府県を判定するよう修正)
  */
-function updateSelectorsByCoords(lat, lon) {
+async function updateSelectorsByCoords(lat, lon) { // ★★★ 変更点: async を追加 ★★★
     const prefSelect = document.getElementById('conv-pref');
     const zoneSelect = document.getElementById('conv-zone');
 
@@ -6542,6 +6503,22 @@ function updateSelectorsByCoords(lat, lon) {
         return;
     };
 
+    // ★★★ 変更点: 座標から住所情報を非同期で取得 ★★★
+    const addressInfo = await getAddressFromCoords(lat, lon);
+    // 住所文字列の先頭から都道府県名を正規表現で抽出
+    const prefecture = addressInfo.structured.match(/^.{2,3}[都道府県]/) ? addressInfo.structured.match(/^.{2,3}[都道府県]/)[0] : null;
+
+    // ★★★ 変更点: 取得した都道府県をプルダウンに設定 ★★★
+    if (prefecture && prefSelect.querySelector(`option[value="${prefecture}"]`)) {
+        prefSelect.value = prefecture;
+    } else {
+        prefSelect.value = ""; // 該当なし、または取得失敗
+    }
+    
+    // ★★★ 変更点: 都道府県の選択後に「系」のリストを更新 ★★★
+    updateZoneSelectByPref();
+
+    // 座標に最も近い座標系を見つけるロジック（これは従来通り）
     let min = Infinity, bestSys = null;
     for (const s of coordinateSystems) {
         const d = Math.sqrt(Math.pow(lat - s.lat0, 2) + Math.pow((lon - s.lon0) * Math.cos(lat * Math.PI / 180), 2));
@@ -6549,19 +6526,10 @@ function updateSelectorsByCoords(lat, lon) {
     }
     
     if (bestSys) {
-        let foundPref = false;
-        for (const pref in prefectureToSystem) {
-            if (prefectureToSystem[pref].includes(bestSys.num)) {
-                prefSelect.value = pref;
-                foundPref = true;
-                break;
-            }
+        // 絞り込まれた選択肢の中に、最も近い系が存在すればそれを選択
+        if (zoneSelect.querySelector(`option[value="${bestSys.epsg}"]`)) {
+             zoneSelect.value = bestSys.epsg;
         }
-        if (!foundPref) {
-             prefSelect.value = "";
-        }
-        updateZoneSelectByPref();
-        zoneSelect.value = bestSys.epsg;
     }
 }
 
@@ -6574,7 +6542,6 @@ function copyConverterResult() {
         const selectedOption = zoneSelect.options[zoneSelect.selectedIndex];
         const epsg = selectedOption.value;
         const systemText = selectedOption.textContent;
-        
         const x = document.getElementById('conv-x').value;
         const y = document.getElementById('conv-y').value;
         const latDec = parseFloat(document.getElementById('conv-lat').value);
@@ -6605,6 +6572,7 @@ Y (東方向): ${y} m
         showNotification(e.message, 'error');
     }
 }
+// ★★★【新しいコードはここまでです】★★★
 
 // ▲▲▲【変更箇所】▲▲▲
 
