@@ -8,28 +8,28 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet/dist/leaflet.js" defer></script>
     <!-- Leaflet.fullscreen plugin -->
-<!-- ▼▼▼【ここから追加】マーカークラスタリング用プラグイン ▼▼▼ -->
     <!-- Leaflet.markercluster plugin -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.1/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.1/dist/MarkerCluster.Default.css" />
     <script src="https://unpkg.com/leaflet.markercluster@1.5.1/dist/leaflet.markercluster.js" defer></script>
-    <!-- ▲▲▲【追加ここまで】▲▲▲ -->
     <link href="https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/leaflet.fullscreen.css" rel="stylesheet" />
     <script src="https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/Leaflet.fullscreen.min.js" defer></script>
-    <!-- ▼▼▼【変更箇所】proj4.jsの読み込みを追加 ▼▼▼ -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.11.0/proj4.js" defer></script>
-    <!-- ▲▲▲【変更箇所】▲▲▲ -->
     <!-- GPX/KML Importer Plugin -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.7.0/gpx.min.js" defer></script>
     <!-- QRコード生成ライブラリ -->
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js" defer></script>
+    
+    <!-- ▼▼▼【ここから追加】CSV解析ライブラリ (PapaParse) ▼▼▼ -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js" defer></script>
+    <!-- ▲▲▲【追加ここまで】▲▲▲ -->
 
 <style>
 :root {
 /* ライトモード変数 */
 --primary-color: #667eea;
 --secondary-color: #764ba2;
---bg-light: #f8f9fa;
+--bg-light: #ffffff;
 --bg-page: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
 --bg-container: white;
 --text-dark: #333;
@@ -65,6 +65,11 @@
 --btn-export-kml-hover-bg: #F9A825;
 --btn-format-toggle-bg: #d1c4e9;
 --btn-format-toggle-hover-bg: #9575cd;
+
+/* ▼▼▼【ここから追加】インポートボタン用の色 ▼▼▼ */
+--btn-import-bg: #81C784;
+--btn-import-hover-bg: #4CAF50;
+/* ▲▲▲【追加ここまで】▲▲▲ */
 
 /* ピン留めボタン用の淡い背景色 */
 --btn-pin-bg: rgba(102, 126, 234, 0.7);
@@ -126,6 +131,11 @@ body.dark-mode {
 --btn-format-toggle-bg: #5e35b1;
 --btn-format-toggle-hover-bg: #4527a0;
 
+/* ▼▼▼【ここから追加】インポートボタン用の色 (ダークモード) ▼▼▼ */
+--btn-import-bg: #66BB6A;
+--btn-import-hover-bg: #43A047;
+/* ▲▲▲【追加ここまで】▲▲▲ */
+
 /* ピン留めボタン用の淡い背景色 (ダークモード) */
 --btn-pin-bg: rgba(79, 70, 229, 0.6);
 --btn-pin-pinned-bg: rgba(168, 85, 247, 0.6);
@@ -186,7 +196,6 @@ width: 100vw;
 background: var(--bg-container);
 border-radius: 0;
 box-shadow: var(--shadow-base);
- /* overflow: hidden; */ /* ← この行を削除またはコメントアウトします */
 transition: background 0.5s, box-shadow 0.5s;
 display: flex;
 flex-direction: column;
@@ -196,28 +205,26 @@ flex-grow: 1;
 .header {
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
     color: white;
-    padding: 8px 15px;
+    padding: 1px 15px;
     position: relative;
     flex-shrink: 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 15px;
-    /* ▼▼▼【ここから追加】▼▼▼ */
-    position: -webkit-sticky; /* Safari用の互換性設定 */
-    position: sticky;       /* ヘッダーを固定するための設定 */
-    top: 0;                 /* 画面の最上部に固定する */
-    z-index: 1010;          /* 他の要素より手前に表示するための設定 */
-    /* ▲▲▲【追加ここまで】▲▲▲ */
+    position: -webkit-sticky;
+    position: sticky;
+    top: 0;
+    z-index: 1010;
     }
 
 .header-left { display: flex; align-items: center; gap: 15px; flex-shrink: 1; min-width: 0; }
 .header h1 { font-size: 24px; margin-bottom: 0; flex-shrink: 0; white-space: nowrap; }
-.header-buttons { display: flex; gap: 10px; }
+.header-buttons { display: flex; gap: 10px; align-items: center; }
 .header-button-wrapper { display: flex; flex-direction: column; align-items: center; gap: 3px; position: relative; }
 .header-button-label { font-size: 10px; color: white; white-space: nowrap; opacity: 0.9; }
 
-.mode-toggle, .history-button, .bookmark-button, .share-button, .nav-button, .settings-button, .usage-button, .qr-button {
+.mode-toggle, .history-button, .bookmark-button, .share-button, .nav-button, .settings-button, .usage-button, .qr-button, .header-button {
 background: rgba(255, 255, 255, 0.2);
 border: none;
 color: white;
@@ -231,7 +238,7 @@ justify-content: center;
 transition: all 0.3s;
 }
 
-.mode-toggle:hover, .history-button:hover, .bookmark-button:hover, .share-button:hover, .nav-button:hover:not(:disabled), .settings-button:hover, .usage-button:hover, .qr-button:hover {
+.mode-toggle:hover, .history-button:hover, .bookmark-button:hover, .share-button:hover, .nav-button:hover:not(:disabled), .settings-button:hover, .usage-button:hover, .qr-button:hover, .header-button:hover {
 background: rgba(255, 255, 255, 0.4);
 transform: scale(1.05);
 }
@@ -242,13 +249,13 @@ transform: scale(1.05);
 }
 
 
-.history-popup, .bookmark-popup {
+.history-popup, .bookmark-popup, #csvPopup {
 position: absolute;
 background: var(--bg-container);
 border: 1px solid var(--border-color);
 border-radius: var(--radius-base);
 box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-width: 320px;
+width: 400px; /* ← 幅を広げました */
 max-height: 450px;
 padding: 10px;
 z-index: 1050;
@@ -258,15 +265,28 @@ top: calc(100% + 10px);
 right: 0;
 }
 
-.history-popup h4, .bookmark-popup h4 { margin-bottom: 10px; padding: 5px; border-bottom: 2px solid var(--primary-color); color: var(--primary-color); font-size: 14px; }
+#csvPopup {
+    width: 250px;
+}
+
+.history-popup h4, .bookmark-popup h4, #csvPopup h4 { margin-bottom: 10px; padding: 5px; border-bottom: 2px solid var(--primary-color); color: var(--primary-color); font-size: 14px; }
 .popup-buttons { display: flex; gap: 5px; margin: 0 5px 10px; }
-.popup-buttons button { flex: 1; min-width: 80px; padding: 8px 5px; font-size: 12px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background-color 0.2s; border: none; color: white; }
+.popup-buttons button { flex: 1; min-width: 90px; padding: 8px 5px; font-size: 12px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background-color 0.2s; border: none; color: white; white-space: nowrap; /* ← テキストの折り返しを防ぐ設定を追加 */ }
 .btn-clear-history, .btn-clear-bookmarks { background-color: var(--error-color); }
 .btn-clear-history:hover, .btn-clear-bookmarks:hover { background-color: #C62828; }
 .btn-export-csv { background-color: var(--primary-color); }
 .btn-export-csv:hover { background-color: #5568d3; }
 .btn-export-kml { background-color: var(--btn-export-kml-bg); }
 .btn-export-kml:hover { background-color: var(--btn-export-kml-hover-bg); }
+
+/* ▼▼▼【ここから追加】インポートボタンのスタイル ▼▼▼ */
+.btn-import-csv {
+    background-color: var(--btn-import-bg);
+}
+.btn-import-csv:hover {
+    background-color: var(--btn-import-hover-bg);
+}
+/* ▲▲▲【追加ここまで】▲▲▲ */
 
 #historyList, #bookmarkList { max-height: 340px; overflow-y: auto; }
 
@@ -298,10 +318,8 @@ right: 0;
     width: 1400px;
     max-width: 95vw;
     z-index: 1100;
-    /* ▼▼▼ ここから追加 ▼▼▼ */
-    max-height: 70vh;   /* ウィンドウの高さを画面の高さの80%までに制限 */
-    overflow-y: auto;   /* 内容がはみ出た場合にのみ、縦スクロールバーを表示 */
-    /* ▲▲▲ ここまで追加 ▲▲▲ */
+    max-height: 70vh;
+    overflow-y: auto;
 }
 .usage-guide.show { display: block; }
 @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
@@ -309,7 +327,6 @@ right: 0;
 .usage-guide ul { list-style: disc inside; padding-left: 20px; margin-top: 10px; }
 .usage-guide li { margin-bottom: 5px; line-height: 1.5; }
 
-/* ▼▼▼ プロジェクトスイッチャーのスタイル ▼▼▼ */
 .project-switcher {
     position: relative;
     flex-grow: 1;
@@ -375,28 +392,33 @@ right: 0;
     color: var(--secondary-color) !important;
 }
 
-/* プロジェクト管理モーダル */
 #project-modal .modal-content {
-    max-width: 600px;
+    max-width: 420px;
+    padding: 15px;
+}
+#project-modal h3 {
+    margin-bottom: 12px;
+    font-size: 1.1em;
 }
 .project-list-container {
-    max-height: 300px;
+    max-height: 250px;
     overflow-y: auto;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-base);
-    margin-bottom: 20px;
+    margin-bottom: 12px;
 }
 #projectManagementList {
     list-style: none;
     padding: 5px;
 }
 #projectManagementList li {
-    padding: 12px 15px;
+    padding: 8px 12px;
     border-radius: 8px;
     cursor: pointer;
     font-weight: 500;
     margin-bottom: 3px;
     transition: background-color 0.2s;
+    font-size: 13px;
 }
 #projectManagementList li:hover {
     background-color: var(--bg-light);
@@ -409,15 +431,64 @@ right: 0;
 .project-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 8px;
     border-top: 1px solid var(--border-color);
-    padding-top: 20px;
+    padding-top: 12px;
 }
 .project-actions button {
-    padding: 8px 15px;
-    font-size: 13px;
+    padding: 6px 12px;
+    font-size: 12px;
+    transition: all 0.3s ease;
+    color: white;
+    border: none;
 }
-/* ▲▲▲ ここまで ▲▲▲ */
+#project-modal .modal-buttons {
+    margin-top: 15px;
+}
+.project-actions.project-actions-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+}
+#project-modal .project-actions button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+#btn-new-project {
+    background-color: #03A9F4;
+}
+#btn-new-project:hover:not(:disabled) {
+    background-color: #0288D1;
+}
+#btn-duplicate-project {
+    background-color: #2962FF;
+}
+#btn-duplicate-project:hover:not(:disabled) {
+    background-color: #0039cb;
+}
+#btn-rename-project {
+    background-color: var(--btn-export-kml-hover-bg);
+}
+#btn-rename-project:hover:not(:disabled) {
+    background-color: #F57F17;
+}
+#btn-delete-project {
+    background-color: var(--error-color);
+}
+#btn-delete-project:hover:not(:disabled) {
+    background-color: #C62828;
+}
+#btn-export-project {
+    background-color: var(--primary-color);
+}
+#btn-export-project:hover:not(:disabled) {
+    background-color: var(--secondary-color);
+}
+#btn-import-project {
+    background-color: var(--success-color);
+}
+#btn-import-project:hover:not(:disabled) {
+    background-color: #145315;
+}
 
 
 .main-layout {
@@ -449,7 +520,7 @@ right: 0;
     max-width: 80vw;
     display: flex;
     flex-direction: column;
-    overflow: hidden; /* 子要素でスクロールを制御 */
+    overflow: hidden;
     background: var(--bg-container);
     border-radius: var(--radius-base);
     box-shadow: var(--shadow-base);
@@ -525,12 +596,11 @@ margin-top: 0;
 flex-shrink: 0;
 }
 
-/* input-rowをFlexboxコンテナとして設定し、一列に並べる */
 .input-row {
     display: flex;
-    align-items: flex-end; /* ボタンと入力欄の下端を揃える */
+    align-items: flex-end;
     gap: 10px;
-    flex-wrap: wrap; /* 画面が狭い場合に折り返す */
+    flex-wrap: wrap;
 }
 .input-buttons-group {
     display: flex;
@@ -641,8 +711,8 @@ body.dark-mode .zoom-slider-overlay { background: rgba(31, 41, 55, 0.8); box-sha
 .zoom-slider-overlay #zoomLevelDisplay { font-weight: 700; color: var(--primary-color); width: 25px; text-align: center; font-size: 14px; }
 body.dark-mode .zoom-slider-overlay #zoomLevelDisplay { color: var(--text-dark); }
 
-.map-preview-container { margin-top: 10px; padding-top: 15px; border-top: 1px solid var(--border-color); flex-shrink: 0; }
-.preview-header { display: flex; align-items: center; font-size: 16px; margin-bottom: 10px; cursor: pointer; }
+.map-preview-container { margin-top: 10px; padding-top: 1px; border-top: 1px solid var(--border-color); flex-shrink: 0; }
+.preview-header { display: flex; align-items: center; font-size: 16px; margin-bottom: 1px; cursor: pointer; }
 .preview-header h3 { font-size: 16px; margin: 0; padding-right: 10px; display: flex; align-items: center; gap: 8px; }
 .preview-header h3 .btn-copy { position: static; height: auto; padding: 0 4px; }
 .preview-header-icon { font-size: 14px; transition: transform 0.3s; margin-left: auto; }
@@ -658,15 +728,13 @@ border-radius: 0;
 box-shadow: 0 4px 15px rgba(0,0,0,0.1);
 }
 
-.osm-map-header { display: flex; align-items: center; gap: 15px; margin-bottom: 10px; }
+.osm-map-header { display: flex; align-items: center; gap: 15px; margin-bottom: 5px; padding-top: 0; padding-bottom: 0; }
 
 .osm-map-header {
     cursor: pointer;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding-top: 0px;
-    padding-bottom: 0px;
 }
 .osm-map-wrapper {
     max-height: 1000px;
@@ -690,16 +758,15 @@ box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     flex-shrink: 0;
 }
 
-/* ★★★ START: タブ関連のスタイル ★★★ */
 .panel-tabs {
     display: flex;
     border-bottom: 2px solid var(--border-color);
-    margin: 8px -8px 0 -8px;
+    margin: 0px -8px 0 -8px;
     padding: 0 8px;
 }
 .panel-tab {
     flex: 1;
-    padding: 12px 15px;
+    padding: 8px 15px;
     font-size: 14px;
     font-weight: 600;
     cursor: grab;
@@ -714,6 +781,9 @@ box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     margin-bottom: -2px;
     position: relative;
     user-select: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .panel-tab:active {
     cursor: grabbing;
@@ -727,7 +797,7 @@ box-shadow: 0 4px 15px rgba(0,0,0,0.1);
 }
 .panel-tab.active {
     background-color: var(--bg-container);
-    color: var(--secondary-color); /* より明るい紫色の変数を使用 */
+    color: var(--secondary-color);
     border-color: var(--border-color);
     border-bottom-color: var(--bg-container);
     z-index: 1;
@@ -736,7 +806,7 @@ box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     flex-grow: 1;
     position: relative;
     overflow: hidden;
-    display: flex; /* For ordering */
+    display: flex;
 }
 .panel-content {
     display: none;
@@ -744,12 +814,12 @@ box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     width: 100%;
     overflow: hidden;
     flex-direction: column;
-    flex-shrink: 0; /* Prevent shrinking */
+    flex-shrink: 0;
 }
 #map-links-content {
-    max-height: 85vh;   /* コンテナ全体の最大高さを画面の高さの85%に固定 */
-    overflow-y: auto;   /* コンテナがコンテンツで溢れた場合に縦スクロールを有効にする */
-    padding: 8px;       /* 内側の余白を確保 */
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 8px;
 }
 #history-content, #bookmarks-content {
     padding: 8px 8px 0 8px;
@@ -757,11 +827,8 @@ box-shadow: 0 4px 15px rgba(0,0,0,0.1);
 .panel-content.active {
     display: flex;
 }
-/* ★★★ END: タブ関連のスタイル ★★★ */
 
-
-.category { margin-bottom: 8px; }
-/* ▼▼▼【ここから追加】カテゴリドラッグ中のスタイル ▼▼▼ */
+.category { margin-bottom: 6px; }
 .category.dragging {
     opacity: 0.4;
     background: var(--primary-color);
@@ -769,7 +836,6 @@ box-shadow: 0 4px 15px rgba(0,0,0,0.1);
 .category.drag-over {
     border-top: 3px dashed var(--secondary-color);
 }
-/* ▲▲▲【追加ここまで】▲▲▲ */
 
 .category-header {
 display: flex;
@@ -845,20 +911,20 @@ content: '❌';
 .map-grid {
 display: grid;
 grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-gap: 8px;
+gap: 6px;
 }
 
 .map-card {
     background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-base);
-    padding: 4px 8px;
+    padding: 2px 8px;
     transition: all 0.3s;
     position: relative;
     display: flex;
     flex-direction: column;
     cursor: grab;
-    min-height: 42px;
+    min-height: 38px;
     justify-content: center;
 }
 .map-card:active {
@@ -879,6 +945,26 @@ gap: 8px;
 .map-card[data-category="weather"] { border-left: 3px solid #00BCD4; }
 .map-card[data-category="other"] { border-left: 3px solid #9C27B0; }
 .map-card[data-category="mylink"] { border-left: 3px solid #FFC107; }
+.map-card.dragging {
+    opacity: 0.4;
+    transform: scale(0.95);
+}
+.category.drag-over .map-grid {
+    background-color: var(--bg-light);
+    border: 2px dashed var(--secondary-color);
+    border-radius: var(--radius-base);
+}
+.map-card.drop-indicator-before::before {
+    content: '';
+    position: absolute;
+    top: -5px;
+    left: 5%;
+    width: 90%;
+    height: 4px;
+    background-color: var(--secondary-color);
+    border-radius: 2px;
+    z-index: 1;
+}
 
 .map-header-with-check { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0; padding-right: 5px; }
 .map-title {
@@ -984,19 +1070,20 @@ color: var(--text-dark);
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.6);
+    background: rgba(0,0,0,0.2);
     display: flex;
-    /* ▼▼▼【変更箇所】align-items を center から flex-start に変更 ▼▼▼ */
     align-items: flex-start;
     justify-content: center;
     z-index: 2000;
     display: none;
-    /* ▼▼▼【追加】上下に余白を追加して、ウィンドウが画面端にくっつかないようにする ▼▼▼ */
     padding-top: 5vh;
     padding-bottom: 5vh;
-    overflow-y: auto; /* ウィンドウが画面より大きい場合にスクロールできるようにする */
+    overflow-y: auto;
+pointer-events: none;
 }
-.modal-content { background: var(--bg-container); padding: 25px; border-radius: var(--radius-base); width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+.modal-content { background: var(--bg-container); padding: 25px; border-radius: var(--radius-base); width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); 
+pointer-events: auto;
+}
 .modal-content h3 { margin-top: 0; color: var(--primary-color); margin-bottom: 20px; }
 .modal-form-group { margin-bottom: 15px; }
 .modal-form-group label { display: block; font-weight: 600; margin-bottom: 5px; font-size: 14px; }
@@ -1048,12 +1135,12 @@ color: var(--text-dark);
 }
 
 .favorite-sets-container {
-    position: -webkit-sticky; /* Safari対応 */
+    position: -webkit-sticky;
     position: sticky;
-    top: -8px; /* 親要素のパディング分を相殺して、コンテナの最上部に固定する */
-    z-index: 20; /* 値を10より大きい数値に変更 (例: 20) */
-    background: var(--bg-container); /* スクロール時に下のコンテンツが透けないように背景色を指定 */
-    padding-bottom: 8px; /* 固定表示した際に、下のカテゴリとの間に少し余白を作る */
+    top: -8px;
+    z-index: 20;
+    background: var(--bg-container);
+    padding-bottom: 8px;
 }
 .favorite-set-row {
     display: flex;
@@ -1090,9 +1177,15 @@ color: var(--text-dark);
     background-color: var(--btn-save-bookmark-bg);
     color: var(--text-dark);
 }
+.btn-save-set:hover {
+    background-color: var(--btn-save-bookmark-hover-bg);
+}
 .btn-delete-set {
     background-color: var(--error-color);
     color: white;
+}
+.btn-delete-set:hover {
+    background-color: #C62828;
 }
 .btn-open-set {
     background-color: var(--btn-bulk);
@@ -1241,7 +1334,6 @@ body.dark-mode #btn-uncheck-all {
     background-color: var(--success-color);
 }
 
-/* ▼▼▼【ここから追加】設定モーダル内の地図表示設定スタイル ▼▼▼ */
 .map-visibility-controls {
     display: flex;
     gap: 8px;
@@ -1304,17 +1396,11 @@ body.dark-mode #btn-uncheck-all {
     font-size: 13px;
 }
 
-/* ▲▲▲【追加ここまで】▲▲▲ */
-
-
-/* --- ここからテーブル用の共通スタイル --- */
 .table-container {
     background: var(--bg-container);
     display: flex;
     flex-direction: column;
-    /* 親要素が持つ高さいっぱいに広がるように設定 */
     height: 100%; 
-    /* 念のため、このコンテナ自体がはみ出さないように設定 */
     overflow: hidden;
 }
 .table-container h3 {
@@ -1328,7 +1414,6 @@ body.dark-mode #btn-uncheck-all {
     margin-bottom: 15px;
     flex-wrap: wrap;
     align-items: center;
-    /* コントロール部分はスクロールさせずに固定するため、縮まないように設定 */
     flex-shrink: 0; 
 }
 .table-controls input[type="search"] {
@@ -1338,7 +1423,7 @@ body.dark-mode #btn-uncheck-all {
     border-radius: 8px;
     background-color: var(--card-bg);
     color: var(--text-dark);
-    min-width: 85px;/* 画面の高さの85%を上限に設定 */
+    min-width: 85px;
 }
 .table-controls button {
     padding: 8px 12px;
@@ -1384,7 +1469,6 @@ body.dark-mode #btn-uncheck-all {
   overflow-y: scroll; 
 }
 .data-table {
-    /* width: 50%; */ /* ← ★この行を削除またはコメントアウトします */
     border-collapse: collapse;
     font-size: 12px;
 }
@@ -1440,29 +1524,32 @@ body.dark-mode #btn-uncheck-all {
 .data-table .btn-action.delete:hover {
     color: var(--error-color);
 }
-/* --- ここまでテーブル用の共通スタイル --- */
 
-/* ▼▼▼【変更箇所】座標変換ウィンドウ用のスタイルを追加 ▼▼▼ */
 #coord-converter-modal .modal-content {
-    max-width: 800px;
+    max-width: 700px;
+    padding: 15px;
+}
+#coord-converter-modal h3 {
+    margin-bottom: 12px;
+    font-size: 1.1em;
 }
 .converter-grid {
     display: grid;
     grid-template-columns: 1fr auto 1fr;
-    gap: 20px;
+    gap: 12px;
     align-items: center;
 }
 .converter-panel {
     border: 1px solid var(--border-color);
     border-radius: var(--radius-base);
-    padding: 15px;
+    padding: 12px;
     background-color: var(--bg-light);
 }
 .converter-panel h4 {
     margin-top: 0;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
     color: var(--secondary-color);
-    font-size: 16px;
+    font-size: 1em;
 }
 .converter-arrows {
     display: flex;
@@ -1483,29 +1570,115 @@ body.dark-mode #btn-uncheck-all {
     color: white;
 }
 .converter-actions {
-    margin-top: 20px;
-    padding-top: 20px;
+    margin-top: 12px;
+    padding-top: 12px;
     border-top: 1px solid var(--border-color);
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 8px;
+    align-items: center;
 }
-/* ▲▲▲【変更箇所】▲▲▲ */
+.converter-actions .btn-base {
+    padding: 8px 10px;
+    font-size: 12px;
+    flex: 1 1 auto;
+}
+#coord-converter-modal .modal-form-group {
+    margin-bottom: 10px;
+}
+#coord-converter-modal .modal-form-group label {
+    font-size: 13px;
+    margin-bottom: 3px;
+}
+#coord-converter-modal .modal-form-group input, #coord-converter-modal .modal-form-group select {
+    padding: 8px;
+    font-size: 13px;
+}
+#coord-converter-modal .btn-base:hover:not(:disabled), #coord-converter-modal .converter-arrows button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+#btn-convert-to-xy, #btn-convert-to-latlon {
+    background-color: var(--secondary-color);
+    color: white;
+}
+#btn-convert-to-xy:hover, #btn-convert-to-latlon:hover {
+    background-color: var(--primary-color);
+}
+#btn-get-main-coords {
+    background-color: var(--btn-paste-bg);
+}
+#btn-get-main-coords:hover {
+    background-color: var(--btn-paste-hover-bg);
+}
+#btn-apply-coords {
+    background-color: var(--success-color);
+}
+#btn-apply-coords:hover {
+    background-color: #145315;
+}
+#btn-open-gsi-bl2xy, #btn-open-gsi-xy2bl {
+     background-color: var(--btn-googlemap-bg);
+}
+#btn-open-gsi-bl2xy:hover, #btn-open-gsi-xy2bl:hover {
+    background-color: var(--btn-googlemap-hover-bg);
+}
+#btn-conv-to-dec, #btn-conv-to-dms {
+    background-color: var(--btn-format-toggle-bg);
+    color: var(--text-dark);
+}
+#btn-conv-to-dec:hover, #btn-conv-to-dms:hover {
+    background-color: var(--btn-format-toggle-hover-bg);
+    color: white;
+}
+#btn-copy-conv-result {
+    background-color: var(--btn-paste-bg);
+}
+#btn-copy-conv-result:hover {
+     background-color: var(--btn-paste-hover-bg);
+}
+#coord-converter-modal .modal-form-group input[type="text"], #coord-converter-modal .modal-form-group select {
+    background-color: #ffffff;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+    border: 1px solid #c8cdd3;
+}
+#coord-converter-modal .modal-form-group input[type="text"]:focus, #coord-converter-modal .modal-form-group select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+}
+body.dark-mode #coord-converter-modal .modal-form-group input[type="text"], body.dark-mode #coord-converter-modal .modal-form-group select {
+    background-color: #4b5563;
+    border-color: #6b7280;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+#coord-converter-modal .converter-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+#coord-converter-modal .converter-row .modal-form-group {
+    flex: 1;
+    margin-bottom: 0;
+}
 
 @media (min-width: 1800px) {
     .left-panel {
         flex: 5;
     }
 }
-/* ▼▼▼【ここに追加】PC表示用のレイアウトを維持するためのスタイル ▼▼▼ */
 .mobile-address-row {
-    display: contents; /* PC表示では、このラッパーをレイアウト上"無視"させ、中の要素を直接 .input-row の子要素のように扱う */
+    display: contents;
 }
-/* ▲▲▲【追加ここまで】▲▲▲ */
 @media (max-width: 1400px) {
     .input-row {
         flex-direction: column;
         align-items: stretch;
+        justify-content: center;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        align-items: flex-end !important;
     }
     .input-buttons-group {
         justify-content: space-around;
@@ -1514,7 +1687,7 @@ body.dark-mode #btn-uncheck-all {
         align-items: stretch;
     }
     .input-group label {
-        display: block; /* Show labels on smaller screens */
+        display: block;
         margin-bottom: 5px;
         font-weight: 600;
         font-size: 12px;
@@ -1526,7 +1699,7 @@ body.dark-mode #btn-uncheck-all {
 
 @media (max-width: 1024px) {
     .header { flex-wrap: wrap; }
-    .header-left { order: 1; width: 100%; justify-content: center; margin-bottom: 10px; }
+    .header-left { order: 1; width: 100%; justify-content: center; margin-bottom: 1px; }
     .header-buttons { order: 2; width: 100%; justify-content: center; }
     .project-switcher { max-width: 400px; }
     
@@ -1552,15 +1725,15 @@ body.dark-mode #btn-uncheck-all {
         display: none;
     }
     .header-left { 
-    flex-direction: row; /* ← column から row に変更 */
-    align-items: center; /* ← 要素を垂直方向に中央揃えにするため追加 */
-    justify-content: center; /* ← 要素を水平方向に中央揃えにするため追加 */
-    gap: 15px; /* ← 少し間隔を調整 */
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
 }
 
-    .mode-toggle, .history-button, .bookmark-button, .share-button, .settings-button, .usage-button, .qr-button { width: 35px; height: 35px; font-size: 16px; }
+    .mode-toggle, .history-button, .bookmark-button, .share-button, .settings-button, .usage-button, .qr-button, .header-button { width: 35px; height: 35px; font-size: 16px; }
     .header-button-label { font-size: 9px; }
-    .history-popup, .bookmark-popup, .project-dropdown {
+    .history-popup, .bookmark-popup, .project-dropdown, #csvPopup {
         left: 50%;
         transform: translateX(-50%);
         right: auto;
@@ -1591,7 +1764,6 @@ body.dark-mode #btn-uncheck-all {
     #osmClickMap {
         height: 50vh;
     }
-    /* ▼▼▼【変更箇所】座標変換ウィンドウのレスポンシブ対応 ▼▼▼ */
     .converter-grid {
         grid-template-columns: 1fr;
     }
@@ -1601,7 +1773,6 @@ body.dark-mode #btn-uncheck-all {
         transform: rotate(90deg);
         margin: 10px 0;
     }
-    /* ▲▲▲【変更箇所】▲▲▲ */
 }
 
 .right-panel.hidden {
@@ -1646,19 +1817,11 @@ body.dark-mode #btn-uncheck-all {
     display: none !important;
 }
 
-/* --- START: タブのレスポンシブ表示用スタイル --- */
-.panel-tab {
-    white-space: nowrap; /* テキストの折り返しを禁止 */
-    overflow: hidden;    /* はみ出した部分を隠す */
-    text-overflow: ellipsis; /* はみ出した部分を...で表示 */
-}
-
-/* パネルが狭い時 (JSで .narrow-tabs クラスが付与される) */
 .right-panel.narrow-tabs .tab-text {
-    font-size: 0; /* 元のテキストを見えなくする */
+    font-size: 0;
 }
 .right-panel.narrow-tabs .tab-text::after {
-    font-size: 14px; /* 短縮テキストのフォントサイズを元に戻す */
+    font-size: 14px;
 }
 
 .right-panel.narrow-tabs .panel-tab[data-tab="map-links"] .tab-text::after {
@@ -1670,137 +1833,58 @@ body.dark-mode #btn-uncheck-all {
 .right-panel.narrow-tabs .panel-tab[data-tab="bookmarks"] .tab-text::after {
     content: 'BM';
 }
-/* --- END: タブのレスポンシブ表示用スタイル --- */
 
-/* ▼▼▼ ここから修正版コードを貼り付け ▼▼▼ */
-
-/* テーブルのラッパーに横スクロールを追加 */
 .table-wrapper {
-    overflow-x: auto; /* 横スクロールを有効にする */
+    overflow-x: auto;
 }
 
-/* テーブルのレイアウトアルゴリズムを固定にし、幅を自動調整 */
 .data-table {
     table-layout: fixed;
-    width: auto; /* 列幅の合計で全体の幅が決まるように変更 */
+    width: auto;
 }
 
-/* テーブルのセル内で文字がはみ出た場合に省略記号(...)を表示する設定 */
 .data-table th,
 .data-table td {
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap; /* この設定は必須です */
+    white-space: nowrap;
 }
 
-/* --- 履歴テーブルの各列の幅を指定 --- */
-#historyTable th:nth-child(1), #historyTable td:nth-child(1) { width: 40px; }  /* チェックボックス */
-#historyTable th:nth-child(2), #historyTable td:nth-child(2) { width: 45px; }  /* No. */
-#historyTable th:nth-child(3), #historyTable td:nth-child(3) { width: 80px; }  /* 郵便番号 */
-#historyTable th:nth-child(4), #historyTable td:nth-child(4) { width: 110px; } /* 住所 */
-#historyTable th:nth-child(5), #historyTable td:nth-child(5) { width: 110px; } /* 緯度 */
-#historyTable th:nth-child(6), #historyTable td:nth-child(6) { width: 110px; } /* 経度 */
-#historyTable th:nth-child(7), #historyTable td:nth-child(7) { width: 70px; }  /* 標高(m) */
-#historyTable th:nth-child(8), #historyTable td:nth-child(8) { width: 110px; } /* X座標(m) */
-#historyTable th:nth-child(9), #historyTable td:nth-child(9) { width: 110px; } /* Y座標(m) */
-#historyTable th:nth-child(10),#historyTable td:nth-child(10){ width: 60px; }  /* 座標系 */
-#historyTable th:nth-child(11),#historyTable td:nth-child(11){ width: 140px; } /* 取得日時 */
-#historyTable th:nth-child(12),#historyTable td:nth-child(12){ width: 70px; }  /* 操作 */
+#historyTable th:nth-child(1), #historyTable td:nth-child(1) { width: 40px; }
+#historyTable th:nth-child(2), #historyTable td:nth-child(2) { width: 45px; }
+#historyTable th:nth-child(3), #historyTable td:nth-child(3) { width: 80px; }
+#historyTable th:nth-child(4), #historyTable td:nth-child(4) { width: 110px; }
+#historyTable th:nth-child(5), #historyTable td:nth-child(5) { width: 110px; }
+#historyTable th:nth-child(6), #historyTable td:nth-child(6) { width: 110px; }
+#historyTable th:nth-child(7), #historyTable td:nth-child(7) { width: 70px; }
+#historyTable th:nth-child(8), #historyTable td:nth-child(8) { width: 110px; }
+#historyTable th:nth-child(9), #historyTable td:nth-child(9) { width: 110px; }
+#historyTable th:nth-child(10),#historyTable td:nth-child(10){ width: 60px; }
+#historyTable th:nth-child(11),#historyTable td:nth-child(11){ width: 140px; }
+#historyTable th:nth-child(12),#historyTable td:nth-child(12){ width: 70px; }
 
 
-/* --- ブックマークテーブルの各列の幅を指定 --- */
-#bookmarkTable th:nth-child(1), #bookmarkTable td:nth-child(1) { width: 40px; }   /* チェックボックス */
-#bookmarkTable th:nth-child(2), #bookmarkTable td:nth-child(2) { width: 45px; }   /* No. */
-#bookmarkTable th:nth-child(3), #bookmarkTable td:nth-child(3) { width: 120px; }  /* 名前 */
-#bookmarkTable th:nth-child(4), #bookmarkTable td:nth-child(4) { width: 80px; }   /* 郵便番号 */
-#bookmarkTable th:nth-child(5), #bookmarkTable td:nth-child(5) { width: 110px; }  /* 住所 */
-#bookmarkTable th:nth-child(6), #bookmarkTable td:nth-child(6) { width: 110px; }  /* 緯度 */
-#bookmarkTable th:nth-child(7), #bookmarkTable td:nth-child(7) { width: 110px; }  /* 経度 */
-#bookmarkTable th:nth-child(8), #bookmarkTable td:nth-child(8) { width: 70px; }   /* 標高(m) */
-#bookmarkTable th:nth-child(9), #bookmarkTable td:nth-child(9) { width: 110px; }  /* X座標(m) */
-#bookmarkTable th:nth-child(10),#bookmarkTable td:nth-child(10){ width: 110px; }  /* Y座標(m) */
-#bookmarkTable th:nth-child(11),#bookmarkTable td:nth-child(11){ width: 60px; }   /* 座標系 */
-#bookmarkTable th:nth-child(12),#bookmarkTable td:nth-child(12){ width: 140px; }  /* 登録日時 */
-#bookmarkTable th:nth-child(13),#bookmarkTable td:nth-child(13){ width: 70px; }   /* 操作 */
+#bookmarkTable th:nth-child(1), #bookmarkTable td:nth-child(1) { width: 40px; }
+#bookmarkTable th:nth-child(2), #bookmarkTable td:nth-child(2) { width: 45px; }
+#bookmarkTable th:nth-child(3), #bookmarkTable td:nth-child(3) { width: 120px; }
+#bookmarkTable th:nth-child(4), #bookmarkTable td:nth-child(4) { width: 80px; }
+#bookmarkTable th:nth-child(5), #bookmarkTable td:nth-child(5) { width: 110px; }
+#bookmarkTable th:nth-child(6), #bookmarkTable td:nth-child(6) { width: 110px; }
+#bookmarkTable th:nth-child(7), #bookmarkTable td:nth-child(7) { width: 110px; }
+#bookmarkTable th:nth-child(8), #bookmarkTable td:nth-child(8) { width: 70px; }
+#bookmarkTable th:nth-child(9), #bookmarkTable td:nth-child(9) { width: 110px; }
+#bookmarkTable th:nth-child(10),#bookmarkTable td:nth-child(10){ width: 110px; }
+#bookmarkTable th:nth-child(11),#bookmarkTable td:nth-child(11){ width: 60px; }
+#bookmarkTable th:nth-child(12),#bookmarkTable td:nth-child(12){ width: 140px; }
+#bookmarkTable th:nth-child(13),#bookmarkTable td:nth-child(13){ width: 70px; }
 
-/* ▲▲▲ ここまで ▲▲▲ */
-
-/* ▼▼▼ ここから追加 ▼▼▼ */
-.input-buttons-group-top {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 15px;
-    flex-wrap: wrap;
-    justify-content: center;
-}
-.main-input-fields {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    align-items: flex-end;
-}
-.main-input-fields .input-group {
-    display: flex;
-    flex-direction: column;
-    flex-grow: 1;
-    min-width: 120px;
-}
-.main-input-fields .input-group label {
-    font-size: 11px;
-    font-weight: 600;
-    margin-bottom: 3px;
-    color: var(--text-medium);
-    display: block;
-}
-.main-input-fields .input-group input {
-    width: 100%;
-    padding: 10px 14px;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    background-color: var(--card-bg);
-    color: var(--text-dark);
-    height: 42px;
-}
-/* X座標・Y座標の入力欄の幅を狭くするコード */
-.main-input-fields .input-group.xy-group {
-    flex: 1; /* この値を小さくすると幅が狭くなります (元は 1.5 でした) */
-    min-width: 120px; /* 最小幅も適宜調整します */
-}
-.main-input-fields .input-group.address-group {
-    flex: 1.0;
-    min-width: 100px;
-}
-.main-input-fields .input-button-wrapper button {
-    height: 42px;
-}
-/* 元のレスポンシブスタイルを上書き */
-@media (max-width: 1400px) {
-    .input-row {
-        justify-content: center; /* ← この行を追加して要素を中央揃えにする */
-    }
-}
-@media (max-width: 768px) {
-    .main-input-fields {
-        flex-direction: column;
-        align-items: stretch;
-    }
-}
-/* ▲▲▲ 追加はここまで ▲▲▲ */
-
-/* --- START: Layout and Input Field Adjustments --- */
-
-/* input-rowをFlexboxコンテナとして設定し、一列に並べる */
 .input-row {
     display: flex;
-    align-items: flex-end; /* ボタンと入力欄の下端を揃える */
+    align-items: flex-end;
     gap: 10px;
-    flex-wrap: wrap; /* 画面が狭い場合に折り返す */
+    flex-wrap: wrap;
 }
 
-/* 不要になったセレクタを削除またはコメントアウト */
-/* .input-buttons-group-top, .main-input-fields { ... } */
-
-/* ラベルを入力欄の下に配置し、中央揃えにする */
 .input-row .input-group label,
 .input-row .input-button-wrapper .input-button-label {
     font-size: 11px;
@@ -1812,32 +1896,29 @@ body.dark-mode #btn-uncheck-all {
     white-space: nowrap;
 }
 .input-row .input-button-wrapper .input-button-label {
-    font-size: 10px; /* アイコンボタンのラベルは少し小さく */
+    font-size: 10px;
 }
 
 
-/* 各入力欄の幅を調整 */
 .input-row .input-group.latlon-group {
-    flex: 1 1 120px; /* 伸縮の基本幅を指定 */
+    flex: 1 1 120px;
     min-width: 120px;
 }
 .input-row .input-group.zone-group {
-    flex: 0 0 70px; /* 幅を固定 */
+    flex: 0 0 70px;
 }
 .input-row .input-group.xy-group {
     flex: 1 1 100px;
     min-width: 100px;
 }
-/* 住所入力欄は残りのスペースを埋めるようにする */
 .input-row .input-group.address-group {
-    flex: 3 1 100px; /* 他より大きく広がるように設定 */
+    flex: 3 1 100px;
     min-width: 100px;
 }
 
-/* 「系」プルダウンのスタイル */
 .input-row .input-group.zone-group select {
     width: 100%;
-    padding: 10px 8px; /* パディングを少し調整 */
+    padding: 10px 8px;
     border: 1px solid var(--border-color);
     border-radius: 8px;
     background-color: var(--card-bg);
@@ -1845,7 +1926,6 @@ body.dark-mode #btn-uncheck-all {
     height: 42px;
 }
 
-/* 「変換」ボタンのスタイルとホバーエフェクト */
 .btn-convert {
     background-color: var(--secondary-color);
     color: white;
@@ -1856,71 +1936,63 @@ body.dark-mode #btn-uncheck-all {
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
-/* ▼▼▼【ここから追加】▼▼▼ */
-/* 「座標変換」ボタンのスタイル */
 #btn-open-coord-converter {
-    background-color: var(--btn-googlemap-bg); /* Googleマップボタンの緑色変数を使用 */
+    background-color: var(--btn-googlemap-bg);
     color: white;
     min-width: 85px;
 }
 
-/* 「座標変換」ボタンのホバーエフェクト */
 #btn-open-coord-converter:hover {
-    background-color: var(--btn-googlemap-hover-bg); /* Googleマップボタンのホバー色変数を使用 */
+    background-color: var(--btn-googlemap-hover-bg);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(52, 168, 83, 0.4); /* 緑系の影に変更 */
+    box-shadow: 0 4px 12px rgba(52, 168, 83, 0.4);
 }
-/* ▲▲▲【追加ここまで】▲▲▲ */
 
-/* 元のレスポンシブスタイルを上書き */
-@media (max-width: 1400px) {
-    .input-row {
-        /* 要素を中央揃えにし、自然な折り返しを促します */
-        justify-content: center;
-    }
-}
 @media (max-width: 768px) {
-/* ▼▼▼ ここからモバイル用入力欄レイアウトの修正 ▼▼▼ */
     .input-row {
         display: grid;
-        gap: 8px; /* 少し間隔を詰める */
+        gap: 8px;
         grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
-        /* 3行目を新しいエリア名に変更 */
         grid-template-areas:
             "geo      bkmk     fmt      route    panel"
             "lat      lat      lon      lon      conv"
             "addr-row addr-row addr-row addr-row addr-row";
     }
 
-    /* ▼▼▼ ここから修正・追加 ▼▼▼ */
-    /* 古い指定を削除 */
-    .mobile-grid-item-addr,
-    .mobile-grid-item-search {
-        grid-area: auto; /* グリッドエリアの割り当てをリセット */
+    /* ▼▼▼【ここから追記】▼▼▼ */
+    /* IDで直接指定してボタンを非表示にする */
+    #csvButton,
+    .usage-button {
+        display: none;
     }
 
-    /* 新しい行ラッパーのスタイル */
+    /* ラベルも非表示にする */
+    #csvButton + .header-button-label,
+    .usage-button + .header-button-label {
+        display: none;
+    }
+    /* ▲▲▲【追記ここまで】▲▲▲ */
+}
+
+    .mobile-grid-item-addr,
+    .mobile-grid-item-search {
+        grid-area: auto;
+    }
+
     .mobile-address-row {
-        grid-area: addr-row; /* グリッドの3行目全体を占有 */
-        display: flex;       /* 内部をFlexboxでレイアウト */
+        grid-area: addr-row;
+        display: flex;
         gap: 8px;
     }
 
-    /* Flexbox内の住所入力欄のスタイル */
     .mobile-address-row .input-group.address-group {
-        flex-grow: 1;  /* 利用可能な全ての余白を埋めるように広がる */
-        width: 0;      /* flex-growを正しく機能させるための設定 */
+        flex-grow: 1;
+        width: 0;
     }
     
-    /* Flexbox内の検索ボタンのスタイル */
     .mobile-address-row .input-button-wrapper {
-        flex-shrink: 0; /* ボタンが縮まないようにする */
+        flex-shrink: 0;
     }
-    /* ▲▲▲ 修正・追加ここまで ▲▲▲ */
-    /* ... */
-}
-
-    /* 各要素をグリッドエリアに割り当て */
     .mobile-grid-item-geo { grid-area: geo; }
     .mobile-grid-item-bkmk { grid-area: bkmk; }
     .mobile-grid-item-fmt { grid-area: fmt; }
@@ -1934,58 +2006,44 @@ body.dark-mode #btn-uncheck-all {
     .mobile-grid-item-addr { grid-area: addr; }
     .mobile-grid-item-search { grid-area: search; }
 
-    /* 元のグリッドレイアウト用のクラス指定をリセット */
     .input-buttons-group { display: contents; }
     .input-group.lat-group,
     .input-group.lon-group,
     .input-group.address-group { grid-area: auto; }
-    /* ▲▲▲ 修正ここまで ▲▲▲ */
 
 }
-/* --- END: Layout and Input Field Adjustments --- */
-
-/* 「変換」ボタンの幅を固定で指定する */
 .btn-convert {
-    width: 70px; /* ← ここの数値を変更してお好みの幅に調整してください */
+    width: 70px;
 }
 
-/* ▼▼▼【ここから追加】緯度経度・住所入力欄の視認性向上 ▼▼▼ */
 .input-row .input-group #latitude,
 .input-row .input-group #longitude,
 .input-row .input-group #addressInput {
-    /* ライトモード用の設定 */
-    background-color: #ffffff; /* 背景を明確な白に */
-    /* 内側にわずかな影をつけ、入力欄が少し窪んでいるように見せる */
+    background-color: #ffffff;
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
-    /* 境界線を少し濃くして、輪郭をはっきりさせる */
     border: 1px solid #c8cdd3;
 }
 
-/* ダークモード時は、背景色をより明るくしてコントラストを強調 */
 body.dark-mode .input-row .input-group #latitude,
 body.dark-mode .input-row .input-group #longitude,
 body.dark-mode .input-row .input-group #addressInput {
-    /* 元の背景色より明るいグレーに変更 */
     background-color: #4b5563; 
-    /* 境界線も少し明るくする */
     border-color: #6b7280;
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
 }
-/* ▲▲▲【追加ここまで】▲▲▲ */
 
-/* ▼▼▼【ここから追加】入力欄内コピーボタンのスタイル ▼▼▼ */
 .input-row .input-wrapper {
-    position: relative; /* ボタンを絶対配置するための基準 */
+    position: relative;
     width: 100%;
     display: flex;
 }
 
 .btn-copy-input {
-    position: absolute; /* ラッパー(.input-wrapper)を基準に配置 */
+    position: absolute;
     top: 0;
     right: 0;
-    height: 100%; /* 高さを入力欄に合わせる */
-    width: 40px;  /* ボタンの幅 */
+    height: 100%;
+    width: 40px;
     border: none;
     background-color: transparent;
     cursor: pointer;
@@ -1998,562 +2056,81 @@ body.dark-mode .input-row .input-group #addressInput {
     color: var(--primary-color);
 }
 
-/* テキストがボタンの下に隠れないよう、入力欄の右側に余白を追加 */
 .input-row .input-wrapper input {
-    padding-right: 40px; /* ボタンの幅と同じ値 */
-}
-/* ▲▲▲【追加ここまで】▲▲▲ */
-
-/* ▼▼▼【ここから追加】地図リンクカードの表示密度を上げる調整 ▼▼▼ */
-#map-links-content .map-card {
-    padding-top: 2px;    /* カード内の上の余白を狭くする */
-    padding-bottom: 2px; /* カード内の下の余白を狭くする */
-    min-height: 38px;    /* カードの最小高さを少し詰める */
+    padding-right: 40px;
 }
 
-#map-links-content .map-grid {
-    gap: 6px; /* カード間の上下左右の間隔を狭くする (元は8px) */
-}
-
-#map-links-content .category {
-    margin-bottom: 6px; /* カテゴリごとの下の余白を狭くする (元は8px) */
-}
-/* ▲▲▲【追加ここまで】▲▲▲ */
-/* ▼▼▼【ここから追加】サイドパネル上部の余白調整 ▼▼▼ */
-
-/* 1. タブ自体の高さを調整 */
-.panel-tab {
-    padding-top: 8px;    /* 上の余白を小さくする (元は12px) */
-    padding-bottom: 8px; /* 下の余白を小さくする (元は12px) */
-}
-
-/* 2. ボタン群とタブの間の余白を調整 */
-.right-panel-header {
-    padding-bottom: 0; /* ヘッダーエリアの下の余白をなくす */
-}
-
-.panel-tabs {
-    margin-top: 0px; /* タブの上マージンを小さくする (元は8pxのマージン＋ヘッダーのパディングがあった) */
-}
-
-/* ▲▲▲【追加ここまで】▲▲▲ */
-
-/* ▼▼▼【ここから追加】ヘッダーの余白を小さくする調整 ▼▼▼ */
-
-/* 1. ヘッダー全体の上下の余白を調整 */
-.header {
-    padding-top: 1px;    /* 上の余白を小さくする (元は8px) */
-    padding-bottom: 1px; /* 下の余白を小さくする (元は8px) */
-}
-
-/* 2. スマホ・タブレット表示で縦に並ぶ際の、タイトルとボタンの間の余白を調整 */
-@media (max-width: 1024px) {
-    .header-left {
-        margin-bottom: 1px; /* 間の余白を小さくする (元は10px) */
-    }
-}
-/* ▲▲▲【追加ここまで】▲▲▲ */
-
-/* ▼▼▼【ここから追加】地図ヘッダーの高さ調整 ▼▼▼ */
-
-/* 1. 「クリックで座標取得 / 地図プレビュー」ヘッダーの調整 */
-.osm-map-header {
-    padding-top: 0;    /* 上の余白をなくす */
-    padding-bottom: 0; /* 下の余白をなくす */
-    margin-bottom: 5px;  /* 地図との間の余白を少し狭める (元は10px) */
-}
-
-/* 2. 「現在の座標プレビュー (Google)」ヘッダーの調整 */
-.map-preview-container {
-    padding-top: 1px; /* 上の余白を少し狭める (元は15px) */
-}
-.preview-header {
-    margin-bottom: 1px;  /* プレビュー地図との間の余白を少し狭める (元は10px) */
-}
-
-/* ▲▲▲【追加ここまで】▲▲▲ */
-
-/* ▼▼▼【ここから追加】設定ウィンドウのボタンを右上に配置するスタイル ▼▼▼ */
-
-/* 設定ウィンドウのボタンコンテナを絶対配置に変更 */
 #settings-modal .modal-buttons {
-    position: absolute; /* 親要素(.modal-content)を基準に配置 */
-    top: 10px;          /* 上からの位置 */
-    right: 55px;        /* 右からの位置 (閉じるボタンの分を空ける) */
-    margin-top: 0;      /* 元々あった上の余白をリセット */
-    gap: 8px;           /* ボタン間の隙間を少し詰める */
-}
-
-/* 右上に配置するボタンのサイズを小さく調整 */
-#settings-modal .modal-buttons button {
-    padding: 6px 12px; /* ボタンの余白を小さくする */
-    font-size: 13px;   /* 文字サイズを少し小さくする */
-}
-
-/* タイトルがボタンの下に潜り込まないように右側に余白を確保 */
-#settings-modal h3 {
-    padding-right: 250px; /* ボタンが配置されるスペースを空ける */
-}
-
-/* ▲▲▲【追加ここまで】▲▲▲ */
-
-/* ▼▼▼【ここから追加】ドラッグ＆ドロップ用のスタイル ▼▼▼ */
-/* ドラッグ中のカードのスタイル */
-.map-card.dragging {
-    opacity: 0.4;
-    transform: scale(0.95);
-}
-/* カードが上に乗っているカテゴリ（ドロップ先候補）のスタイル */
-.category.drag-over .map-grid {
-    background-color: var(--bg-light);
-    border: 2px dashed var(--secondary-color);
-    border-radius: var(--radius-base);
-}
-/* ▲▲▲【追加ここまで】▲▲▲ */
-
-/* ▼▼▼【ここから追加】カード間挿入のインジケータスタイル ▼▼▼ */
-.map-card.drop-indicator-before::before {
-    content: '';
     position: absolute;
-    top: -5px;
-    left: 5%;
-    width: 90%;
-    height: 4px;
-    background-color: var(--secondary-color);
-    border-radius: 2px;
-    z-index: 1;
-}
-/* ▲▲▲【追加ここまで】▲▲▲ */
-
-/* ▼▼▼【ここから追加】お気に入りセットの保存・削除ボタンのホバー効果 ▼▼▼ */
-
-.btn-save-set:hover {
-    /* ブックマーク保存ボタンのホバー色と同じ変数を使用します */
-    background-color: var(--btn-save-bookmark-hover-bg); 
+    top: 10px;
+    right: 55px;
+    margin-top: 0;
+    gap: 8px;
 }
 
-.btn-delete-set:hover {
-    /* 他の削除ボタンと共通の、少し暗い赤色を指定します */
-    background-color: #C62828;
-}
-
-/* ▲▲▲【追加ここまで】▲▲▲ */
-/* ▼▼▼【ここから追加】設定ウィンドウのボタンに浮き上がるホバー効果を追加 ▼▼▼ */
-
-/* 1. ボタンの基本スタイルに、アニメーションを滑らかにするための設定を追加 */
 #settings-modal .modal-buttons button {
-    /* transformやbox-shadowの変化が0.3秒かけて滑らかに行われるようにします */
-    transition: all 0.3s ease;
-}
-
-/* 2. 「設定を保存」ボタンのホバー効果 */
-#settings-modal .btn-modal-save:hover {
-    background-color: #145315; /* 少し暗い緑色 */
-    transform: translateY(-2px); /* Y軸に-2px移動（少し上に浮く） */
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); /* 浮き上がったように見せるための影を追加 */
-}
-
-/* 3. 「キャンセル」ボタンのホバー効果 */
-#settings-modal .btn-modal-cancel:hover {
-    background-color: #cccccc; /* 少し濃い灰色 */
-    transform: translateY(-2px); /* 同様に少し上に浮く */
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); /* 同様に影を追加 */
-}
-
-/* 4. ダークモード時の「キャンセル」ボタンのホバー色を上書き */
-body.dark-mode #settings-modal .btn-modal-cancel:hover {
-    background-color: #4B5563; /* 少し明るい灰色 */
-    /* transformとbox-shadowは上記のスタイルがそのまま適用されます */
-}
-
-/* ▲▲▲【追加ここまで】▲▲▲ */
-
-/* ▼▼▼【ここから追加】プロジェクト管理ボタンのスタイル調整 ▼▼▼ */
-
-/* 1. ボタンの基本スタイルに、アニメーションと配色を追加 */
-#project-modal .project-actions button {
-    /* アニメーションを0.3秒かけて滑らかに実行する設定 */
-    transition: all 0.3s ease;
-    /* ボタン内の文字色を白に統一 */
-    color: white; 
-    /* 念のため境界線をリセット */
-    border: none;
-}
-
-/* 2. 「名前の変更」「複製」ボタンの配色をテーマカラーに統一 */
-#btn-rename-project,
-#btn-duplicate-project {
-    background-color: var(--primary-color);
-}
-
-
-/* 3. 各ボタンに、マウスが乗った時の「浮き上がる」共通効果を追加 */
-/* :not(:disabled) を追加し、無効化されているボタンには適用しないようにする */
-#project-modal .project-actions button:hover:not(:disabled) {
-    /* Y軸に-2px移動（少し上に浮く） */
-    transform: translateY(-2px);
-    /* 浮き上がったように見せるための影を追加 */
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-
-/* 4. 各ボタンに、マウスが乗った時の「色が変わる」個別効果を追加 */
-
-/* 「新規作成」ボタン (緑色系) */
-#btn-new-project:hover:not(:disabled) {
-    background-color: #145315; /* より濃い緑 */
-}
-
-/* 「名前の変更」「複製」ボタン (テーマカラー系) */
-#btn-rename-project:hover:not(:disabled),
-#btn-duplicate-project:hover:not(:disabled) {
-    background-color: var(--secondary-color); /* テーマのセカンダリカラー */
-}
-
-/* 「削除」ボタン (赤色系) */
-#btn-delete-project:hover:not(:disabled) {
-    background-color: #C62828; /* より濃い赤 (他の削除ボタンと共通) */
-}
-
-/* ▲▲▲【追加ここまで】▲▲▲ */
-
-/* ▼▼▼【変更箇所】座標変換ウィンドウのボタンスタイルを追加・修正 ▼▼▼ */
-
-/* モーダル内のボタン共通のホバーエフェクト */
-#coord-converter-modal .btn-base:hover:not(:disabled),
-#coord-converter-modal .converter-arrows button:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    transition: all 0.3s ease;
-}
-
-/* 変換矢印ボタンの配色 */
-#btn-convert-to-xy, #btn-convert-to-latlon {
-    background-color: var(--secondary-color);
-    color: white;
-}
-#btn-convert-to-xy:hover, #btn-convert-to-latlon:hover {
-    background-color: var(--primary-color);
-}
-
-/* 「メイン画面の座標を取得」ボタンの配色 */
-#btn-get-main-coords {
-    background-color: var(--btn-paste-bg);
-}
-#btn-get-main-coords:hover {
-    background-color: var(--btn-paste-hover-bg);
-}
-
-/* 「結果をメイン画面に反映」ボタンの配色 */
-#btn-apply-coords {
-    background-color: var(--success-color);
-}
-#btn-apply-coords:hover {
-    background-color: #145315; /* より濃い緑 */
-}
-
-/* 「地理院サイトで確認」ボタンの配色 → 新しいボタンにも適用 */
-#btn-open-gsi-calc-site, /* ← 既存のセレクタ（削除してもOK） */
-#btn-open-gsi-bl2xy,     /* ← 新しいボタンのIDを追加 */
-#btn-open-gsi-xy2bl      /* ← 新しいボタンのIDを追加 */
-{
-     background-color: var(--btn-googlemap-bg);
-}
-#btn-open-gsi-calc-site:hover, /* ← 既存のセレクタ（削除してもOK） */
-#btn-open-gsi-bl2xy:hover,     /* ← 新しいボタンのIDを追加 */
-#btn-open-gsi-xy2bl:hover      /* ← 新しいボタンのIDを追加 */
-{
-    background-color: var(--btn-googlemap-hover-bg);
-}
-
-/* 下部アクションボタンのレイアウト調整 */
-.converter-actions {
-    display: flex;
-    align-items: center; /* ボタンの高さを揃える */
-    flex-wrap: wrap;     /* ★ボタンがはみ出したら折り返す設定を追加 */
-    gap: 8px;            /* ★ボタン間の隙間を少し設定 */
-}
-
-/* ▲▲▲【変更箇所】▲▲▲ */
-
-/* ▼▼▼【変更箇所】座標変換ウィンドウのボタンスタイルを追加 ▼▼▼ */
-
-/* 緯度経度の形式変換ボタンの配色 */
-#btn-conv-to-dec, #btn-conv-to-dms {
-    background-color: var(--btn-format-toggle-bg);
-    color: var(--text-dark);
-}
-#btn-conv-to-dec:hover, #btn-conv-to-dms:hover {
-    background-color: var(--btn-format-toggle-hover-bg);
-    color: white;
-}
-
-/* 「結果をコピー」ボタンの配色 */
-#btn-copy-conv-result {
-    background-color: var(--btn-paste-bg);
-}
-#btn-copy-conv-result:hover {
-     background-color: var(--btn-paste-hover-bg);
-}
-
-/* ▲▲▲【変更箇所】▲▲▲ */
-
-/* ▼▼▼【変更箇所】座標変換ウィンドウの入力欄スタイルを追加 ▼▼▼ */
-#coord-converter-modal .modal-form-group input[type="text"],
-#coord-converter-modal .modal-form-group select {
-    /* ライトモード用の設定 */
-    background-color: #ffffff; /* 背景を白に */
-    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1); /* 内側に影 */
-    border: 1px solid #c8cdd3; /* 境界線を少し濃く */
-}
-
-#coord-converter-modal .modal-form-group input[type="text"]:focus,
-#coord-converter-modal .modal-form-group select:focus {
-    /* フォーカス時のスタイルをメイン画面と統一 */
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
-}
-
-/* ダークモード用の設定 */
-body.dark-mode #coord-converter-modal .modal-form-group input[type="text"],
-body.dark-mode #coord-converter-modal .modal-form-group select {
-    background-color: #4b5563; /* 背景を少し明るいグレーに */
-    border-color: #6b7280; /* 境界線も少し明るく */
-    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
-}
-/* ▲▲▲【変更箇所】▲▲▲ */
-
-/* ▼▼▼【ここから追加】ウィンドウの最終コンパクト化とボタンはみ出し修正 ▼▼▼ */
-
-/* --- 1. プロジェクト管理ウィンドウのコンパクト化 --- */
-#project-modal .modal-content {
-    padding: 15px;
-    max-width: 500px;
-}
-#project-modal h3 {
-    margin-bottom: 12px;
-    font-size: 1.1em;
-}
-.project-list-container {
-    margin-bottom: 12px;
-    max-height: 250px; /* リストの高さを少し制限 */
-}
-#projectManagementList li {
-    padding: 8px 12px;
-    font-size: 13px;
-}
-.project-actions {
-    padding-top: 12px;
-    gap: 8px;
-}
-#project-modal .project-actions button {
     padding: 6px 12px;
-    font-size: 12px;
-}
-#project-modal .modal-buttons {
-    margin-top: 15px;
-}
-
-/* --- 2. 座標変換ウィンドウのコンパクト化 --- */
-#coord-converter-modal .modal-content {
-    padding: 15px;
-    max-width: 700px; /* PCでの最大幅を少し狭める */
-}
-#coord-converter-modal h3 {
-    margin-bottom: 12px;
-    font-size: 1.1em;
-}
-.converter-grid {
-    gap: 12px;
-}
-.converter-panel {
-    padding: 12px;
-}
-.converter-panel h4 {
-    margin-bottom: 10px;
-    font-size: 1em;
-}
-#coord-converter-modal .modal-form-group {
-    margin-bottom: 10px;
-}
-#coord-converter-modal .modal-form-group label {
-    font-size: 13px; /* ラベル文字を少し小さく */
-    margin-bottom: 3px;
-}
-#coord-converter-modal .modal-form-group input,
-#coord-converter-modal .modal-form-group select {
-    padding: 8px; /* 入力欄の余白を少し詰める */
     font-size: 13px;
+    transition: all 0.3s ease;
 }
 
-
-/* --- 3. 座標変換ウィンドウ下部ボタンのレイアウト修正 --- */
-.converter-actions {
-    display: flex;
-    flex-wrap: wrap; /* ★重要：ボタンがはみ出さずに折り返す */
-    gap: 8px;
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid var(--border-color);
+#settings-modal h3 {
+    padding-right: 250px;
 }
 
-/* 全てのボタンに共通の柔軟な幅設定を適用 */
-.converter-actions .btn-base {
-    padding: 8px 10px;
-    font-size: 12px;
-    /* ★重要：min-widthを削除し、flexboxで幅を自動調整させる */
-    flex: 1 1 auto; /* 画面幅に応じて伸び縮みし、折り返すようにする */
-}
-
-/* PC表示時 (幅が広い画面) のみ、「地理院サイト」ボタンを右端に配置 */
-@media (min-width: 769px) {
-    #btn-open-gsi-calc-site {
-        flex-grow: 0; /* このボタンだけは伸ばさない */
-        margin-left: auto; /* 右端に配置 */
-    }
-}
-
-/* ▲▲▲【追加ここまで】▲▲▲ */
-
-/* ▼▼▼【ここから追加】座標変換ウィンドウのコンパクト化対応 ▼▼▼ */
-#coord-converter-modal .converter-row {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 15px;
-}
-
-#coord-converter-modal .converter-row .modal-form-group {
-    flex: 1;
-    margin-bottom: 0;
-}
-/* ▲▲▲【追加ここまで】▲▲▲ */
-
-/* ▼▼▼【ここから追加】プロジェクト管理と設定ウィンドウのスタイル変更 (最終確定版) ▼▼▼ */
-
-/* --- プロジェクト管理ウィンドウのレイアウト・配色変更 --- */
-
-/* 1. ウィンドウの横幅を少し狭める */
-#project-modal .modal-content {
-    max-width: 420px;
-}
-
-/* 2. 上段のボタンを2x2のグリッドレイアウトに変更 */
-.project-actions.project-actions-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-}
-
-/* 3. 全ボタンの文字色を白で統一 */
-#project-modal .project-actions button {
-    color: white;
-}
-
-/* 4. 各ボタンの配色を個別に設定 */
-
-/* 「新規作成」ボタン (水色系) */
-#btn-new-project {
-    /* ★★★ 修正: 正しい色の値 #03A9F4 を直接指定 ★★★ */
-    background-color: #03A9F4; /* 「⭕ 円作成」ボタンの本来の色 */
-}
-#btn-new-project:hover:not(:disabled) {
-    background-color: #0288D1; /* ホバー時の濃い水色 */
-}
-
-/* 「複製」ボタン (濃い青色) */
-#btn-duplicate-project {
-    /* ★★★ 修正: 正しい色の値 #2962FF を直接指定 ★★★ */
-    background-color: #2962FF; /* 「📏 距離・断面」ボタンの本来の色 */
-}
-#btn-duplicate-project:hover:not(:disabled) {
-    background-color: #0039cb; /* ホバー時のさらに濃い青色 */
-}
-
-/* 「名前の変更」ボタン (濃い黄色系) */
-#btn-rename-project {
-    background-color: var(--btn-export-kml-hover-bg);
-}
-#btn-rename-project:hover:not(:disabled) {
-    background-color: #F57F17;
-}
-
-/* 「削除」ボタン (赤色) */
-#btn-delete-project {
-    background-color: var(--error-color);
-}
-#btn-delete-project:hover:not(:disabled) {
-    background-color: #C62828;
-}
-
-/* 5. 下段のボタンの配色を設定 */
-
-/* 「エクスポート」ボタン (青系) */
-#btn-export-project {
-    background-color: var(--primary-color);
-}
-#btn-export-project:hover:not(:disabled) {
-    background-color: var(--secondary-color);
-}
-
-/* 「インポート」ボタン (濃い緑) */
-#btn-import-project {
-    background-color: var(--success-color);
-}
-#btn-import-project:hover:not(:disabled) {
-    background-color: #145315;
-}
-
-
-/* --- 設定ウィンドウの保存ボタンの配色変更 --- */
-
-/* 「設定を保存」ボタン (青系) */
 #settings-modal .btn-modal-save {
     background-color: var(--primary-color);
 }
-
-/* ホバー効果も青系に合わせる */
 #settings-modal .btn-modal-save:hover {
     background-color: var(--secondary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
-/* ▲▲▲【追加ここまで】▲▲▲ */
+#settings-modal .btn-modal-cancel:hover {
+    background-color: #cccccc;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
 
-/* --- 設定モーダルのタブUIスタイル --- */
+body.dark-mode #settings-modal .btn-modal-cancel:hover {
+    background-color: #4B5563;
+}
+
 .settings-tabs {
     display: flex;
     border-bottom: 2px solid var(--border-color);
-    margin: 0 -15px 15px -15px; /* 左右の余白を広げ、下のコンテンツとの間に余白を設ける */
+    margin: 0 -15px 15px -15px;
     padding: 0 15px;
 }
 
 .settings-tab {
     padding: 10px 18px;
     cursor: pointer;
-    background-color: var(--bg-light); /* 背景色を追加 */
-    border: 2px solid var(--border-color); /* 枠線を追加 */
-    border-bottom: none; /* 下の枠線を消す */
+    background-color: var(--bg-light);
+    border: 2px solid var(--border-color);
+    border-bottom: none;
     font-size: 14px;
     font-weight: 600;
     color: var(--text-medium);
     transition: all 0.2s ease;
-    margin-bottom: -2px; /* 下の境界線に重ねる */
-    border-top-left-radius: 8px; /* 左上の角を丸める */
-    border-top-right-radius: 8px; /* 右上の角を丸める */
+    margin-bottom: -2px;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
 }
 
 .settings-tab:hover {
     color: var(--text-dark);
-    background-color: var(--border-color); /* ホバー時の背景色を少し濃くする */
+    background-color: var(--border-color);
 }
 
 .settings-tab.active {
     color: var(--primary-color);
-    background-color: var(--bg-container); /* アクティブなタブの背景をコンテンツと同じ色に */
-    border-bottom-color: var(--bg-container); /* 下の境界線を背景と同じ色にして一体化させる */
-    z-index: 1; /* 他の要素より手前に表示 */
+    background-color: var(--bg-container);
+    border-bottom-color: var(--bg-container);
+    z-index: 1;
 }
 
-/* タブコンテンツの表示/非表示 */
 .settings-tab-content {
     display: none;
     animation: fadeIn 0.3s;
@@ -2568,39 +2145,216 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* スクロールバーがコンテンツエリア内に収まるように調整 */
 #settings-form {
     display: flex;
     flex-direction: column;
-    overflow: hidden; /* コンテンツラッパーでスクロールを制御 */
+    overflow: hidden;
 }
 .settings-tab-content-wrapper {
     flex-grow: 1;
     overflow-y: auto;
-    /* スクロールバーが見やすいように少し右に余白を追加 */
     padding-right: 10px;
     margin-right: -10px;
 }
 
-/* ▼▼▼【ここから追加】タブレット表示でのレイアウト崩れを修正する最終コード ▼▼▼ */
-@media (max-width: 1400px) {
-    .input-row {
-        flex-direction: row !important; /* 横並びを維持 */
-        flex-wrap: wrap !important;     /* 自動で折り返し */
-        justify-content: center !important; /* 中央に配置 */
-        align-items: flex-end !important;   /* 下端揃えを維持 */
+@media (min-width: 1025px) {
+    #project-modal {
+        justify-content: flex-start;
+        padding-left: 140px; 
     }
+}
+/* ▼▼▼【ここから追加】CSV関連のスタイル ▼▼▼ */
+
+/* --- CSVインポートモーダルのスタイル --- */
+#csv-import-modal .modal-content {
+    max-width: 90vw;
+    width: 800px;
+}
+.csv-import-stepper {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+.csv-import-step {
+    font-weight: 600;
+    color: var(--text-medium);
+}
+.csv-import-step.active {
+    color: var(--primary-color);
+    border-bottom: 2px solid var(--primary-color);
+    padding-bottom: 8px;
+}
+#csv-column-mapping, #csv-import-confirm {
+    display: none; /* Initially hidden */
+}
+#csv-preview-container {
+    max-height: 250px;
+    overflow: auto;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-base);
+}
+#csv-preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+#csv-preview-table th, #csv-preview-table td {
+    padding: 6px 8px;
+    border: 1px solid var(--border-color);
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+}
+#csv-preview-table thead {
+    position: sticky;
+    top: 0;
+    background-color: var(--bg-light);
+}
+.column-mapper-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+.column-mapper-item label {
+    font-weight: 700;
+}
+.column-mapper-item select {
+    width: 100%;
+    padding: 8px;
+}
+.column-mapper-item .required::after {
+    content: ' *';
+    color: var(--error-color);
+}
+.csv-import-info {
+    font-size: 13px;
+    background-color: var(--bg-light);
+    padding: 10px;
+    border-radius: 8px;
+}
+
+/* --- CSVプロット用の地図コントロールボタン (削除) --- */
+
+
+/* --- CSVナビゲーター (巡回) パネル --- */
+#csv-navigator-content { /* ★★★ #csv-navigator-container から変更 ★★★ */
+    padding: 8px;
+    /* border-top は不要 */
+}
+#csv-navigator-content.hidden { /* ★★★ .hidden を .active ではない場合に適用 ★★★ */
+    display: none;
+}
+.csv-nav-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+.csv-nav-header h4 {
+    margin: 0;
+    font-size: 14px;
+}
+.csv-nav-header button {
+    padding: 6px 12px; /* ★★★ サイズを少し調整 ★★★ */
+    font-size: 12px;
+    height: auto; /* ★★★ 高さを自動に ★★★ */
+    min-width: auto; /* ★★★ 最小幅を自動に ★★★ */
+}
+#csv-nav-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-base);
+}
+.csv-nav-item {
+    padding: 8px 10px;
+    font-size: 13px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-color);
+}
+.csv-nav-item:last-child {
+    border-bottom: none;
+}
+.csv-nav-item:hover {
+    background-color: var(--bg-light);
+}
+.csv-nav-item.active {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: bold;
+}
+.csv-nav-controls {
+    display: flex;
+    gap: 5px;
+    margin-top: 8px;
+}
+/* ▼▼▼【以下のスタイルを追加】▼▼▼ */
+.csv-nav-controls button {
+    flex: 1;
+    padding: 8px;
+    font-size: 14px;
+    /* ボタンの視認性向上のためのスタイル */
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    transition: background-color 0.2s;
+}
+.csv-nav-controls button:hover:not(:disabled) {
+    background-color: var(--secondary-color);
 }
 /* ▲▲▲【追加ここまで】▲▲▲ */
 
-/* ▼▼▼【ここから追加】プロジェクト管理ウィンドウの表示位置を調整 ▼▼▼ */
-@media (min-width: 1025px) { /* PCなど画面幅が広い場合にのみ適用 */
-    #project-modal {
-        /* 横方向の配置を中央揃えから「左揃え」に変更します */
-        justify-content: flex-start;
-        /* 左端に少し余白を追加して、ヘッダーのボタン位置に近づけます */
-        padding-left: 140px; 
-    }
+/* ▼▼▼【ここから追加】巡回ナビゲーターのリスト表示改善用CSS ▼▼▼ */
+.csv-nav-item-title {
+    font-weight: bold;
+    margin-bottom: 5px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--border-color);
+}
+.csv-nav-item.active .csv-nav-item-title {
+    border-bottom-color: rgba(255,255,255,0.5);
+}
+.csv-nav-detail-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    line-height: 1.5;
+}
+.csv-nav-detail-key {
+    font-weight: 600;
+    color: var(--text-medium);
+    margin-right: 10px;
+    flex-shrink: 0;
+}
+.csv-nav-item.active .csv-nav-detail-key {
+    color: rgba(255,255,255,0.7);
+}
+.csv-nav-detail-value {
+    word-break: break-all;
+    text-align: right;
+}
+/* ▲▲▲【追加ここまで】▲▲▲ */
+
+/* ▼▼▼【ここから追加】ボタンのグループ化用CSS ▼▼▼ */
+.button-group {
+    display: flex;
+    gap: 10px; /* グループ内のボタンの隙間 */
+    align-items: center;
+    padding: 0 10px;
+    border-left: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.button-group:first-child {
+    border-left: none;
+    padding-left: 0;
 }
 /* ▲▲▲【追加ここまで】▲▲▲ */
 
@@ -2615,68 +2369,98 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
         <div class="project-switcher">
             <button id="projectSwitcherBtn" aria-haspopup="true" aria-expanded="false" aria-label="現在のプロジェクトを切り替え">プロジェクトを読込中...</button>
             <div class="project-dropdown" id="projectSwitcherDropdown">
-                <!-- Populated by JS -->
-                <hr>
                 <a href="#" class="project-dropdown-item project-dropdown-manage" id="manageProjectsBtn">プロジェクトを管理...</a>
             </div>
         </div>
     </div>
+    <!-- ▼▼▼【ここから変更】ボタンのグループ化 ▼▼▼ -->
 <nav class="header-buttons" aria-label="主要機能">
-    <div class="header-button-wrapper">
-        <button class="nav-button" id="navBack" title="前の座標に戻る" aria-label="前の座標に戻る" disabled>◀</button>
-        <span class="header-button-label">戻る</span>
-    </div>
-    <div class="header-button-wrapper">
-        <button class="nav-button" id="navForward" title="次の座標に進む" aria-label="次の座標に進む" disabled>▶</button>
-        <span class="header-button-label">進む</span>
-    </div>
-    <div class="header-button-wrapper">
-        <button class="share-button" id="shareButton" onclick="generateShareUrl()" aria-label="リンク共有" title="現在の状態を共有">🔗</button>
-        <span class="header-button-label">リンク共有</span>
-    </div>
-    <div class="header-button-wrapper">
-        <button class="qr-button" onclick="openQrModal()" aria-label="QRコードで共有" title="QRコードで共有">📱</button>
-        <span class="header-button-label">QRコード</span>
-    </div>
-    <div class="header-button-wrapper">
-        <button class="bookmark-button" id="bookmarkButton" onclick="toggleBookmarkPopup()" aria-label="ブックマーク" title="ブックマークを表示">⭐</button>
-        <span class="header-button-label">ブックマーク</span>
-        <div class="bookmark-popup" id="bookmarkPopup">
-            <h4>⭐ 地点ブックマーク</h4>
-            <div class="popup-buttons">
-            <button class="btn-clear-bookmarks" onclick="clearBookmarks()">🗑️ 全削除</button>
-            <button class="btn-export-csv" onclick="exportBookmarksToCSV()">💾 CSV</button>
-            <button class="btn-export-kml" onclick="exportBookmarksToKML()">🌐 KML</button>
-            </div>
-            <div id="bookmarkList"></div>
+    <!-- 戻る/進む グループ -->
+    <div class="button-group">
+        <div class="header-button-wrapper">
+            <button class="nav-button" id="navBack" title="前の座標に戻る" aria-label="前の座標に戻る" disabled>◀</button>
+            <span class="header-button-label">戻る</span>
+        </div>
+        <div class="header-button-wrapper">
+            <button class="nav-button" id="navForward" title="次の座標に進む" aria-label="次の座標に進む" disabled>▶</button>
+            <span class="header-button-label">進む</span>
         </div>
     </div>
-    <div class="header-button-wrapper">
-        <button class="history-button" id="historyButton" onclick="toggleHistoryPopup()" aria-label="履歴" title="履歴を表示">⏱️</button>
-        <span class="header-button-label">履歴</span>
-        <div class="history-popup" id="historyPopup">
-            <h4>座標履歴</h4>
-            <div class="popup-buttons">
-            <button class="btn-clear-history" onclick="clearHistory()">🗑️ 履歴クリア</button>
-            <button class="btn-export-csv" onclick="exportHistoryToCSV()">💾 CSV</button>
-            <button class="btn-export-kml" onclick="exportHistoryToKML()">🌐 KML</button>
-            </div>
-            <div id="historyList"></div>
+
+    <!-- 共有 グループ -->
+    <div class="button-group">
+        <div class="header-button-wrapper">
+            <button class="share-button" id="shareButton" onclick="generateShareUrl()" aria-label="リンク共有" title="現在の状態を共有">🔗</button>
+            <span class="header-button-label">リンク共有</span>
+        </div>
+        <div class="header-button-wrapper">
+            <button class="qr-button" onclick="openQrModal()" aria-label="QRコードで共有" title="QRコードで共有">📱</button>
+            <span class="header-button-label">QRコード</span>
         </div>
     </div>
-    <div class="header-button-wrapper">
-        <button class="settings-button" id="settingsButton" aria-label="設定" title="設定">⚙️</button>
-        <span class="header-button-label">設定</span>
+
+    <!-- データ管理 グループ -->
+    <div class="button-group">
+        <div class="header-button-wrapper">
+            <button class="bookmark-button" id="bookmarkButton" onclick="toggleBookmarkPopup()" aria-label="ブックマーク" title="ブックマークを表示">⭐</button>
+            <span class="header-button-label">ブックマーク</span>
+            <div class="bookmark-popup" id="bookmarkPopup">
+                <h4>⭐ 地点ブックマーク</h4>
+                <div class="popup-buttons">
+                    <button class="btn-clear-bookmarks" onclick="clearBookmarks()">🗑️ 全削除</button>
+                    <button class="btn-export-csv" onclick="exportBookmarksToCSV()">💾 CSV</button>
+                    <button class="btn-import-csv" onclick="openCsvImportModal('bookmark')">📥 インポート</button>
+                    <button class="btn-export-kml" onclick="exportBookmarksToKML()">🌐 KML</button>
+                </div>
+                <div id="bookmarkList"></div>
+            </div>
+        </div>
+        <div class="header-button-wrapper">
+            <button class="history-button" id="historyButton" onclick="toggleHistoryPopup()" aria-label="履歴" title="履歴を表示">⏱️</button>
+            <span class="header-button-label">履歴</span>
+            <div class="history-popup" id="historyPopup">
+                <h4>座標履歴</h4>
+                <div class="popup-buttons">
+                    <button class="btn-clear-history" onclick="clearHistory()">🗑️ 履歴クリア</button>
+                    <button class="btn-export-csv" onclick="exportHistoryToCSV()">💾 CSV</button>
+                    <button class="btn-export-kml" onclick="exportHistoryToKML()">🌐 KML</button>
+                </div>
+                <div id="historyList"></div>
+            </div>
+        </div>
+        <!-- ▼▼▼【ここから追加】CSVデータ管理ボタン ▼▼▼ -->
+        <div class="header-button-wrapper">
+            <button class="header-button" id="csvButton" aria-label="CSVデータ" title="CSVデータを管理">📄</button>
+            <span class="header-button-label">CSVデータ</span>
+            <div id="csvPopup">
+                <h4>CSVデータ管理</h4>
+                <div class="popup-buttons" style="flex-direction: column; align-items: stretch;">
+                    <button id="csv-plot-btn-header" class="btn-base" style="background-color: var(--primary-color);">🗺️ 地図にプロット</button>
+                    <button id="csv-navigate-btn-header" class="btn-base" style="background-color: var(--secondary-color); margin-top: 5px;">▶️ 巡回ナビゲーター</button>
+                    <button id="csv-clear-plot-btn-header" class="btn-base" style="background-color: var(--error-color); margin-top: 10px;" disabled>🗑️ プロットをクリア</button>
+                </div>
+            </div>
+        </div>
+        <!-- ▲▲▲【追加ここまで】▲▲▲ -->
     </div>
-    <div class="header-button-wrapper">
-        <button class="mode-toggle" id="modeToggle" aria-label="ダークモード切り替え" title="ダーク/ライトモード切替">🌙</button>
-        <span class="header-button-label">モード切替</span>
-    </div>
-    <div class="header-button-wrapper">
-        <button class="usage-button" onclick="toggleUsage()" aria-label="使い方" title="使い方を表示">？</button>
-        <span class="header-button-label">使い方</span>
+
+    <!-- 設定 グループ -->
+    <div class="button-group">
+        <div class="header-button-wrapper">
+            <button class="settings-button" id="settingsButton" aria-label="設定" title="設定">⚙️</button>
+            <span class="header-button-label">設定</span>
+        </div>
+        <div class="header-button-wrapper">
+            <button class="mode-toggle" id="modeToggle" aria-label="ダークモード切り替え" title="ダーク/ライトモード切替">🌙</button>
+            <span class="header-button-label">モード切替</span>
+        </div>
+        <div class="header-button-wrapper">
+            <button class="usage-button" onclick="toggleUsage()" aria-label="使い方" title="使い方を表示">？</button>
+            <span class="header-button-label">使い方</span>
+        </div>
     </div>
 </nav>
+<!-- ▲▲▲【変更ここまで】▲▲▲ -->
 <div class="usage-guide" id="usageGuide">
     <p>★知りたい場所の緯度・経度から、複数のオンライン地図や専門図面サイトへ瞬時にアクセス。情報収集をサポートします。★</p>
     <p class="popup-warning">⚠️ <strong>注意:</strong> 複数の地図を一括で開くには、ブラウザのポップアップブロックを解除（ポップアップを許可）してください。</p>
@@ -2698,8 +2482,6 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
     <li><strong>形式の切り替え:</strong>「⚙️形式切替」ボタンで、緯度経度の表示を「十進数形式」と「度分秒形式」で切り替えられます。</li>
     <li><strong>住所や名称で検索:</strong> 住所やランドマークなどを入力し「🔎検索」ボタンを押すと、その場所の座標が設定されます。入力中に候補も表示されます。</li>
     <li><strong>ルート検索:</strong> 「🚗 ルート検索」セクションの各ボタンを押すと、現在の座標を目的地としたルート案内ページ（Googleマップなど）を直接開くことができます。</li>
-    
-    <!-- ▼▼▼ ここからが修正・追加箇所です ▼▼▼ -->
     <li><strong>平面直角座標 (XY) への変換:</strong> 「XY変換」ボタンを押すと、緯度経度と平面直角座標系（XY座標）を相互に変換する専用ウィンドウが開きます。
         <ul>
              <li><strong>緯度経度 → XY座標:</strong> 変換したい緯度経度を入力し、対象となる座標系（例: 9系）を選択して「▶」ボタンを押すと、XY座標が計算されます。</li>
@@ -2708,7 +2490,6 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
              <li>変換結果は「✔ 結果をメイン画面に反映」ボタンで入力欄に適用したり、「📋 結果をコピー」ボタンでクリップボードに保存したりできます。</li>
         </ul>
     </li>
-    <!-- ▲▲▲ 修正・追加はここまでです ▲▲▲ -->
 </ul>
 
     <h4>■ 保存・共有・設定機能</h4>
@@ -2751,6 +2532,9 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
     <h4>■ 高度な地図ツール</h4>
     <ul>
         <li>地図左下の「🛠️測量・解析ツール」から、「📏 距離計測・断面作成」「📐 面積計測」「⭕ 円作成」が利用可能です。距離はダブルクリック、面積はEnterで計測が完了します。</li>
+        <!-- ▼▼▼【ここから変更】CSV関連機能の説明をヘッダーボタンに合わせて修正 ▼▼▼ -->
+        <li>ヘッダーの「📄 CSVデータ」ボタンから、CSVファイルの地点データを地図上に一括で表示（プロット）したり、地点を順番に確認する「巡回ナビゲーター」機能を利用できます。</li>
+        <!-- ▲▲▲【変更ここまで】▲▲▲ -->
         <li>「🌐 KML保存」ボタンで、作成した図形をKMLファイルとして保存できます。</li>
         <li> 測定中に `BS` または `DEL` キーを押すと、最後に追加した点を取り消せます。</li>
     </ul>
@@ -2775,6 +2559,17 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
             <li>確認メッセージが表示された後、データが復元され、ページが自動で再読み込みされます。</li>
         </ol>
     </li>
+    <!-- ▼▼▼【ここから追加】CSVインポートの説明 ▼▼▼ -->
+    <li style="margin-top: 10px;"><strong>ブックマークのCSVインポート:</strong>
+        <ol style="list-style: decimal inside; padding-left: 20px; margin-top: 5px;">
+            <li>ヘッダーの「⭐」ボタン、または右パネルの「⭐ブックマーク」タブから、ブックマーク管理画面を開きます。</li>
+            <li>「📥 インポート」または「📥 CSVインポート」ボタンを押します。</li>
+            <li>お使いのPCから、地点情報が記載されたCSVファイルを選択します。</li>
+            <li>プレビュー画面が表示されるので、CSVの各列が「名前」「緯度」「経度」などのどの情報に対応するかを、ドロップダウンリストから選択（マッピング）します。</li>
+            <li>「インポート実行」ボタンを押すと、CSVの内容がブックマークに一括で登録されます。</li>
+        </ol>
+    </li>
+    <!-- ▲▲▲【追加ここまで】▲▲▲ -->
 </ul>
 </div>
 </header>
@@ -2786,7 +2581,6 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
 <section class="input-section" aria-labelledby="input-section-title">
     <h2 id="input-section-title" class="visually-hidden">座標入力と操作</h2>
     <div class="input-row">
-    <!-- ボタンと入力欄をすべてここに配置 -->
     <div class="input-button-wrapper mobile-grid-item-geo">
         <button class="btn-base btn-icon btn-current-location" 
         onclick="initGeolocation()" 
@@ -2813,7 +2607,6 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
     <span class="input-button-label" id="coord-format-label">形式切替</span>
 </div>
 
-    <!-- ▼▼▼【緯度欄を修正】▼▼▼ -->
     <div class="input-group latlon-group mobile-grid-item-lat" title="世界測地系緯度">
         <div class="input-wrapper">
             <input type="text" id="latitude" value="35.68107447" placeholder="例: 35.681074">
@@ -2821,9 +2614,7 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
         </div>
         <label for="latitude">📍緯度 (Latitude)</label>
     </div>
-    <!-- ▲▲▲【修正ここまで】▲▲▲ -->
 
-    <!-- ▼▼▼【経度欄を修正】▼▼▼ -->
     <div class="input-group latlon-group mobile-grid-item-lon" title="世界測地系経度">
         <div class="input-wrapper">
             <input type="text" id="longitude" value="139.76784396" placeholder="例: 139.767843">
@@ -2831,18 +2622,13 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
         </div>
         <label for="longitude">📍経度 (Longitude)</label>
     </div>
-    <!-- ▲▲▲【修正ここまで】▲▲▲ -->
 
-    <!-- ▼▼▼【変更箇所】ボタンのIDを変更し、ラベルを調整 ▼▼▼ -->
     <div class="input-button-wrapper mobile-grid-item-conv">
         <button id="btn-open-coord-converter" class="btn-base">XY変換</button>
         <span class="input-button-label">平面直角座標</span>
     </div>
-    <!-- ▲▲▲【変更箇所】▲▲▲ -->
 
-   <!-- ▼▼▼ ここから追加 ▼▼▼ -->
     <div class="mobile-address-row">
-    <!-- ▲▲▲ 追加ここまで ▲▲▲ -->
         <div class="input-group address-group mobile-grid-item-addr">
             <div class="input-wrapper">
                 <input type="text" id="addressInput" placeholder="例: 東京都千代田区千代田1-1">
@@ -2854,9 +2640,7 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
             <button class="btn-base btn-icon btn-address-search" onclick="searchAddress()" aria-label="住所を検索" title="住所を検索">🔎</button>
             <span class="input-button-label">検索</span>
         </div>
-    <!-- ▼▼▼ ここから追加 ▼▼▼ -->
     </div>
-    <!-- ▲▲▲ 追加ここまで ▲▲▲ -->
     <div class="input-button-wrapper mobile-grid-item-route">
         <button class="btn-base btn-icon" id="btn-route-google" aria-label="Googleマップでルート検索" title="Googleマップでルート検索">🚗</button>
         <span class="input-button-label">ルート検索</span>
@@ -2877,11 +2661,13 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
                     <div class="analysis-tools-overlay collapsed" id="analysis-tools">
                         <h3 id="analysis-tools-header">🛠️ 測量・解析ツール <span class="toggle-icon">▶</span></h3>
                         <div class="analysis-tools-controls">
-                            <div class="analysis-tool-row">
-                                <button class="btn-base btn-measure" id="measure-tool-btn">📏 距離・断面</button>
-                            </div>
-                            <div class="analysis-tool-row">
-                                <button class="btn-base btn-area" id="area-tool-btn">📐 面積計測</button>
+<div class="analysis-tool-row">
+    <button class="btn-base btn-measure" id="measure-tool-btn">📏 距離・断面</button>
+    <label for="profile-division-input" style="font-size: 13px; font-weight: 600; margin: 0 5px;">分割数</label>
+    <input type="number" id="profile-division-input" value="100" min="10" max="200" aria-label="断面図の分割数">
+</div>
+<div class="analysis-tool-row">
+    <button class="btn-base btn-area" id="area-tool-btn">📐 面積計測</button>
                                 <span id="area-display" class="area-display-label"></span>
                             </div>
                             <div class="analysis-tool-row">
@@ -2938,10 +2724,13 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
 <button class="panel-tab active" data-tab="map-links" draggable="true">🗺️ <span class="tab-text">地図リンク</span></button>
 <button class="panel-tab" data-tab="history" draggable="true">⏱️ <span class="tab-text">履歴一覧</span></button>
 <button class="panel-tab" data-tab="bookmarks" draggable="true">⭐ <span class="tab-text">ブックマーク</span></button>
+            <button class="panel-tab" data-tab="csv-navigator" id="csv-navigator-tab" style="display: none;">▶️ <span class="tab-text">巡回CSV</span></button>
+            <!-- ▲▲▲【追加ここまで】▲▲▲ -->
         </div>
 
         <div class="panel-content-wrapper" id="panelContentWrapper">
             <div id="map-links-content" class="panel-content active" data-tab-content="map-links">
+
                 <div class="favorite-sets-container">
                     <div class="favorite-set-row">
                         <label for="favorite-sets">お気に入りセット:</label>
@@ -2997,6 +2786,9 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
                 <div class="table-container">
                     <div class="table-controls">
                         <input type="search" id="bookmarkSearchInput" placeholder="名前や住所で検索..." aria-label="ブックマークを検索">
+                        <!-- ▼▼▼【ここから変更】インポートボタンを追加 ▼▼▼ -->
+                        <button id="btn-import-bookmarks-csv" class="btn-import-csv">📥 CSVインポート</button>
+                        <!-- ▲▲▲【変更ここまで】▲▲▲ -->
                         <button id="btn-copy-table-bookmarks" title="表示中のテーブル全体をExcel等に貼り付けられる形式でコピーします">📋 テーブルコピー</button>
                         <button id="btn-copy-selected-bookmarks" disabled>📋 選択をコピー</button>
                         <button id="btn-delete-selected-bookmarks" class="btn-delete-selected" disabled>🗑️ 選択を削除</button>
@@ -3029,6 +2821,22 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
                     </div>
                 </div>
             </div>
+            <!-- ▼▼▼【ここから追加】巡回ナビ用のコンテンツエリア ▼▼▼ -->
+            <div id="csv-navigator-content" class="panel-content" data-tab-content="csv-navigator">
+                <div id="csv-navigator-container"> <!-- class="hidden"は不要なので削除 -->
+                    <div class="csv-nav-header">
+                        <h4 id="csv-nav-title">CSV巡回ナビゲーター</h4>
+                        <button id="csv-nav-close" class="btn-base" style="background-color: var(--error-color); min-width: 0; width: 60px;">閉じる</button>
+                    </div>
+                    <ul id="csv-nav-list"></ul>
+                    <div class="csv-nav-controls">
+                        <button id="csv-nav-prev" class="btn-base">◀ 前へ</button>
+                        <button id="csv-nav-next" class="btn-base">次へ ▶</button>
+                    </div>
+                    <p id="csv-nav-progress"></p>
+                </div>
+            </div>
+            <!-- ▲▲▲【追加ここまで】▲▲▲ -->
         </div>
     </aside>
 </main>
@@ -3041,20 +2849,18 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
 <style>
   .legal-notice p {
     margin-top: 0;
-    margin-bottom: 3px; /* 段落ごとの間隔をここで調整 */
+    margin-bottom: 3px;
   }
   .legal-notice .copyright,
   .legal-notice .developer {
-    margin-bottom: 2px; /* 上部の段落は少し詰める */
+    margin-bottom: 2px;
   }
 </style>
 
 <footer class="legal-notice" style="font-size: 11px; text-align: center; padding: 5px 0; color: var(--text-medium); background: var(--bg-container);">
-  <!-- クリックする部分 -->
   <div id="legal-toggle" style="cursor: pointer; font-weight: bold; padding: 5px;">
     免責事項 (クリックで表示)
   </div>
-  <!-- 詳細が表示される部分 (最初は非表示) -->
   <div id="legal-details" style="display: none; margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 10px;">
     <p class="copyright" style="font-weight: bold;">
       Copyright &copy; 2025 (株)地圏総合コンサルタント All Rights Reserved.
@@ -3068,13 +2874,14 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
     <p>
       本サービスは以下のオープンソースライブラリおよび公的機関のデータを使用しています:<br>
       - 地図データ: © 国土地理院, © OpenStreetMap contributors<br>
-      - ライブラリ: Leaflet (BSD-2), QRCode.js (MIT), proj4js (MIT)
+      - ライブラリ: Leaflet (BSD-2), QRCode.js (MIT), proj4js (MIT), PapaParse (MIT)
     </p>
   </div>
 </footer>
 
 <div class="modal-overlay" id="mylink-modal">
-<div class="modal-content">
+    <div class="modal-content">
+        <button type="button" class="modal-close-btn" onclick="closeMyLinkModal()" title="閉じる" aria-label="リンク編集を閉じる">&times;</button>
 <h3 id="modal-title"></h3>
 <form id="mylink-form">
 <input type="hidden" id="mylink-id">
@@ -3124,19 +2931,14 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
         <button type="submit" class="btn-modal-save">設定を保存</button>
     </div>
 
-    <!-- ▼▼▼【ここから追加】タブボタンのコンテナ ▼▼▼ -->
     <div class="settings-tabs">
         <button type="button" class="settings-tab active" data-tab="basic">⚙️ 基本設定</button>
         <button type="button" class="settings-tab" data-tab="customize">🎨 カスタマイズ</button>
         <button type="button" class="settings-tab" data-tab="data">💾 データ管理</button>
     </div>
-    <!-- ▲▲▲【追加ここまで】▲▲▲ -->
 
-    <!-- ▼▼▼【ここから追加】タブコンテンツのラッパー ▼▼▼ -->
     <div class="settings-tab-content-wrapper">
-        <!-- 【基本設定】タブのコンテンツ -->
         <div class="settings-tab-content active" data-tab-content="basic">
-            <!-- 元の「基本設定」関連の modal-form-group をここに移動 -->
             <div class="modal-form-group">
                 <label for="settings-default-layer">デフォルトの地図レイヤー</label>
                 <select id="settings-default-layer"></select>
@@ -3187,9 +2989,7 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
             </div>
         </div>
 
-        <!-- 【カスタマイズ】タブのコンテンツ -->
         <div class="settings-tab-content" data-tab-content="customize">
-            <!-- 元の「地図リンクパネルのカスタマイズ」関連の項目をここに移動 -->
             <hr style="margin: 25px 0; border: none; border-top: 1px solid var(--border-color);">
             <div class="modal-form-group">
                 <h4>🗺️ 地図リンクパネルのカスタマイズ</h4>
@@ -3198,7 +2998,6 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
                 <div class="modal-form-group" id="category-name-section">
                     <h5>🏷️ カテゴリ名の設定</h5>
                     <div id="settings-category-names">
-                        <!-- JSで生成 -->
                     </div>
                 </div>
 
@@ -3209,14 +3008,12 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
                         <button type="button" id="btn-hide-all-maps">すべて非表示</button>
                     </div>
                     <div id="settings-map-visibility-list" class="map-visibility-list">
-                        <!-- JSで生成 -->
                     </div>
                     <div class="map-visibility-controls" style="margin-top: 15px;">
                          <button type="button" id="btn-reset-map-categories">カテゴリ設定をリセット</button>
                     </div>
                     <small>カードのカテゴリ配置と、カテゴリの並び順を初期状態に戻します。</small>
                 </div>
-                <!-- ▼▼▼【ここから新規追加】非固定時パネル幅の設定セクション ▼▼▼ -->
                 <hr style="margin: 25px 0; border: none; border-top: 1px solid var(--border-color);">
                 <div class="modal-form-group" id="panel-width-section">
                     <h4>📐 サイドパネル幅の設定 (非固定時)</h4>
@@ -3241,13 +3038,10 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
                          <button type="button" id="reset-panel-widths-unpinned" style="padding: 6px 10px; font-size: 12px;">デフォルト幅にリセット</button>
                     </div>
                 </div>
-                <!-- ▲▲▲【新規追加ここまで】▲▲▲ -->
             </div>
         </div>
 
-        <!-- 【データ管理】タブのコンテンツ -->
         <div class="settings-tab-content" data-tab-content="data">
-            <!-- 元の「データの書き出しと読み込み」関連の項目をここに移動 -->
             <hr style="margin: 25px 0; border: none; border-top: 1px solid var(--border-color);">
             <div class="data-sync-section">
                 <h4>💾 データの書き出しと読み込み</h4>
@@ -3273,12 +3067,12 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
             </div>
         </div>
     </div>
-    <!-- ▲▲▲【追加ここまで】▲▲▲ -->
 </form>
     </div>
 </div>
 <div class="modal-overlay" id="qr-modal" onclick="closeQrModal()">
     <div class="modal-content" onclick="event.stopPropagation()">
+        <button type="button" class="modal-close-btn" onclick="closeQrModal()" title="閉じる" aria-label="QRコードを閉じる">&times;</button>
         <h3>📱 QRコードで共有</h3>
         <div id="qrcode"></div>
         <div class="modal-buttons">
@@ -3291,28 +3085,30 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
     <div class="modal-content" style="max-width: 90vw; width: 600px; height: auto;">
         <button type="button" class="modal-close-btn" id="btn-profile-modal-close" title="閉じる" aria-label="断面図を閉じる">&times;</button>
         <h3 id="profile-modal-header" style="cursor: move;">標高断面図</h3>
-        <div style="position: relative; width: 100%; height: 300px; margin-bottom: 10px; background: var(--bg-light); border-radius: 8px; border: 1px solid var(--border-color);">
+        <div style="position: relative; width: 100%; height: 300px; margin-bottom: 10px; background: var(--bg-container); border-radius: 8px; border: 1px solid var(--border-color);">
             <canvas id="profileChart"></canvas>
         </div>
-        <div style="display: flex; justify-content: flex-start; align-items: center; margin-bottom: 20px; padding: 0 10px;">
+        <div style="display: flex; justify-content: flex-start; align-items: center; margin-bottom: 10px; padding: 0 10px;">
             <input type="checkbox" id="y-axis-toggle" style="margin-right: 8px; width: 16px; height: 16px; cursor: pointer;">
             <label for="y-axis-toggle" style="font-size: 14px; cursor: pointer; user-select: none;">Y軸を0から始める</label>
         </div>
-        <div class="modal-buttons">
+        
+        <div id="profile-data-source" style="font-size: 11px; color: var(--text-medium); text-align: right; padding: 0 10px 10px 10px; margin-top: auto;">
+        </div>
+        
+        <div class="modal-buttons" style="margin-top: 0;">
             <button type="button" class="btn-base" id="btn-export-profile-csv" style="background-color: var(--success-color);">💾 データをCSVで書き出す</button>
             <button type="button" class="btn-modal-cancel" id="btn-profile-modal-cancel">閉じる</button>
         </div>
     </div>
 </div>
 
-<!-- ▼▼▼ プロジェクト管理モーダル ▼▼▼ -->
 <div class="modal-overlay" id="project-modal">
     <div class="modal-content">
 <button type="button" class="modal-close-btn" id="project-modal-close-btn-x" title="閉じる" aria-label="プロジェクト管理を閉じる">&times;</button>
         <h3>📁 プロジェクト管理</h3>
         <div class="project-list-container">
             <ul id="projectManagementList">
-                <!-- Populated by JS -->
             </ul>
         </div>
         <div class="project-actions project-actions-grid">
@@ -3332,16 +3128,13 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
         </div>
     </div>
 </div>
-<!-- ▲▲▲ ここまで ▲▲▲ -->
 
-<!-- ▼▼▼【変更箇所】座標変換ウィンドウのHTML構造を全面的に更新 ▼▼▼ -->
 <div class="modal-overlay" id="coord-converter-modal">
     <div class="modal-content">
         <button type="button" class="modal-close-btn" id="coord-converter-close-btn" title="閉じる">&times;</button>
         <h3>🧭緯度経度 ⇔ 平面直角座標 変換</h3>
         
         <div class="converter-grid">
-            <!-- 左パネル：緯度経度 -->
             <div class="converter-panel">
                 <h4>🌐世界測地系 (JGD2011)</h4>
                 <div class="converter-row">
@@ -3354,7 +3147,6 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
                         <input type="text" id="conv-lon" placeholder="例: 139.767843">
                     </div>
                 </div>
-                <!-- 形式変換ボタンを追加 -->
                 <div class="modal-form-group" style="display: flex; gap: 10px;">
                     <button type="button" class="btn-base" id="btn-conv-to-dec" style="flex: 1;">十進数に変換</button>
                     <button type="button" class="btn-base" id="btn-conv-to-dms" style="flex: 1;">度分秒に変換</button>
@@ -3362,13 +3154,11 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
                  <button type="button" class="btn-base" id="btn-get-main-coords" style="width:100%;">メイン画面の座標を取得</button>
             </div>
 
-            <!-- 中央パネル：変換ボタン -->
             <div class="converter-arrows">
                 <button type="button" id="btn-convert-to-xy" title="XY座標へ変換">▶</button>
                 <button type="button" id="btn-convert-to-latlon" title="緯度経度へ変換">◀</button>
             </div>
 
-            <!-- 右パネル：XY座標 -->
             <div class="converter-panel">
                 <h4>📐平面直角座標系 (JGD2011)</h4>
                 <div class="converter-row">
@@ -3376,7 +3166,6 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
                         <label for="conv-pref">都道府県</label>
                         <select id="conv-pref">
                             <option value="">自動判別</option>
-                            <!-- JSで生成 -->
                         </select>
                     </div>
                     <div class="modal-form-group">
@@ -3397,19 +3186,60 @@ body.dark-mode #coord-converter-modal .modal-form-group select {
             </div>
         </div>
 
-        <!-- 下部アクションボタン -->
         <div class="converter-actions">
             <button type="button" class="btn-base" id="btn-apply-coords">✔ 結果をメイン画面に反映</button>
             <button type="button" class="btn-base" id="btn-copy-conv-result">📋 結果をコピー</button>
-            <!-- ▼▼▼ ここからが変更箇所です ▼▼▼ -->
             <button type="button" class="btn-base" id="btn-open-gsi-bl2xy" title="緯度・経度をクリップボードにコピーしてサイトを開きます">🌏 地理院(緯経→XY)</button>
             <button type="button" class="btn-base" id="btn-open-gsi-xy2bl" title="XY座標・系番号をクリップボードにコピーしてサイトを開きます">🌏 地理院(XY→緯経)</button>
-            <!-- ▲▲▲ 変更はここまでです ▲▲▲ -->
         </div>
     </div>
 </div>
-<!-- ▲▲▲【変更箇所】▲▲▲ -->
 
+<!-- ▼▼▼【ここから追加】CSVインポート用のモーダル ▼▼▼ -->
+<div class="modal-overlay" id="csv-import-modal">
+    <div class="modal-content">
+        <button type="button" class="modal-close-btn" id="csv-import-close-btn" title="閉じる">&times;</button>
+        <h3 id="csv-import-title">CSVインポート</h3>
+        <input type="file" id="csv-file-input" accept=".csv, text/csv" style="display: none;">
+
+        <!-- Step 1: File Selection -->
+<div id="csv-file-selection">
+    <div class="modal-form-group">
+        <p id="csv-import-description">ブックマークに一括登録するCSVファイルを選択してください。</p>
+        <button type="button" id="csv-select-file-btn" class="btn-base btn-import-csv" style="width: 100%; padding: 15px; font-size: 16px;">📂 ファイルを選択</button>
+        <small>ヘッダー行（1行目）を含むCSVファイルを推奨します。</small>
+    </div>
+</div>
+
+        <!-- Step 2: Column Mapping -->
+        <div id="csv-column-mapping">
+            <p>CSVの各列がどの情報に対応するかを指定してください。</p>
+            <div id="csv-preview-container">
+                <table id="csv-preview-table"></table>
+            </div>
+            <div class="column-mapper-grid" id="csv-mapper-grid">
+                <!-- JSで生成 -->
+            </div>
+            <div class="modal-buttons">
+                <button type="button" class="btn-modal-cancel" id="csv-back-to-file-select-btn">戻る</button>
+                <button type="button" class="btn-base" id="csv-goto-confirm-btn" style="background-color: var(--primary-color);">次へ</button>
+            </div>
+        </div>
+        
+        <!-- Step 3: Confirmation -->
+        <div id="csv-import-confirm">
+             <div class="csv-import-info">
+                <p><strong id="csv-import-count">0</strong> 件のデータをブックマークにインポートします。</p>
+                <p><strong>注意:</strong> インポートには時間がかかる場合があります。処理が完了するまでこのウィンドウを閉じないでください。</p>
+            </div>
+            <div class="modal-buttons">
+                <button type="button" class="btn-modal-cancel" id="csv-back-to-mapping-btn">戻る</button>
+                <button type="button" class="btn-modal-save" id="csv-execute-import-btn">インポート実行</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- ▲▲▲【追加ここまで】▲▲▲ -->
 <script>
 /**
  * 世界測地系(WGS84)から日本測地系(Tokyo Datum)へ座標を変換する関数
@@ -3441,10 +3271,8 @@ function decimalToGsiDms(dd) {
     const m = Math.floor((absDd - d) * 60);
     const s = (((absDd - d) * 60) - m) * 60;
     
-    // ddd * 10000 + mm * 100 + ss.sssss の計算で値を組み立てる
     const resultValue = d * 10000 + m * 100 + s;
     
-    // 小数点以下5桁にフォーマットして返す
     return resultValue.toFixed(5);
 }
 
@@ -3479,14 +3307,14 @@ const defaultProjectData = {
         coordFormat: 'decimal', 
         historySize: 100, 
         defaultLayer: 'gsi_std', 
-        panelState: 'pinned', // ← 'closed' から 'pinned' に変更
+        panelState: 'pinned',
         panelWidth: 500, 
         hiddenMapIds: [],
         categoryOrder: ['terrain', 'geology', 'weather', 'disaster', 'survey', 'other', 'mylink'],
         categoryNameOverrides: {},
         mapCategoryOverrides: {},
         mapOrderInCategory: {},
-        unpinnedPanelWidths: { // ← ★★★【新規追加】★★★
+        unpinnedPanelWidths: {
             'map-links': 500,
             'history': 1200,
             'bookmarks': 1300
@@ -3510,6 +3338,15 @@ let googleMapType = 'k';
 let historyLayer = null, bookmarkLayer = null; 
 let isHistoryVisibleOnMap = false, isBookmarksVisibleOnMap = false;
 
+// ▼▼▼【ここから追加】CSVプロット用レイヤーと巡回データ用のグローバル変数 ▼▼▼
+let csvPlotLayer = null;
+let csvNavigatorData = {
+    points: [],
+    currentIndex: -1,
+    fileName: ''
+};
+// ▲▲▲【追加ここまで】▲▲▲
+
 let startIcon, endIcon;
 
 const defaultSettings = { 
@@ -3525,7 +3362,7 @@ const defaultSettings = {
     categoryNameOverrides: {},
     mapCategoryOverrides: {},
     mapOrderInCategory: {},
-    unpinnedPanelWidths: { // ← ★★★【新規追加】★★★
+    unpinnedPanelWidths: {
         'map-links': 500,
         'history': 1200,
         'bookmarks': 1300
@@ -3538,7 +3375,6 @@ const $historyTableBody = document.getElementById('historyTableBody');
 let bookmarkSortState = { column: 'name', order: 'asc' };
 const $bookmarkTableBody = document.getElementById('bookmarkTableBody');
 
-// ▼▼▼【注意】このブロックはDOMContentLoadedの外側に残します ▼▼▼
 const coordinateSystems = [
   {num:1, lat0:33, lon0:129.5, epsg:6669}, {num:2, lat0:33, lon0:131, epsg:6670},
   {num:3, lat0:36, lon0:132.1666667, epsg:6671}, {num:4, lat0:33, lon0:133.5, epsg:6672},
@@ -3551,7 +3387,6 @@ const coordinateSystems = [
   {num:17, lat0:26, lon0:131, epsg:6685}, {num:18, lat0:20, lon0:136, epsg:6686},
   {num:19, lat0:26, lon0:154, epsg:6687}
 ];
-// ▼▼▼【ここから追加】▼▼▼
 const prefectureToSystem = {
   "北海道":[11,12,13],"青森県":[10],"岩手県":[10],"宮城県":[10],"秋田県":[10],"山形県":[10],
   "福島県":[9],"茨城県":[9],"栃木県":[9],"群馬県":[9],"埼玉県":[9],"千葉県":[9],"東京都":[9,14,18,19],
@@ -3561,7 +3396,6 @@ const prefectureToSystem = {
   "山口県":[3],"徳島県":[4],"香川県":[4],"愛媛県":[4],"高知県":[4],"福岡県":[2],"佐賀県":[2],
   "長崎県":[1],"熊本県":[2],"大分県":[2],"宮崎県":[2],"鹿児島県":[1,2],"沖縄県":[15,16,17]
 };
-// ▼▼▼【ここから追加】▼▼▼
 const PREFECTURE_ORDER = [
   "北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県",
   "茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県",
@@ -3571,10 +3405,7 @@ const PREFECTURE_ORDER = [
   "徳島県", "香川県", "愛媛県", "高知県", "福岡県", "佐賀県", "長崎県",
   "熊本県", "大分県", "宮崎県", "鹿児島県", "沖縄県"
 ];
-// ▲▲▲【追加ここまで】▲▲▲
-// ▲▲▲【注意】▲▲▲
 
-// ▼▼▼ プロジェクトデータ管理関数 ▼▼▼
 function loadProjects() {
     try {
         const storedProjects = JSON.parse(localStorage.getItem(PROJECTS_KEY));
@@ -3586,14 +3417,13 @@ function loadProjects() {
                 projectsData.activeProjectId = activeProjectId;
             }
         } else {
-            // 新規ユーザー or データ破損
             const newId = `proj_${Date.now()}`;
             projectsData = {
                 activeProjectId: newId,
                 projects: {
                     [newId]: {
                         name: 'デフォルトプロジェクト',
-                        data: JSON.parse(JSON.stringify(defaultProjectData)) // Deep copy
+                        data: JSON.parse(JSON.stringify(defaultProjectData))
                     }
                 }
             };
@@ -3602,7 +3432,6 @@ function loadProjects() {
         }
     } catch (e) {
         console.error("プロジェクトデータの読み込みに失敗しました。", e);
-        // エラー発生時は安全なデフォルト状態に
         const newId = `proj_${Date.now()}`;
         projectsData = {
             activeProjectId: newId,
@@ -3641,10 +3470,8 @@ function setProjectData(key, value) {
 }
 
 function migrateOldData() {
-    // 古い形式のデータが存在するかチェック（いずれか一つでもあれば移行対象）
     const needsMigration = LEGACY_KEYS.some(key => localStorage.getItem(key) !== null);
     
-    // 新しいプロジェクトデータが既に存在する場合は移行しない
     if (!needsMigration || localStorage.getItem(PROJECTS_KEY) !== null) {
         return;
     }
@@ -3678,7 +3505,6 @@ function migrateOldData() {
     activeProjectId = newId;
     saveProjects();
 
-    // 移行後に古いデータを削除
     LEGACY_KEYS.forEach(key => {
         localStorage.removeItem(key);
     });
@@ -3690,36 +3516,26 @@ function switchProject(projectId) {
     if (projectId && projectsData.projects[projectId]) {
         projectsData.activeProjectId = projectId;
         saveProjects();
-        // ページをリロードして、新しいプロジェクトのデータを確実に反映
         location.reload();
     }
 }
-
-// ▲▲▲ ここまで ▲▲▲
 
 
 function loadSettings() {
     const savedSettings = getProjectData(SETTINGS_KEY) || {};
     
-    // ユーザー設定を読み込みつつ、デフォルト設定にしかない新しいプロパティをマージする
     currentSettings = { ...defaultSettings, ...savedSettings };
 
-    // *** ここからが重要な修正箇所 ***
-    // カテゴリ順序の互換性を保つ処理を追加
-    // もしユーザーの保存設定にカテゴリ順序が存在する場合
     if (savedSettings.categoryOrder && Array.isArray(savedSettings.categoryOrder)) {
         const savedOrder = savedSettings.categoryOrder;
         const defaultOrder = defaultSettings.categoryOrder;
         
-        // デフォルトのカテゴリリストにあって、ユーザーの保存リストにないカテゴリを探す
         const missingCategories = defaultOrder.filter(cat => !savedOrder.includes(cat));
         
-        // もし不足しているカテゴリがあれば、ユーザーのリストの末尾に追加する
         if (missingCategories.length > 0) {
             currentSettings.categoryOrder = [...savedOrder, ...missingCategories];
         }
     }
-    // *** 修正ここまで ***
 
     applySettings();
 }
@@ -3729,12 +3545,10 @@ function applySettings() {
     document.getElementById('modeToggle').textContent = currentSettings.theme === 'dark' ? '☀️' : '🌙';
     isDMSFormat = (currentSettings.coordFormat === 'dms');
     
-    // ▼▼▼【ここから追加】ボタンのラベルを更新する処理 ▼▼▼
     const labelElement = document.getElementById('coord-format-label');
     if (labelElement) {
         labelElement.textContent = isDMSFormat ? '度分秒' : '十進数';
     }
-    // ▲▲▲【追加ここまで】▲▲▲
 
     updateLatLonInputs(currentLatLon.lat, currentLatLon.lon);
     MAX_HISTORY = parseInt(currentSettings.historySize, 10);
@@ -3770,7 +3584,6 @@ function openSettingsModal() {
     document.getElementById('settings-history-size').value = currentSettings.historySize;
     document.getElementById('settings-panel-state').value = currentSettings.panelState;
 
-    // ▼▼▼【新規追加】非固定時パネル幅の設定をモーダルに反映 ▼▼▼
     const widths = currentSettings.unpinnedPanelWidths || defaultSettings.unpinnedPanelWidths;
     document.getElementById('settings-panel-width-map-links').value = widths['map-links'];
     document.getElementById('settings-panel-width-map-links-value').textContent = widths['map-links'];
@@ -3778,7 +3591,6 @@ function openSettingsModal() {
     document.getElementById('settings-panel-width-history-value').textContent = widths['history'];
     document.getElementById('settings-panel-width-bookmarks').value = widths['bookmarks'];
     document.getElementById('settings-panel-width-bookmarks-value').textContent = widths['bookmarks'];
-    // ▲▲▲【新規追加ここまで】▲▲▲
 
     populateMapVisibilitySettings();
     populateCategoryNameSettings();
@@ -3799,13 +3611,11 @@ function saveSettings(e) {
     currentSettings.historySize = document.getElementById('settings-history-size').value;
     currentSettings.panelState = document.getElementById('settings-panel-state').value;
 
-    // ▼▼▼【新規追加】非固定時パネル幅の設定を保存 ▼▼▼
     currentSettings.unpinnedPanelWidths = {
         'map-links': document.getElementById('settings-panel-width-map-links').value,
         'history': document.getElementById('settings-panel-width-history').value,
         'bookmarks': document.getElementById('settings-panel-width-bookmarks').value
     };
-    // ▲▲▲【新規追加ここまで】▲▲▲
 
     const hiddenMaps = [];
     document.querySelectorAll('#settings-map-visibility-list input[type="checkbox"]:checked').forEach(cb => {
@@ -3830,11 +3640,10 @@ function saveSettings(e) {
     renderMapCards();
 }
 
-// ▼▼▼【ここから追加】地図リンク表示設定を生成する関数 ▼▼▼
 function populateMapVisibilitySettings() {
     const listContainer = document.getElementById('settings-map-visibility-list');
     listContainer.innerHTML = '';
-    const allMaps = getCombinedMapDefinitions(); // 非表示設定を適用する前の全リストを取得
+    const allMaps = getCombinedMapDefinitions();
     const mapsByCategory = allMaps.reduce((acc, map) => {
         const cat = map.category || 'mylink';
         if (!acc[cat]) acc[cat] = [];
@@ -3873,7 +3682,7 @@ function populateCategoryNameSettings() {
     const overrides = currentSettings.categoryNameOverrides || {};
 
     categoryOrder.forEach(catKey => {
-        if (catKey === 'mylink') return; // マイリンクは名称変更対象外
+        if (catKey === 'mylink') return;
         const meta = CATEGORY_META[catKey];
         const currentName = overrides[catKey] || meta.title;
         
@@ -3886,8 +3695,6 @@ function populateCategoryNameSettings() {
         container.appendChild(itemDiv);
     });
 }
-// ▲▲▲【追加ここまで】▲▲▲
-
 function showNotification(message, type = 'success') { $notification.textContent = message; $notification.className = `notification ${type}`; $notification.style.display = 'block'; setTimeout(() => $notification.style.display = 'none', 3000); }
 
 async function updateCurrentCoords(newCoords = null, skipHistorySave = false, fromNav = false) {
@@ -3968,48 +3775,33 @@ async function updateCurrentCoords(newCoords = null, skipHistorySave = false, fr
 
 }
 
-// ▼▼▼【ここから追加】レート制限とネットワークエラーに対応するリトライ機能付きfetch ▼▼▼
-/**
- * fetchにリトライ処理を追加したラッパー関数
- * @param {string} url - fetchするURL
- * @param {number} maxRetries - 最大リトライ回数
- * @param {number} delay - 初期待機時間(ms)
- * @returns {Promise<Response>} fetchのレスポンス
- */
 async function fetchWithRetry(url, maxRetries = 3, delay = 1000) {
     for (let i = 0; i < maxRetries; i++) {
         try {
             const response = await fetch(url);
-            // レート制限エラー(429)の場合、待機してリトライ
             if (response.status === 429) {
                 console.warn(`Rate limit hit for ${url}. Retrying in ${delay * (i + 1)}ms...`);
                 await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
-                continue; // 次のループへ
+                continue;
             }
-            // サーバーエラー(5xx)の場合もリトライの対象とする
             if (response.status >= 500 && response.status < 600) {
                  console.warn(`Server error (${response.status}) for ${url}. Retrying in ${delay * (i + 1)}ms...`);
                  await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
                  continue;
             }
-            return response; // 成功したレスポンスを返す
+            return response;
         } catch (error) {
             console.error(`Fetch error for ${url}:`, error);
-            // 最後の試行でも失敗した場合はエラーをスローする
             if (i === maxRetries - 1) {
                 showNotification('ネットワークエラーが発生しました。', 'error');
                 throw error;
             }
-            // ネットワークエラーの場合も待機してリトライ
             await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
         }
     }
-    // ループが完了しても成功しなかった場合（通常は到達しない）
     throw new Error(`Failed to fetch ${url} after ${maxRetries} attempts.`);
 }
-// ▲▲▲【追加ここまで】▲▲▲
 
-// ▼▼▼【ここから修正】▼▼▼
 async function initGeolocation() {
     return new Promise((resolve, reject) => {
         if (!navigator.geolocation) {
@@ -4021,7 +3813,6 @@ async function initGeolocation() {
         navigator.geolocation.getCurrentPosition(
             async position => {
                 updateLatLonInputs(position.coords.latitude, position.coords.longitude);
-                // ここで座標更新まで完了させてから resolve する
                 await updateCurrentCoords(); 
                 showNotification('現在地を自動設定しました');
                 resolve(position.coords);
@@ -4034,7 +3825,6 @@ async function initGeolocation() {
         );
     });
 }
-// ▲▲▲【修正ここまで】▲▲▲
 
 function updateMapPreview(lat, lon, zoom) {
     const currentZoom = zoom || parseInt($zoom.value, 10);
@@ -4068,7 +3858,7 @@ function initOSMClickMap(lat, lon, zoom) {
             L.control.currentLocation({ position: 'topleft' }).addTo(osmMap);
         }
         L.control.scale({ imperial: false }).addTo(osmMap);
-
+        
         setupAnalysisTools();
         const baseMaps = {};
         for(const key in BASE_LAYERS) {
@@ -4114,10 +3904,9 @@ function initOSMClickMap(lat, lon, zoom) {
         });
         osmMap.on('mousemove', e => { if (isMeasuring) handleMeasureMouseMove(e); });
 
-// ▼▼▼【ここから変更】マーカークラスタリングを有効化 ▼▼▼
         historyLayer = L.markerClusterGroup().addTo(osmMap);
         bookmarkLayer = L.markerClusterGroup().addTo(osmMap);
-        // ▲▲▲【変更ここまで】▲▲▲
+        csvPlotLayer = L.markerClusterGroup().addTo(osmMap); // CSVプロット用レイヤー
 
 osmMarker = L.marker(latlng).addTo(osmMap)
                .bindPopup("情報を読み込み中...");
@@ -4158,7 +3947,7 @@ osmMarker = L.marker(latlng).addTo(osmMap)
 function applyInitialPanelState() {
     if (window.innerWidth <= 1024) return;
 
-const mainToggleBtnWrapper = document.getElementById('main-toggle-panel-btn-wrapper'); // ▼▼▼ 追加 ▼▼▼
+const mainToggleBtnWrapper = document.getElementById('main-toggle-panel-btn-wrapper');
     
     if (currentSettings.panelState === 'open') {
         const rightPanel = document.querySelector('.right-panel');
@@ -4170,17 +3959,15 @@ const mainToggleBtnWrapper = document.getElementById('main-toggle-panel-btn-wrap
         if (!mainLayout.classList.contains('pinned')) {
             togglePinPanel();
         }
-        // ▼▼▼ ここから3行追加 ▼▼▼
         if (mainToggleBtnWrapper) {
              mainToggleBtnWrapper.style.display = 'none';
         }
-        // ▲▲▲ 追加ここまで ▲▲▲
     }
 }
 
 async function getAddressFromCoords(lat, lon) {
     try {
-        const response = await fetchWithRetry(`https://geoapi.heartrails.com/api/json?method=searchByGeoLocation&x=${lon}&y=${lat}`); // ← ★★★ 修正 ★★★
+        const response = await fetchWithRetry(`https://geoapi.heartrails.com/api/json?method=searchByGeoLocation&x=${lon}&y=${lat}`);
         const data = await response.json();
 
         if (!data.response || !data.response.location || data.response.location.length === 0) {
@@ -4206,7 +3993,7 @@ async function getAddressFromCoords(lat, lon) {
 
 async function getElevationFromCoords(lat, lon) {
   try {
-    const response = await fetchWithRetry(`https://cyberjapandata2.gsi.go.jp/general/dem/scripts/getelevation.php?lon=${lon}&lat=${lat}&outtype=JSON`); // ← ★★★ 修正 ★★★
+    const response = await fetchWithRetry(`https://cyberjapandata2.gsi.go.jp/general/dem/scripts/getelevation.php?lon=${lon}&lat=${lat}&outtype=JSON`);
     const data = await response.json();
     if (data.elevation && data.elevation !== "none") {
       return parseFloat(data.elevation).toFixed(2);
@@ -4218,26 +4005,16 @@ async function getElevationFromCoords(lat, lon) {
   }
 }
 
-// ▼▼▼【ここから追加】▼▼▼
-/**
- * 緯度経度と都道府県から、適切な平面直角座標系のXY座標を取得する
- * @param {number} lat - 緯度
- * @param {number} lon - 経度
- * @param {string} prefecture - 都道府県名 (例: "東京都")
- * @returns {{x: string, y: string, system: number}|null} 変換結果、または失敗時にnull
- */
 function getBestXYForLatLng(lat, lon, prefecture) {
     if (isNaN(lat) || isNaN(lon)) return null;
 
     let targetSystems = [];
 
-    // 1. 都道府県が指定されていれば、その県で使われる座標系に絞り込む
     if (prefecture && prefectureToSystem[prefecture]) {
         const systemNumbers = prefectureToSystem[prefecture];
         targetSystems = coordinateSystems.filter(sys => systemNumbers.includes(sys.num));
     }
     
-    // 2. 絞り込めなかった場合（または都道府県情報がない場合）は、全座標系を対象とする（フォールバック）
     if (targetSystems.length === 0) {
         targetSystems = coordinateSystems;
     }
@@ -4245,8 +4022,6 @@ function getBestXYForLatLng(lat, lon, prefecture) {
     let minDistance = Infinity;
     let bestSystem = null;
 
-    // 3. 対象となる座標系の中から、最も近いものを選択する
-    //    (これにより北海道や東京都など、複数の系を持つ県にも対応)
     for (const sys of targetSystems) {
         const distance = Math.sqrt(Math.pow(lat - sys.lat0, 2) + Math.pow((lon - sys.lon0) * Math.cos(lat * Math.PI / 180), 2));
         if (distance < minDistance) {
@@ -4270,7 +4045,6 @@ function getBestXYForLatLng(lat, lon, prefecture) {
     }
     return null;
 }
-// ▲▲▲【追加ここまで】▲▲▲
 
 async function addCoordinateToHistory(lat, lon, zoom, addressInfo, elevation) {
     let history = getProjectData('coordinateHistory') || [];
@@ -4366,7 +4140,7 @@ function loadCoordinateFromHistory(item) {
     toggleHistoryPopup(false);
     showNotification(`履歴「${item.address}」を適用`);
 }
-function toggleHistoryPopup(open = true) { if (open && $historyPopup.style.display !== 'block') { renderHistoryList(getProjectData('coordinateHistory') || []); $historyPopup.style.display = 'block'; $bookmarkPopup.style.display = 'none'; } else { $historyPopup.style.display = 'none'; } }
+function toggleHistoryPopup(open = true) { if (open && $historyPopup.style.display !== 'block') { renderHistoryList(getProjectData('coordinateHistory') || []); $historyPopup.style.display = 'block'; $bookmarkPopup.style.display = 'none'; document.getElementById('csvPopup').style.display = 'none'; } else { $historyPopup.style.display = 'none'; } }
 function clearHistory() { if (confirm('現在のプロジェクトの履歴を全削除しますか？')) { setProjectData('coordinateHistory', []); renderHistoryList([]); renderHistoryTable(); renderHistoryOnMap(); showNotification('履歴をクリアしました'); toggleHistoryPopup(false); } }
 function exportHistoryToCSV() { const d = getProjectData('coordinateHistory')||[]; if(d.length>0) exportToCSV(d, '座標履歴'); else showNotification('履歴がありません', 'error'); }
 
@@ -4446,7 +4220,7 @@ function handleBookmarkAction(index, action) {
         }
     }
 }
-function toggleBookmarkPopup(open = true) { if (open && $bookmarkPopup.style.display !== 'block') { renderBookmarkList(); $bookmarkPopup.style.display = 'block'; $historyPopup.style.display = 'none'; } else { $bookmarkPopup.style.display = 'none'; } }
+function toggleBookmarkPopup(open = true) { if (open && $bookmarkPopup.style.display !== 'block') { renderBookmarkList(); $bookmarkPopup.style.display = 'block'; $historyPopup.style.display = 'none'; document.getElementById('csvPopup').style.display = 'none'; } else { $bookmarkPopup.style.display = 'none'; } }
 function clearBookmarks() { if (confirm('現在のプロジェクトのブックマークを全削除しますか？')) { setProjectData(BOOKMARK_KEY, []); renderBookmarkList([]); renderBookmarkTable(); renderBookmarksOnMap(); showNotification('ブックマークをクリアしました'); toggleBookmarkPopup(false); } }
 function exportBookmarksToCSV() { const d = getProjectData(BOOKMARK_KEY)||[]; if(d.length>0) exportToCSV(d, 'bookmarks_export'); else showNotification('ブックマークがありません', 'error'); }
 
@@ -4531,7 +4305,7 @@ async function searchAddress() {
         if (coords) {
             showNotification(`「${query}」の座標を設定`);
             updateLatLonInputs(coords.lat, coords.lon);
-            await updateCurrentCoords(coords, false);
+            await updateCurrentCoords(coords);
         } else {
             showNotification('住所が見つかりません', 'error');
         }
@@ -4612,7 +4386,7 @@ function renderMapCards() {
         categoryDiv.setAttribute('draggable', true);
         const categoryHeader = document.createElement('div');
         categoryHeader.className = 'category-header';
-        categoryHeader.classList.add('collapsed'); // ★★★ この行を追加 ★★★
+        categoryHeader.classList.add('collapsed');
         categoryHeader.addEventListener('click', e => { if (e.target.closest('.category-title-group')) { toggleCategory(categoryHeader); } });
         const categoryTitleText = currentSettings.categoryNameOverrides?.[catKey] || catGroup.meta.title;
         categoryHeader.innerHTML = `<div class="category-title-group"><div class="category-icon ${catGroup.meta.class}">${catGroup.meta.icon}</div><div class="category-title">${escapeXml(categoryTitleText)}</div><span class="accordion-icon">▼</span></div>`;
@@ -4631,7 +4405,7 @@ function renderMapCards() {
         categoryDiv.appendChild(categoryHeader);
         const mapGrid = document.createElement('div');
         mapGrid.className = 'map-grid';
-        mapGrid.classList.add('hidden'); // ★★★ この行を追加 ★★★
+        mapGrid.classList.add('hidden');
         
         const order = currentSettings.mapOrderInCategory?.[catKey];
         if (order && Array.isArray(order) && catGroup.maps.length > 1) {
@@ -4741,10 +4515,6 @@ function copyToClipboard(elementId) {
     }
 }
 
-/**
- * 指定されたIDの入力欄の値をクリップボードにコピーする関数
- * @param {string} inputId コピー対象のinput要素のID
- */
 function copyInputToClipboard(inputId) {
     const inputElement = document.getElementById(inputId);
     if (!inputElement) return;
@@ -4840,6 +4610,11 @@ function handleMeasureDoubleClick(e) {
     }
     const finalPoints = [...measurePoints, e.latlng];
     const finalLine = L.polyline(finalPoints, { color: 'blue' }).addTo(analysisLayer);
+
+    if (finalLine.getBounds().isValid()) {
+        osmMap.fitBounds(finalLine.getBounds(), { padding: [50, 50] });
+    }
+
     const totalDistance = calculateTotalDistance(finalPoints);
     const distText = totalDistance > 1000 ? (totalDistance / 1000).toFixed(2) + ' km' : totalDistance.toFixed(1) + ' m';
     
@@ -4854,7 +4629,20 @@ function handleMeasureDoubleClick(e) {
     profileButton.textContent = '📈 標高断面図を作成';
     profileButton.style.marginTop = '10px';
     profileButton.style.cursor = 'pointer';
-    profileButton.onclick = () => generateProfileChart(finalPoints);
+
+    profileButton.onclick = () => {
+        const divisionInput = document.getElementById('profile-division-input');
+        let divisionCount = parseInt(divisionInput.value, 10);
+
+        if (isNaN(divisionCount) || divisionCount < 10 || divisionCount > 300) {
+            showNotification('分割数には10～200の数値を入力してください。デフォルトの80で作成します。', 'warning');
+            divisionCount = 100;
+            divisionInput.value = 100;
+        }
+        
+        generateProfileChart(finalPoints, divisionCount);
+    };
+
     popupContent.appendChild(profileButton);
 
     finalLine.bindPopup(popupContent).openPopup();
@@ -4891,8 +4679,7 @@ function toggleAreaMeasureMode(forceOff = false) {
     } else {
         if (tempAreaPolygon) analysisLayer.removeLayer(tempAreaPolygon);
         tempAreaPolygon = null;
-        $areaDisplay.style.
-display = 'none';
+        $areaDisplay.style.display = 'none';
     }
 }
 function handleAreaMeasureClick(e) {
@@ -5017,48 +4804,47 @@ function exportAnalysisToKML() {
     showNotification('解析結果をKMLで書き出しました');
 }
 
-// ▼▼▼ 断面図関連の関数群（ここから）▼▼▼
-async function generateProfileChart(points) {
+async function generateProfileChart(points, divisionCount = 100) {
     if (points.length < 2) return;
     showNotification('標高データを取得中です...', 'warning');
 
     try {
-        await loadChartJS(); // 動的にChart.jsを読み込み
-        const sampledPoints = interpolatePoints(points, 80);
-
+        await loadChartJS();
+        const sampledPoints = interpolatePoints(points, divisionCount);
         const fetchPromises = sampledPoints.map(point =>
-            fetch(`https://cyberjapandata2.gsi.go.jp/general/dem/scripts/getelevation.php?outtype=JSON&demtype=dem_merged&lon=${point.lng}&lat=${point.lat}`)
-            .then(res => {
-                if (!res.ok) throw new Error(`Server responded with status ${res.status}`);
-                return res.json();
-            })
+            fetchWithRetry(`https://cyberjapandata2.gsi.go.jp/general/dem/scripts/getelevation.php?outtype=JSON&demtype=dem_merged&lon=${point.lng}&lat=${point.lat}`)
+            .then(res => res && res.ok ? res.json() : null)
         );
-
-        const results = await Promise.allSettled(fetchPromises);
-
+        const results = await Promise.all(fetchPromises);
         let dist = 0;
         let successfulFetches = 0;
+
         lastProfileData = results.map((result, i) => {
             if (i > 0) dist += sampledPoints[i - 1].distanceTo(sampledPoints[i]);
 
             let elev = null;
-            if (result.status === 'fulfilled' && result.value) {
-                const item = result.value;
+            let demType = '---';
+
+            if (result) {
+                const item = result;
                 if (item.elevation && item.elevation !== '-----') {
                     elev = parseFloat(item.elevation);
                     successfulFetches++;
                 }
-            } else if (result.status === 'rejected') {
-                console.warn(`Failed to fetch elevation for point ${i}:`, result.reason);
+                if (item.hsrc) {
+                    demType = item.hsrc;
+                }
             }
 
             return {
                 distance: dist,
                 elevation: elev,
                 lat: sampledPoints[i].lat,
-                lon: sampledPoints[i].lng
+                lon: sampledPoints[i].lng,
+                dem: demType
             };
         });
+
 
         if (successfulFetches > 0) {
             drawProfileChart(lastProfileData);
@@ -5072,12 +4858,11 @@ async function generateProfileChart(points) {
         }
 
     } catch (error) {
-        showNotification(`断面図の生成に失敗: ${error.message}`, 'error');
         console.error("Error in generateProfileChart:", error);
+        showNotification(`断面図の生成に失敗: ${error.message}`, 'error');
         lastProfileData = null;
     }
 }
-
 function interpolatePoints(points, num) {
     const totalDist = calculateTotalDistance(points);
     if (totalDist === 0) return [points[0]];
@@ -5116,16 +4901,20 @@ if (yToggle.checked) yOpts.min = 0;
         type: 'line',
         data: {
             labels: data.map(p => p.distance.toFixed(1)),
-            datasets: [{
-                label: '標高 (m)',
-                data: data.map(p => p.elevation),
-                borderColor: 'rgb(75, 192, 192)',
-                backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                tension: .1,
-                fill: true,
-                pointRadius: 0,
-                spanGaps: true
-            }]
+datasets: [{
+    label: '標高 (m)',
+    data: data.map(p => p.elevation),
+    borderColor: 'rgb(75, 192, 192)',
+    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+    tension: .1,
+    fill: true,
+    pointRadius: 0,
+    pointHoverRadius: 6,
+    pointHoverBackgroundColor: 'red',
+    pointHoverBorderColor: 'red',
+    pointHitRadius: 30,
+    spanGaps: true
+}]
         },
         options: {
             responsive: true,
@@ -5146,30 +4935,33 @@ if (yToggle.checked) yOpts.min = 0;
                     intersect: false
                 }
             },
-            onHover: (e, el) => {
-                if (el.length > 0) {
-                    const d = lastProfileData[el[0].index];
-                    if (d) {
-                        const ll = [d.lat, d.lon];
-                        if (!rolloverMarker) rolloverMarker = L.circleMarker(ll, {
-                            radius: 8,
-                            color: 'red',
-                            fillColor: '#f03',
-                            fillOpacity: .8,
-                            pane: 'markerPane'
-                        }).addTo(osmMap);
-                        else rolloverMarker.setLatLng(ll);
-                    }
-                } else if (rolloverMarker) {
-                    rolloverMarker.remove();
-                    rolloverMarker = null;
-                }
-            }
+onHover: (e, el) => {
+    if (el.length > 0) {
+        const d = lastProfileData[el[0].index];
+        if (d) {
+            const ll = [d.lat, d.lon];
+            if (!rolloverMarker) rolloverMarker = L.circleMarker(ll, {
+                radius: 10,
+                color: 'red',
+                weight: 3,
+                fillColor: '#ffc107',
+                fillOpacity: 0.9,
+                pane: 'markerPane'
+            }).addTo(osmMap);
+            else rolloverMarker.setLatLng(ll);
+        }
+    } else if (rolloverMarker) {
+        rolloverMarker.remove();
+        rolloverMarker = null;
+    }
+}
         }
     });
+
+    document.getElementById('profile-data-source').innerHTML = '標高データソース: <a href="https://maps.gsi.go.jp/development/elevation_s.html" target="_blank">国土地理院 (統合DEM)</a>';
+
     modal.style.display = 'flex';
 }
-// ▲▲▲ 断面図関連の関数群（ここまで）▲▲▲
 function updateNavButtons() {
     document.getElementById('navBack').disabled = historyIndex <= 0;
     document.getElementById('navForward').disabled = historyIndex >= navigationHistory.length - 1;
@@ -5471,16 +5263,14 @@ function togglePinPanel() {
     const pinBtn = document.getElementById('pinPanelBtn');
     const rightPanel = document.querySelector('.right-panel');
     const toggleBtns = document.querySelectorAll('.js-toggle-panel-btn');
-    const mainToggleBtnWrapper = document.getElementById('main-toggle-panel-btn-wrapper'); // ▼▼▼ 追加 ▼▼▼
+    const mainToggleBtnWrapper = document.getElementById('main-toggle-panel-btn-wrapper');
 
     const isPinned = mainLayout.classList.toggle('pinned');
     pinBtn.classList.toggle('pinned', isPinned);
     
-    // ▼▼▼ ここから3行追加 ▼▼▼
     if (mainToggleBtnWrapper) {
         mainToggleBtnWrapper.style.display = isPinned ? 'none' : 'flex';
     }
-    // ▲▲▲ 追加ここまで ▲▲▲
 
     rightPanel.style.width = '';
     rightPanel.style.maxWidth = '';
@@ -5782,33 +5572,24 @@ function setZoomLevel(zoom) {
 }
 
 function highlightHistoryTableRow(historyIndex) {
-    // 他の行のハイライトを解除
     document.querySelectorAll('#historyTableBody tr').forEach(row => {
         row.style.backgroundColor = '';
     });
 
-    // 対象の行を取得
     const targetRow = document.querySelector(`#historyTableBody tr[data-history-index="${historyIndex}"]`);
     if (targetRow) {
-        // 対象の行をハイライト
         targetRow.style.backgroundColor = 'rgba(102, 126, 234, 0.3)';
         
-        // スクロールコンテナとテーブルヘッダーを取得
         const wrapper = document.querySelector('#history-content .table-wrapper');
         const header = document.querySelector('#historyTable thead');
         
         if (wrapper && header) {
-            // ヘッダーの高さを取得
             const headerHeight = header.offsetHeight;
             
-            // スクロールコンテナの表示領域内での行の上端位置を計算
             const rowTopRelativeToWrapper = targetRow.getBoundingClientRect().top - wrapper.getBoundingClientRect().top;
 
-            // 現在のスクロール位置に行の上端位置を加え、ヘッダーの高さを引くことで、
-            // 目的のスクロール位置を正確に計算
             const scrollToPosition = wrapper.scrollTop + rowTopRelativeToWrapper - headerHeight;
 
-            // 計算した位置へスムーズにスクロール
             wrapper.scrollTo({
                 top: scrollToPosition,
                 behavior: 'smooth'
@@ -6076,14 +5857,13 @@ function loadTabOrder() {
     }
 }
 
-// +++ START: ブックマークの地図表示とハイライト機能 +++
 function highlightBookmarkTableRow(bookmarkIndex) {
     document.querySelectorAll('#bookmarkTableBody tr').forEach(row => {
         row.style.backgroundColor = '';
     });
     const targetRow = document.querySelector(`#bookmarkTableBody tr[data-bookmark-index="${bookmarkIndex}"]`);
     if (targetRow) {
-        targetRow.style.backgroundColor = 'rgba(255, 193, 7, 0.3)'; // Bookmark color
+        targetRow.style.backgroundColor = 'rgba(255, 193, 7, 0.3)';
         const wrapper = document.querySelector('#bookmarks-content .table-wrapper');
         const header = document.querySelector('#bookmarkTable thead');
         const headerHeight = header ? header.offsetHeight : 0;
@@ -6150,14 +5930,8 @@ function renderBookmarksOnMap() {
         }
     });
 }
-// +++ END: ブックマークの地図表示とハイライト機能 +++
-
-
-/**
- * ▼▼▼ パフォーマンス改善: Chart.jsを動的に読み込む関数 ▼▼▼
- */
 async function loadChartJS() {
-  if (window.Chart) return; // 既に読み込まれていたら何もしない
+  if (window.Chart) return;
   return new Promise((resolve, reject) => {
     const script = document.createElement('script');
     script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
@@ -6166,7 +5940,6 @@ async function loadChartJS() {
     document.head.appendChild(script);
   });
 }
-// ▲▲▲ ここまで ▲▲▲
 
 function initCategoryDragAndDrop() {
     const container = document.getElementById('map-categories-container');
@@ -6332,15 +6105,7 @@ function saveMapOrderInCategory(categoryKey) {
     setProjectData(SETTINGS_KEY, currentSettings);
 }
 
-// ▼▼▼【変更箇所】座標変換モーダルのための関数群を追加 ▼▼▼
-
-// ★★★【ここからが新しいコードです】★★★
-
-/**
- * 座標変換モーダルを開きます。
- * (async化し、住所情報取得を待つように変更)
- */
-async function openCoordConverterModal() { // ★★★ 変更点: async を追加 ★★★
+async function openCoordConverterModal() {
     const lat = isDMSFormat ? dmsToDecimal($lat.value) : parseFloat($lat.value);
     const lon = isDMSFormat ? dmsToDecimal($lon.value) : parseFloat($lon.value);
 
@@ -6349,22 +6114,15 @@ async function openCoordConverterModal() { // ★★★ 変更点: async を追�
     document.getElementById('conv-x').value = '';
     document.getElementById('conv-y').value = '';
     
-    // ★★★ 変更点: 座標から住所を取得し、都道府県と系を更新する処理を待つ ★★★
     await updateSelectorsByCoords(lat, lon);
     
     document.getElementById('coord-converter-modal').style.display = 'flex';
 }
 
-/**
- * 座標変換モーダルを閉じます。
- */
 function closeCoordConverterModal() {
     document.getElementById('coord-converter-modal').style.display = 'none';
 }
 
-/**
- * 緯度経度からXY座標へ変換します。
- */
 function convertToXY() {
     try {
         const latInput = document.getElementById('conv-lat').value;
@@ -6390,11 +6148,7 @@ function convertToXY() {
     }
 }
 
-/**
- * XY座標から緯度経度へ変換します。
- * (変換後に都道府県と系のプルダウンも更新するように変更)
- */
-async function convertToLatLon() { // ★★★ 変更点: async を追加 ★★★
+async function convertToLatLon() {
     try {
         const x = parseFloat(document.getElementById('conv-x').value);
         const y = parseFloat(document.getElementById('conv-y').value);
@@ -6408,7 +6162,6 @@ async function convertToLatLon() { // ★★★ 変更点: async を追加 ★�
         document.getElementById('conv-lat').value = lat.toFixed(8);
         document.getElementById('conv-lon').value = lon.toFixed(8);
         
-        // ★★★ 変更点: 変換後の緯度経度に基づいてセレクタを更新 ★★★
         await updateSelectorsByCoords(lat, lon);
 
         showNotification('緯度経度に変換しました。');
@@ -6417,9 +6170,6 @@ async function convertToLatLon() { // ★★★ 変更点: async を追加 ★�
     }
 }
 
-/**
- * 変換結果をメイン画面に反映します。
- */
 function applyConverterResult() {
     const lat = parseFloat(document.getElementById('conv-lat').value);
     const lon = parseFloat(document.getElementById('conv-lon').value);
@@ -6435,9 +6185,6 @@ function applyConverterResult() {
     showNotification('変換結果をメイン画面に反映しました。');
 }
 
-/**
- * 座標変換モーダルの初期設定を行います。
- */
 function initCoordConverter() {
     const zoneSelect = document.getElementById('conv-zone');
     coordinateSystems.forEach(sys => {
@@ -6470,9 +6217,7 @@ function initCoordConverter() {
          showNotification('メイン画面の座標を取得しました。');
     });
 
-  // ▼▼▼ ここからが変更箇所です ▼▼▼
 
-    // 「地理院(緯経→XY)」ボタンの処理
     document.getElementById('btn-open-gsi-bl2xy').addEventListener('click', () => {
         const url = 'https://vldb.gsi.go.jp/sokuchi/surveycalc/surveycalc/bl2xyf.html';
         try {
@@ -6483,7 +6228,6 @@ function initCoordConverter() {
                 throw new Error('有効な緯度経度が入力されていません。');
             }
 
-            // 地理院サイトの入力形式(dddmmss.s)に変換
             const textToCopy = `${decimalToGsiDms(latValue)}\n${decimalToGsiDms(lonValue)}`;
             
             navigator.clipboard.writeText(textToCopy).then(() => {
@@ -6495,11 +6239,10 @@ function initCoordConverter() {
             });
         } catch(e) {
             showNotification(e.message, 'error');
-            window.open(url, '_blank'); // エラーでもサイトは開く
+            window.open(url, '_blank');
         }
     });
 
-    // 「地理院(XY→緯経)」ボタンの処理
     document.getElementById('btn-open-gsi-xy2bl').addEventListener('click', () => {
         const url = 'https://vldb.gsi.go.jp/sokuchi/surveycalc/surveycalc/xy2blf.html';
         try {
@@ -6512,7 +6255,6 @@ function initCoordConverter() {
                 throw new Error('有効なXY座標と座標系が選択されていません。');
             }
 
-            // 地理院サイトの入力順（Y座標, X座標, 系番号）に合わせて文字列を作成
             const textToCopy = `${yValue}\n${xValue}\n${systemNum}`;
             
             navigator.clipboard.writeText(textToCopy).then(() => {
@@ -6524,17 +6266,12 @@ function initCoordConverter() {
             });
         } catch(e) {
             showNotification(e.message, 'error');
-            window.open(url, '_blank'); // エラーでもサイトは開く
+            window.open(url, '_blank');
         }
     });
 
-    // ▲▲▲ 変更はここまでです ▲▲▲
-
 }
 
-/**
- * 座標変換モーダル内の緯度経度表示形式をトグルします。
- */
 function toggleConvFormat(toFormat) {
     const latInput = document.getElementById('conv-lat');
     const lonInput = document.getElementById('conv-lon');
@@ -6553,9 +6290,6 @@ function toggleConvFormat(toFormat) {
     }
 }
 
-/**
- * 都道府県の選択に応じて、座標系の選択肢を更新します。
- */
 function updateZoneSelectByPref() {
     const pref = document.getElementById('conv-pref').value;
     const systemsForPref = prefectureToSystem[pref] || [];
@@ -6577,11 +6311,7 @@ function updateZoneSelectByPref() {
     }
 }
 
-/**
- * 座標に基づいて都道府県と座標系を自動選択します。
- * (住所取得APIを呼び出し、より正確に都道府県を判定するよう修正)
- */
-async function updateSelectorsByCoords(lat, lon) { // ★★★ 変更点: async を追加 ★★★
+async function updateSelectorsByCoords(lat, lon) {
     const prefSelect = document.getElementById('conv-pref');
     const zoneSelect = document.getElementById('conv-zone');
 
@@ -6591,22 +6321,17 @@ async function updateSelectorsByCoords(lat, lon) { // ★★★ 変更点: async
         return;
     };
 
-    // ★★★ 変更点: 座標から住所情報を非同期で取得 ★★★
     const addressInfo = await getAddressFromCoords(lat, lon);
-    // 住所文字列の先頭から都道府県名を正規表現で抽出
     const prefecture = addressInfo.structured.match(/^.{2,3}[都道府県]/) ? addressInfo.structured.match(/^.{2,3}[都道府県]/)[0] : null;
 
-    // ★★★ 変更点: 取得した都道府県をプルダウンに設定 ★★★
     if (prefecture && prefSelect.querySelector(`option[value="${prefecture}"]`)) {
         prefSelect.value = prefecture;
     } else {
-        prefSelect.value = ""; // 該当なし、または取得失敗
+        prefSelect.value = "";
     }
     
-    // ★★★ 変更点: 都道府県の選択後に「系」のリストを更新 ★★★
     updateZoneSelectByPref();
 
-    // 座標に最も近い座標系を見つけるロジック（これは従来通り）
     let min = Infinity, bestSys = null;
     for (const s of coordinateSystems) {
         const d = Math.sqrt(Math.pow(lat - s.lat0, 2) + Math.pow((lon - s.lon0) * Math.cos(lat * Math.PI / 180), 2));
@@ -6614,16 +6339,12 @@ async function updateSelectorsByCoords(lat, lon) { // ★★★ 変更点: async
     }
     
     if (bestSys) {
-        // 絞り込まれた選択肢の中に、最も近い系が存在すればそれを選択
         if (zoneSelect.querySelector(`option[value="${bestSys.epsg}"]`)) {
              zoneSelect.value = bestSys.epsg;
         }
     }
 }
 
-/**
- * 変換結果を指定のフォーマットでクリップボードにコピーします。
- */
 function copyConverterResult() {
     try {
         const zoneSelect = document.getElementById('conv-zone');
@@ -6660,23 +6381,14 @@ Y (東方向): ${y} m
         showNotification(e.message, 'error');
     }
 }
-// ★★★【新しいコードはここまでです】★★★
-
-// ▲▲▲【変更箇所】▲▲▲
-
 document.addEventListener('DOMContentLoaded', () => {
-    // ▼▼▼【修正】このブロックをDOMContentLoaded内に移動しました ▼▼▼
     coordinateSystems.forEach(d => {
         const s = `+proj=tmerc +lat_0=${d.lat0} +lon_0=${d.lon0} +k=0.9999 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs`;
-        // この時点でproj4は必ず読み込まれているので、typeofチェックは不要
         proj4.defs("EPSG:" + d.epsg, s);
     });
-    // ▲▲▲【修正】▲▲▲
 
-    // ▼▼▼ プロジェクト機能の初期化を最優先で実行 ▼▼▼
     migrateOldData();
     loadProjects();
-    // ▲▲▲ ここまで ▲▲▲
 
     if (window.L) {
         startIcon = L.icon({
@@ -6767,35 +6479,28 @@ initTabDragAndDrop();
 initCategoryDragAndDrop();
 initCardDragAndDrop();
 
-// ▼▼▼ プロジェクトスイッチャーの初期化 ▼▼▼
 initProjectSwitcher();
 initProjectManagementModal();
-// ▲▲▲ ここまで ▲▲▲
-
-// ▼▼▼【変更箇所】座標変換モーダルの初期化を追加 ▼▼▼
 initCoordConverter();
-// ▲▲▲【変更箇所】▲▲▲
+
+// ▼▼▼【ここから変更】CSV関連の初期化 ▼▼▼
+initCsvImport();
+initCsvPlotter(); // ヘッダーボタンのイベント設定を呼び出す
+// ▲▲▲【変更ここまで】▲▲▲
+
 
 const today = new Date();
 document.getElementById('lastUpdated').textContent = `最終更新日: ${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
 
-// ▼▼▼【ここから修正】初期化処理をasync関数にまとめる ▼▼▼
 async function initializeApp() {
-    // URLに座標パラメータがある場合は最優先で適用
     if (applyStateFromUrl()) {
         await updateCurrentCoords(null, true, true);
     } else {
-        // ★★★ 修正箇所 ★★★
-        // 起動時の自動的な現在地取得を無効化し、常にデフォルトの座標で開始するようにします。
-        // これで、ページを開くたびに位置情報の許可を求められることがなくなります。
         await updateCurrentCoords(null, true, true);
     }
 }
 
-// アプリケーションを初期化
 initializeApp();
-// ▲▲▲【修正ここまで】▲▲▲
-
 $lat.addEventListener('change', () => updateCurrentCoords());
 $lon.addEventListener('change', () => updateCurrentCoords());
 $zoom.addEventListener('input', e => {
@@ -6812,7 +6517,20 @@ $coordFormatToggle.addEventListener('click', toggleCoordFormat);
 $addressInput.addEventListener('keypress', async e => { if (e.key === 'Enter') { e.preventDefault(); selectedAutocompleteIndex !== -1 ? await selectAutocompleteItem(selectedAutocompleteIndex) : await searchAddress(); } });
 $addressInput.addEventListener('input', () => { clearTimeout(autocompleteTimer); if ($addressInput.value.trim().length<2) return renderAutocompleteList([]); autocompleteTimer = setTimeout(async () => renderAutocompleteList(await getAddressSuggestions($addressInput.value.trim())), 300); });
 $addressInput.addEventListener('keydown', e => { const items = $autocompleteList.querySelectorAll('.autocomplete-item'); if(items.length===0)return; if (e.key==='ArrowDown') selectedAutocompleteIndex=(selectedAutocompleteIndex+1)%items.length; else if (e.key==='ArrowUp') selectedAutocompleteIndex=(selectedAutocompleteIndex-1+items.length)%items.length; else return; e.preventDefault(); items.forEach((item,i)=>item.classList.toggle('selected',i===selectedAutocompleteIndex)); if(items[selectedAutocompleteIndex]) items[selectedAutocompleteIndex].scrollIntoView({block:'nearest'}); });
-document.addEventListener('click', e => { if (!e.target.closest('.input-wrapper')) $autocompleteList.classList.remove('show'); if (!e.target.closest('.header-button-wrapper, .usage-button, .project-switcher')) { $historyPopup.style.display = 'none'; $bookmarkPopup.style.display = 'none'; document.getElementById('projectSwitcherDropdown').style.display = 'none'; } if(!e.target.closest('.usage-button, .usage-guide')) { document.getElementById('usageGuide').classList.remove('show'); } });
+
+document.addEventListener('click', e => { 
+    if (!e.target.closest('.header-button-wrapper, .usage-button, .project-switcher')) { 
+        $historyPopup.style.display = 'none'; 
+        $bookmarkPopup.style.display = 'none'; 
+        document.getElementById('projectSwitcherDropdown').style.display = 'none'; 
+        // ▼▼▼【重要】CSVポップアップを閉じる処理を追加 ▼▼▼
+        document.getElementById('csvPopup').style.display = 'none'; 
+    } 
+    if(!e.target.closest('.usage-button, .usage-guide')) { 
+        document.getElementById('usageGuide').classList.remove('show'); 
+    } 
+});
+
 $historyList.addEventListener('click', e => { const i = e.target.closest('.history-item')?.dataset.index; if (i) loadCoordinateFromHistory((getProjectData('coordinateHistory') || [])[i]); });
 $bookmarkList.addEventListener('click', e => { const i = e.target.closest('.bookmark-item')?.dataset.index, a = e.target.closest('button')?.className.split('-').pop(); if(i&&a) handleBookmarkAction(parseInt(i), a); });
 $mylinkForm.addEventListener('submit', saveMyLink);
@@ -6828,13 +6546,12 @@ $settingsModal.addEventListener('click', e => e.target === $settingsModal && clo
 document.getElementById('settings-zoom').addEventListener('input', e => { document.getElementById('settings-zoom-value').textContent = e.target.value; });
 document.getElementById('settings-panel-width').addEventListener('input', e => { document.getElementById('settings-panel-width-value').textContent = e.target.value; updatePanelWidth(e.target.value); });
 document.getElementById('reset-panel-width').addEventListener('click', () => { 
-    const val = 330; // リセットしたい固定値 '330' を直接指定する
+    const val = 330;
     document.getElementById('settings-panel-width').value = val; 
     document.getElementById('settings-panel-width-value').textContent = val; 
     updatePanelWidth(val); 
 });
 
-// ▼▼▼【新規追加】非固定時パネル幅のスライダーイベントリスナー ▼▼▼
 document.getElementById('settings-panel-width-map-links').addEventListener('input', e => { document.getElementById('settings-panel-width-map-links-value').textContent = e.target.value; });
 document.getElementById('settings-panel-width-history').addEventListener('input', e => { document.getElementById('settings-panel-width-history-value').textContent = e.target.value; });
 document.getElementById('settings-panel-width-bookmarks').addEventListener('input', e => { document.getElementById('settings-panel-width-bookmarks-value').textContent = e.target.value; });
@@ -6848,8 +6565,6 @@ document.getElementById('reset-panel-widths-unpinned').addEventListener('click',
     document.getElementById('settings-panel-width-bookmarks-value').textContent = defaultWidths['bookmarks'];
     showNotification('パネル幅をデフォルトにリセットしました。');
 });
-// ▲▲▲【新規追加ここまで】▲▲▲
-
 document.getElementById('navBack').addEventListener('click', () => { if (historyIndex > 0) { historyIndex--; const state = navigationHistory[historyIndex]; updateLatLonInputs(state.lat, state.lon); setZoomLevel(state.zoom); updateCurrentCoords(state, true, true); } });
 document.getElementById('navForward').addEventListener('click', () => { if (historyIndex < navigationHistory.length - 1) { historyIndex++; const state = navigationHistory[historyIndex]; updateLatLonInputs(state.lat, state.lon); setZoomLevel(state.zoom); updateCurrentCoords(state, true, true); } });
 document.getElementById('toggleAllCategoriesBtn').addEventListener('click', (e) => { const btn = e.currentTarget, isCollapsed = document.querySelector('.category-header')?.classList.contains('collapsed'); if(isCollapsed){ document.querySelectorAll('.category-header').forEach(h => { h.classList.remove('collapsed'); h.nextElementSibling.classList.remove('hidden'); }); btn.textContent = '➖ すべて折りたたみ'; } else { document.querySelectorAll('.category-header').forEach(h => { h.classList.add('collapsed'); h.nextElementSibling.classList.add('hidden'); }); btn.textContent = '➕ すべて展開'; } });
@@ -6890,10 +6605,9 @@ document.getElementById('btn-reset-map-categories').addEventListener('click', ()
 window.addEventListener('resize', () => { if (osmMap) { osmMap.invalidateSize(); } });
 
 function handleUndoLastPoint(e) { 
-    // 【追加】Enterキーが押され、面積計測中の場合に終了処理を呼び出す
     if (e.key === 'Enter' && isMeasuringArea) {
-        e.preventDefault(); // デフォルトの動作（フォーム送信など）を防ぐ
-        handleAreaMeasureDoubleClick(); // 既存のダブルクリック終了処理を呼び出す
+        e.preventDefault();
+        handleAreaMeasureDoubleClick();
         return;
     }
 
@@ -6936,27 +6650,26 @@ function handleUndoLastPoint(e) {
     } 
 }
 
-async function generateProfileChart(points) {
+async function generateProfileChart(points, divisionCount = 100) {
     if (points.length < 2) return;
     showNotification('標高データを取得中です...', 'warning');
+
     try {
-        await loadChartJS(); // 動的にChart.jsを読み込み
-        const sampledPoints = interpolatePoints(points, 80);
+        await loadChartJS();
+        const sampledPoints = interpolatePoints(points, divisionCount);
         const fetchPromises = sampledPoints.map(point =>
-            // 先ほど追加した fetchWithRetry を呼び出すように変更
             fetchWithRetry(`https://cyberjapandata2.gsi.go.jp/general/dem/scripts/getelevation.php?outtype=JSON&demtype=dem_merged&lon=${point.lng}&lat=${point.lat}`)
-            .then(res => res && res.ok ? res.json() : null) // resがnullの場合も考慮
+            .then(res => res && res.ok ? res.json() : null)
         );
         const results = await Promise.all(fetchPromises);
         let dist = 0;
         lastProfileData = results.map((item, i) => {
             if (i > 0) dist += sampledPoints[i - 1].distanceTo(sampledPoints[i]);
-            // itemがnullの場合も安全に処理
-            const elev = (item && item.elevation !== '-----') ? parseFloat(item.elevation) : null;
-            return { distance: dist, elevation: elev, lat: sampledPoints[i].lat, lon: sampledPoints[i].lng };
-        });
+   const elev = (item && item.elevation !== '-----') ? parseFloat(item.elevation) : null;
+    const demType = (item && item.hsrc) ? item.hsrc : '---';
+    return { distance: dist, elevation: elev, lat: sampledPoints[i].lat, lon: sampledPoints[i].lng, dem: demType };
+});
 
-        // 1つでも有効な標高データが取得できたかチェック
         if (lastProfileData.some(d => d.elevation !== null)) {
             drawProfileChart(lastProfileData);
             showNotification('断面図を作成しました。');
@@ -6973,8 +6686,8 @@ function interpolatePoints(points, num) { const totalDist = calculateTotalDistan
 function drawProfileChart(data) { const modal = document.getElementById('profile-modal'), ctx = document.getElementById('profileChart').getContext('2d'), yToggle = document.getElementById('y-axis-toggle'); if (profileChartInstance) profileChartInstance.destroy(); const yOpts = { title: { display: true, text: '標高 (m)' } }; if (yToggle.checked) yOpts.min = 0; profileChartInstance = new Chart(ctx, { type: 'line', data: { labels: data.map(p => p.distance.toFixed(1)), datasets: [{ label: '標高 (m)', data: data.map(p => p.elevation), borderColor: 'rgb(75, 192, 192)', backgroundColor: 'rgba(75, 192, 192, 0.2)', tension: .1, fill: true, pointRadius: 0, spanGaps: true }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { title: { display: true, text: '始点からの距離 (m)' } }, y: yOpts }, plugins: { tooltip: { enabled: true, mode: 'index', intersect: false } }, onHover: (e, el) => { if (el.length > 0) { const d = lastProfileData[el[0].index]; if (d) { const ll = [d.lat, d.lon]; if (!rolloverMarker) rolloverMarker = L.circleMarker(ll, { radius: 8, color: 'red', fillColor: '#f03', fillOpacity: .8, pane: 'markerPane' }).addTo(osmMap); else rolloverMarker.setLatLng(ll); } } else if (rolloverMarker) { rolloverMarker.remove(); rolloverMarker = null; } } } }); modal.style.display = 'flex'; }
 function exportProfileDataToCSV() {
     if (!lastProfileData || lastProfileData.length === 0) return showNotification('書き出すデータがありません。', 'error');
-    const headers = 'No,始点からの距離(m),標高(m),緯度,経度';
-    const rows = lastProfileData.map((p, i) => `${i+1},${p.distance.toFixed(2)},${p.elevation !== null ? p.elevation : ''},${p.lat.toFixed(8)},${p.lon.toFixed(8)}`);
+    const headers = 'No,始点からの距離(m),標高(m),緯度,経度,DEM種別';
+    const rows = lastProfileData.map((p, i) => `${i+1},${p.distance.toFixed(2)},${p.elevation !== null ? p.elevation : ''},${p.lat.toFixed(8)},${p.lon.toFixed(8)},${p.dem}`);
     const csv = `${headers}\n${rows.join('\n')}`;
     const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -6987,7 +6700,6 @@ function exportProfileDataToCSV() {
 }
 
 
-// ▼▼▼ プロジェクト機能のUI操作関数 ▼▼▼
 function initProjectSwitcher() {
     const btn = document.getElementById('projectSwitcherBtn');
     const dropdown = document.getElementById('projectSwitcherDropdown');
@@ -7015,7 +6727,6 @@ function renderProjectSwitcher() {
     
     btn.textContent = activeProject ? activeProject.name : 'プロジェクトなし';
     
-    // Clear old items except manage button
     dropdown.querySelectorAll('.project-dropdown-item:not(.project-dropdown-manage)').forEach(el => el.remove());
     dropdown.querySelectorAll('hr').forEach(el => el.remove());
 
@@ -7116,7 +6827,7 @@ function initProjectManagementModal() {
             const newId = `proj_${Date.now()}`;
             projectsData.projects[newId] = {
                 name: newName.trim(),
-                data: JSON.parse(JSON.stringify(sourceProject.data)) // Deep copy
+                data: JSON.parse(JSON.stringify(sourceProject.data))
             };
             saveProjects();
             renderProjectManagementList();
@@ -7130,10 +6841,9 @@ function initProjectManagementModal() {
         if (confirm(`プロジェクト「${projectToDelete.name}」を削除しますか？この操作は元に戻せません。`)) {
             delete projectsData.projects[selectedProjectIdForManagement];
             if (activeProjectId === selectedProjectIdForManagement) {
-                // アクティブなプロジェクトを削除した場合は、残りの最初のプロジェクトをアクティブにする
                 projectsData.activeProjectId = Object.keys(projectsData.projects)[0];
                 saveProjects();
-                location.reload(); // ページをリロードして切り替え
+                location.reload();
             } else {
                 saveProjects();
                 renderProjectManagementList();
@@ -7172,7 +6882,6 @@ function initProjectManagementModal() {
                 }
                 
                 if (confirm(`プロジェクト「${projectData.name}」をインポートしますか？\n同じ名前のプロジェクトがある場合は上書きされます。`)) {
-                    // 同じ名前のプロジェクトを探す
                     const existingId = Object.keys(projectsData.projects).find(id => projectsData.projects[id].name === projectData.name);
                     const idToSave = existingId || projectId;
                     
@@ -7187,67 +6896,48 @@ function initProjectManagementModal() {
             }
         };
         reader.readAsText(file);
-        event.target.value = ''; // Reset input
+        event.target.value = '';
     });
-    // ▼▼▼【ここに追加】閉じるボタンのイベント設定をこの場所に移動しました ▼▼▼
     document.getElementById('project-modal-close-btn-x').addEventListener('click', closeProjectModal);
     document.getElementById('project-modal-close-btn-bottom').addEventListener('click', closeProjectModal);
-    // ▲▲▲【追加ここまで】▲▲▲
 
 }
-// ▲▲▲ ここまで ▲▲▲
-// ▼▼▼【ここから修正】サイドパネル幅を監視してタブ表示を切り替える ▼▼▼
 const rightPanelForTabs = document.querySelector('.right-panel');
 if (window.ResizeObserver) {
-    const tabThreshold = 420; // この幅 (px) より狭くなるとタブ名が短縮される
+    const tabThreshold = 420;
     const observer = new ResizeObserver(entries => {
         for (let entry of entries) {
             const { width } = entry.contentRect;
             entry.target.classList.toggle('narrow-tabs', width < tabThreshold);
         }
     });
-    // ★★★ observer.observe を if ブロックの内側に移動させます ★★★
     observer.observe(rightPanelForTabs);
 }
-// ▲▲▲【修正ここまで】▲▲▲
 
-// ▼▼▼【ここから挿入】標高断面図ウィンドウの機能修正 ▼▼▼
-
-    /**
-     * 標高断面図モーダルのインタラクション（閉じる、CSV書き出し、ドラッグ）を初期化します。
-     */
     function initializeProfileModal() {
         const profileModal = document.getElementById('profile-modal');
         if (!profileModal) return;
 
-        // ----------------------------------------
-        // 1. 各ボタンと閉じる機能の設定
-        // ----------------------------------------
         const yAxisToggle = document.getElementById('y-axis-toggle');
 
-        // モーダルを閉じるための共通関数
         const closeProfileModal = () => {
             profileModal.style.display = 'none';
-            // 地図上に表示されているホバー時のマーカーがあれば削除
             if (rolloverMarker) {
                 rolloverMarker.remove();
                 rolloverMarker = null;
             }
         };
 
-        // 各ボタンにイベントリスナーを割り当て
         document.getElementById('btn-profile-modal-close').addEventListener('click', closeProfileModal);
         document.getElementById('btn-profile-modal-cancel').addEventListener('click', closeProfileModal);
         document.getElementById('btn-export-profile-csv').addEventListener('click', exportProfileDataToCSV);
 
-        // モーダルの外側（オーバーレイ部分）をクリックしたときも閉じる
         profileModal.addEventListener('click', e => {
             if (e.target === profileModal) {
                 closeProfileModal();
             }
         });
 
-        // Y軸の表示を切り替えるチェックボックスの機能を設定
         yAxisToggle.addEventListener('change', () => {
             if (profileChartInstance) {
                 profileChartInstance.options.scales.y.min = yAxisToggle.checked ? 0 : undefined;
@@ -7255,9 +6945,6 @@ if (window.ResizeObserver) {
             }
         });
 
-        // ----------------------------------------
-        // 2. ドラッグで移動する機能の設定
-        // ----------------------------------------
         const modalContent = profileModal.querySelector('.modal-content');
         const header = document.getElementById('profile-modal-header');
         
@@ -7265,12 +6952,10 @@ if (window.ResizeObserver) {
         let initialX, initialY, offsetX = 0, offsetY = 0;
 
         const onMouseDown = (e) => {
-            // クリックイベントがボタンなどで発生した場合はドラッグを開始しない
             if (e.target.tagName === 'BUTTON') return;
             
             e.preventDefault();
             isDragging = true;
-            // 現在のtransform値を考慮して初期位置を計算
             initialX = e.clientX - offsetX;
             initialY = e.clientY - offsetY;
             
@@ -7301,11 +6986,10 @@ if (window.ResizeObserver) {
         
         header.addEventListener('mousedown', onMouseDown);
 
-        // モーダルが非表示になったときに、位置をリセットする
         const observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
                 if (mutation.attributeName === 'style' && profileModal.style.display !== 'flex') {
-                    modalContent.style.transform = ''; // 位置をリセット
+                    modalContent.style.transform = '';
                     offsetX = 0;
                     offsetY = 0;
                 }
@@ -7314,11 +6998,8 @@ if (window.ResizeObserver) {
         observer.observe(profileModal, { attributes: true });
     }
 
-    // 作成した初期化関数を呼び出す
     initializeProfileModal();
 
-// ▲▲▲【挿入ここまで】▲▲▲
-    // ▼▼▼【ここから追加】設定モーダルのタブ切り替え機能 ▼▼▼
     const settingsTabsContainer = document.querySelector('#settings-modal .settings-tabs');
     if (settingsTabsContainer) {
         const settingsTabs = settingsTabsContainer.querySelectorAll('.settings-tab');
@@ -7330,22 +7011,16 @@ if (window.ResizeObserver) {
     
             const tabName = targetTab.dataset.tab;
     
-            // 1. すべてのタブから 'active' クラスを削除
             settingsTabs.forEach(tab => tab.classList.remove('active'));
-            // 2. クリックされたタブに 'active' クラスを追加
             targetTab.classList.add('active');
     
-            // 3. すべてのコンテンツを非表示に
             settingsTabContents.forEach(content => content.classList.remove('active'));
-            // 4. 対応するコンテンツを表示
             const targetContent = document.querySelector(`.settings-tab-content[data-tab-content="${tabName}"]`);
             if(targetContent) {
                 targetContent.classList.add('active');
             }
         });
     }
-    // ▲▲▲【追加ここまで】▲▲▲
-// ▼▼▼【ここから追加】免責事項の開閉機能 ▼▼▼
     const legalToggle = document.getElementById('legal-toggle');
     const legalDetails = document.getElementById('legal-details');
     if (legalToggle && legalDetails) {
@@ -7355,9 +7030,490 @@ if (window.ResizeObserver) {
             legalToggle.textContent = isHidden ? '免責事項 (クリックで非表示)' : '免責事項 (クリックで表示)';
         });
     }
-    // ▲▲▲【追加ここまで】▲▲▲
 
 });
+
+// ▼▼▼【ここから不足していたCSV関連の全コードを貼り付け】▼▼▼
+
+// グローバルスコープでCSV関連の変数を定義
+let csvImportData = {
+    raw: null,
+    headers: [],
+    preview: [],
+    mapped: [],
+    fileName: ''
+};
+let currentImportType = 'bookmark'; // 'bookmark', 'plot', 'navigate'
+
+/**
+ * ヘッダーのCSVボタンとそのポップアップメニューを初期化
+ */
+function initCsvPlotter() {
+    const csvButton = document.getElementById('csvButton');
+    const menu = document.getElementById('csvPopup');
+
+    // ▼▼▼【重要】CSVボタンをクリックしたときにポップアップを開くイベントを追加 ▼▼▼
+    if (csvButton) {
+        csvButton.addEventListener('click', (e) => {
+            e.stopPropagation(); // イベントの伝播を止める
+            toggleCsvPopup();
+        });
+    }
+    
+    // ポップアップ内のボタンにイベントを設定
+    menu.querySelector('#csv-plot-btn-header').addEventListener('click', () => {
+        openCsvImportModal('plot');
+        menu.style.display = 'none';
+    });
+    menu.querySelector('#csv-navigate-btn-header').addEventListener('click', () => {
+        openCsvImportModal('navigate');
+        menu.style.display = 'none';
+    });
+    menu.querySelector('#csv-clear-plot-btn-header').addEventListener('click', () => {
+        if (csvPlotLayer) {
+            csvPlotLayer.clearLayers();
+            showNotification('CSVプロットをクリアしました。');
+            document.getElementById('csv-clear-plot-btn-header').disabled = true;
+        }
+        menu.style.display = 'none';
+    });
+}
+
+/**
+ * CSVインポートモーダルの初期化
+ */
+function initCsvImport() {
+    // ボタンイベント
+    document.getElementById('csv-select-file-btn').addEventListener('click', () => document.getElementById('csv-file-input').click());
+    document.getElementById('csv-file-input').addEventListener('change', handleCsvFileSelect);
+    document.getElementById('csv-import-close-btn').addEventListener('click', closeCsvImportModal);
+    document.getElementById('csv-back-to-file-select-btn').addEventListener('click', () => showCsvImportStep('file'));
+    document.getElementById('csv-goto-confirm-btn').addEventListener('click', processColumnMapping);
+    document.getElementById('csv-back-to-mapping-btn').addEventListener('click', () => showCsvImportStep('map'));
+    document.getElementById('csv-execute-import-btn').addEventListener('click', executeCsvImport);
+    
+    // ブックマークタブのボタンにもイベントを設定
+    document.getElementById('btn-import-bookmarks-csv').addEventListener('click', () => openCsvImportModal('bookmark'));
+}
+
+/**
+ * CSVポップアップの表示を切り替える
+ */
+function toggleCsvPopup(open = true) {
+    const csvPopup = document.getElementById('csvPopup');
+    if (open && csvPopup.style.display !== 'block') {
+        csvPopup.style.display = 'block';
+        document.getElementById('bookmarkPopup').style.display = 'none';
+        document.getElementById('historyPopup').style.display = 'none';
+    } else {
+        csvPopup.style.display = 'none';
+    }
+}
+
+/**
+ * CSVインポートモーダルを開く
+ * @param {string} type - 'bookmark', 'plot', 'navigate'
+ */
+function openCsvImportModal(type) {
+    currentImportType = type;
+    const title = document.getElementById('csv-import-title');
+    const description = document.getElementById('csv-import-description');
+    
+    switch(type) {
+        case 'bookmark':
+            title.textContent = 'ブックマークにCSVをインポート';
+            description.textContent = 'ブックマークに一括登録するCSVファイルを選択してください。';
+            break;
+        case 'plot':
+            title.textContent = 'CSV地点を地図にプロット';
+            description.textContent = '地図に一時的にプロットするCSVファイルを選択してください。';
+            break;
+        case 'navigate':
+            title.textContent = 'CSVで巡回ナビゲーション';
+            description.textContent = '巡回確認のためにサイドパネルに登録するCSVファイルを選択してください。';
+            break;
+    }
+    
+    document.getElementById('csv-import-modal').style.display = 'flex';
+    showCsvImportStep('file');
+}
+
+/**
+ * CSVインポートモーダルを閉じる
+ */
+function closeCsvImportModal() {
+    document.getElementById('csv-import-modal').style.display = 'none';
+    csvImportData = { raw: null, headers: [], preview: [], mapped: [], fileName: '' };
+    document.getElementById('csv-file-input').value = '';
+}
+
+/**
+ * CSVインポートモーダルのステップ表示を切り替える
+ */
+function showCsvImportStep(step) {
+    document.getElementById('csv-file-selection').style.display = 'none';
+    document.getElementById('csv-column-mapping').style.display = 'none';
+    document.getElementById('csv-import-confirm').style.display = 'none';
+
+    if (step === 'file') {
+        document.getElementById('csv-file-selection').style.display = 'block';
+    } else if (step === 'map') {
+        document.getElementById('csv-column-mapping').style.display = 'block';
+    } else if (step === 'confirm') {
+        document.getElementById('csv-import-confirm').style.display = 'block';
+    }
+}
+
+/**
+ * ファイルが選択されたときの処理
+ */
+function handleCsvFileSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    csvImportData.fileName = file.name;
+
+    Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        preview: 100,
+        complete: function(results) {
+            if (results.errors.length > 0) {
+                showNotification('CSVファイルの解析に失敗しました。', 'error');
+                console.error(results.errors);
+                return;
+            }
+            csvImportData.raw = results.data;
+            csvImportData.headers = results.meta.fields;
+            csvImportData.preview = results.data.slice(0, 10);
+            
+            renderCsvPreview();
+            renderColumnMappers();
+            showCsvImportStep('map');
+        }
+    });
+}
+
+/**
+ * CSVデータのプレビューテーブルを生成
+ */
+function renderCsvPreview() {
+    const table = document.getElementById('csv-preview-table');
+    table.innerHTML = '';
+    
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    csvImportData.headers.forEach(header => {
+        const th = document.createElement('th');
+        th.textContent = header;
+        headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+    
+    const tbody = document.createElement('tbody');
+    csvImportData.preview.forEach(row => {
+        const tr = document.createElement('tr');
+        csvImportData.headers.forEach(header => {
+            const td = document.createElement('td');
+            td.textContent = row[header] || '';
+            tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+}
+
+/**
+ * カラムマッピングのUIを生成
+ */
+function renderColumnMappers() {
+    const grid = document.getElementById('csv-mapper-grid');
+    grid.innerHTML = '';
+    
+    const fields = [
+        { id: 'lat', label: '緯度', required: true },
+        { id: 'lon', label: '経度', required: true },
+        { id: 'name', label: '名前/ラベル', required: currentImportType === 'bookmark' },
+        { id: 'address', label: '住所', required: false },
+        { id: 'postcode', label: '郵便番号', required: false }
+    ];
+
+    fields.forEach(field => {
+        if (currentImportType !== 'bookmark' && (field.id === 'address' || field.id === 'postcode')) {
+            return;
+        }
+
+        const item = document.createElement('div');
+        item.className = 'column-mapper-item';
+        
+        const label = document.createElement('label');
+        label.htmlFor = `csv-map-${field.id}`;
+        label.textContent = field.label;
+        if (field.required) {
+            label.classList.add('required');
+        }
+        
+        const select = document.createElement('select');
+        select.id = `csv-map-${field.id}`;
+        select.innerHTML = '<option value="">-- 列を選択 --</option>';
+        
+        csvImportData.headers.forEach((header, index) => {
+            const option = document.createElement('option');
+            option.value = header;
+            option.textContent = header;
+            
+            const lowerHeader = header.toLowerCase();
+            if ((field.id === 'lat' && (lowerHeader.includes('lat') || lowerHeader.includes('緯度'))) ||
+                (field.id === 'lon' && (lowerHeader.includes('lon') || lowerHeader.includes('経度'))) ||
+                (field.id === 'name' && (lowerHeader.includes('name') || lowerHeader.includes('名前') || lowerHeader.includes('名称'))) ||
+                (field.id === 'address' && lowerHeader.includes('住所')) ||
+                (field.id === 'postcode' && (lowerHeader.includes('郵便') || lowerHeader.includes('post')))
+            ) {
+                option.selected = true;
+            }
+
+            select.appendChild(option);
+        });
+        
+        item.appendChild(label);
+        item.appendChild(select);
+        grid.appendChild(item);
+    });
+}
+
+/**
+ * カラムマッピングを処理し、確認画面へ
+ */
+function processColumnMapping() {
+    const latCol = document.getElementById('csv-map-lat').value;
+    const lonCol = document.getElementById('csv-map-lon').value;
+    const nameCol = document.getElementById('csv-map-name')?.value;
+
+    if (!latCol || !lonCol) {
+        showNotification('緯度と経度の列は必須です。', 'error');
+        return;
+    }
+    if (currentImportType === 'bookmark' && !nameCol) {
+        showNotification('ブックマークのインポートには名前の列が必須です。', 'error');
+        return;
+    }
+
+    csvImportData.mapped = csvImportData.raw.map(row => {
+        const lat = parseFloat(row[latCol]);
+        const lon = parseFloat(row[lonCol]);
+        
+        if (isNaN(lat) || isNaN(lon)) return null;
+
+        const point = {
+            lat: lat,
+            lon: lon,
+            name: row[nameCol] || `地点 ${lat.toFixed(4)}, ${lon.toFixed(4)}`,
+            raw: row
+        };
+
+        if(currentImportType === 'bookmark') {
+            const addressCol = document.getElementById('csv-map-address')?.value;
+            const postcodeCol = document.getElementById('csv-map-postcode')?.value;
+            point.address = addressCol ? row[addressCol] : '';
+            point.postcode = postcodeCol ? row[postcodeCol] : '';
+        }
+
+        return point;
+    }).filter(p => p !== null);
+
+    if (csvImportData.mapped.length === 0) {
+        showNotification('有効な座標データが見つかりませんでした。列の指定を確認してください。', 'error');
+        return;
+    }
+
+    document.getElementById('csv-import-count').textContent = csvImportData.mapped.length;
+    showCsvImportStep('confirm');
+}
+
+
+/**
+ * 最終的なインポート処理を実行
+ */
+async function executeCsvImport() {
+    const btn = document.getElementById('csv-execute-import-btn');
+    btn.disabled = true;
+    btn.textContent = '処理中...';
+
+    try {
+        switch (currentImportType) {
+            case 'bookmark':
+                await importCsvAsBookmarks();
+                break;
+            case 'plot':
+                await plotCsvData();
+                break;
+            case 'navigate':
+                await startCsvNavigator();
+                break;
+        }
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'インポート実行';
+        closeCsvImportModal();
+    }
+}
+
+/**
+ * CSVデータをブックマークとして登録
+ */
+async function importCsvAsBookmarks() {
+    let bookmarks = getProjectData(BOOKMARK_KEY) || [];
+    let importedCount = 0;
+    
+    for (const point of csvImportData.mapped) {
+        bookmarks.unshift({
+            name: point.name,
+            lat: point.lat.toFixed(8),
+            lon: point.lon.toFixed(8),
+            zoom: 16,
+            timestamp: new Date().toISOString(),
+            postcode: point.postcode || '---',
+            address: point.address || '---',
+            elevation: '---',
+            xy_x: '---',
+            xy_y: '---',
+            xy_system: '---'
+        });
+        importedCount++;
+    }
+    
+    setProjectData(BOOKMARK_KEY, bookmarks);
+    renderBookmarkList();
+    renderBookmarkTable();
+    renderBookmarksOnMap();
+    showNotification(`${importedCount}件のブックマークをインポートしました。`);
+}
+
+/**
+ * CSVデータを地図上にプロット
+ */
+async function plotCsvData() {
+    if (!csvPlotLayer) return;
+    
+    csvPlotLayer.clearLayers();
+    const markers = [];
+    const nameCol = document.getElementById('csv-map-name')?.value;
+
+    csvImportData.mapped.forEach(point => {
+        const popupContent = Object.entries(point.raw)
+            .map(([key, value]) => `<b>${escapeXml(key)}:</b> ${escapeXml(value)}`)
+            .join('<br>');
+
+        const marker = L.marker([point.lat, point.lon])
+            .bindPopup(popupContent);
+        
+        markers.push(marker);
+    });
+
+    csvPlotLayer.addLayers(markers);
+    if(markers.length > 0) {
+        osmMap.fitBounds(csvPlotLayer.getBounds(), { padding: [50, 50] });
+        showNotification(`${markers.length}件の地点をプロットしました。`);
+        document.getElementById('csv-clear-plot-btn-header').disabled = false;
+    }
+}
+
+
+/**
+ * CSV巡回ナビゲーターを開始
+ */
+async function startCsvNavigator() {
+    csvNavigatorData.points = csvImportData.mapped;
+    csvNavigatorData.currentIndex = 0;
+    csvNavigatorData.fileName = csvImportData.fileName;
+    
+    initCsvNavigator();
+    
+    const navTab = document.getElementById('csv-navigator-tab');
+    navTab.style.display = 'block';
+    navTab.click();
+    
+    showNotification(`巡回ナビゲーターを開始しました: ${csvNavigatorData.points.length}件`);
+}
+
+/**
+ * CSVナビゲーターのUIを初期化・表示
+ */
+function initCsvNavigator() {
+    const container = document.getElementById('csv-navigator-container');
+    L.DomEvent.disableClickPropagation(container);
+    document.getElementById('csv-nav-title').textContent = `巡回: ${csvNavigatorData.fileName}`;
+    renderCsvNavList();
+    updateCsvNavigator();
+    document.getElementById('csv-nav-close').onclick = () => {
+        csvNavigatorData.points = [];
+        csvNavigatorData.currentIndex = -1;
+        document.getElementById('csv-navigator-tab').style.display = 'none';
+        document.querySelector('.panel-tab[data-tab="map-links"]').click();
+    };
+    document.getElementById('csv-nav-prev').onclick = () => navigateCsv('prev');
+    document.getElementById('csv-nav-next').onclick = () => navigateCsv('next');
+}
+
+/**
+ * CSVナビゲーターのリスト部分をレンダリング
+ */
+function renderCsvNavList() {
+    const listEl = document.getElementById('csv-nav-list');
+    listEl.innerHTML = '';
+    csvNavigatorData.points.forEach((point, index) => {
+        const li = document.createElement('li');
+        li.className = 'csv-nav-item';
+        li.dataset.index = index;
+        li.textContent = point.name;
+        li.onclick = () => {
+            csvNavigatorData.currentIndex = index;
+            updateCsvNavigator();
+        };
+        listEl.appendChild(li);
+    });
+}
+
+/**
+ * CSVナビゲーターの状態を更新（地図、UI）
+ */
+function updateCsvNavigator() {
+    const index = csvNavigatorData.currentIndex;
+    const points = csvNavigatorData.points;
+    if (index < 0 || index >= points.length) return;
+
+    const currentPoint = points[index];
+    updateLatLonInputs(currentPoint.lat, currentPoint.lon);
+    updateCurrentCoords({ lat: currentPoint.lat, lon: currentPoint.lon }, true);
+
+    document.getElementById('csv-nav-progress').textContent = `${index + 1} / ${points.length}`;
+    document.getElementById('csv-nav-prev').disabled = index === 0;
+    document.getElementById('csv-nav-next').disabled = index === points.length - 1;
+
+    document.querySelectorAll('.csv-nav-item').forEach(item => {
+        item.classList.toggle('active', parseInt(item.dataset.index) === index);
+    });
+    
+    const activeItem = document.querySelector(`.csv-nav-item[data-index="${index}"]`);
+    if (activeItem) {
+        activeItem.scrollIntoView({ block: 'nearest' });
+    }
+}
+
+/**
+ * CSVナビゲーターで「前へ」「次へ」を処理
+ */
+function navigateCsv(direction) {
+    if (direction === 'prev' && csvNavigatorData.currentIndex > 0) {
+        csvNavigatorData.currentIndex--;
+    } else if (direction === 'next' && csvNavigatorData.currentIndex < csvNavigatorData.points.length - 1) {
+        csvNavigatorData.currentIndex++;
+    }
+    updateCsvNavigator();
+}
+
+// ▲▲▲【貼り付けはここまで】▲▲▲
 
 </script>
 </body>
