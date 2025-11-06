@@ -530,37 +530,39 @@ right: 0;
     will-change: transform;
 }
 
+/* --- 提案A：グリップハンドル案 --- */
 #resizer {
     position: absolute;
     top: 0;
     right: var(--panel-width, 500px);
-    width: 12px;
+    width: 14px; /* 少し太くして掴みやすく */
     height: 100%;
     cursor: ew-resize;
     z-index: 1003;
     transform: translateX(50%);
-    -webkit-user-drag: none;
     user-select: none;
+    display: flex; /* アイコンを中央に配置するために追加 */
+    align-items: center; /* アイコンを中央に配置するために追加 */
+    justify-content: center; /* アイコンを中央に配置するために追加 */
     transition: background-color 0.2s;
 }
 
+/* マウスが乗った時のスタイル */
 #resizer:hover {
-    background-color: rgba(102, 126, 234, 0.2);
+    background-color: rgba(102, 126, 234, 0.25); /* 少し濃くする */
 }
 
+/* グリップアイコンのスタイル */
 #resizer::before {
     content: '⋮';
     color: var(--primary-color);
-    font-size: 20px;
-    line-height: 0;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    opacity: 0;
+    font-size: 24px;
+    opacity: 0.6; /* 常に少し薄めに表示 */
     transition: opacity 0.2s;
+    text-shadow: 0 0 5px rgba(255,255,255,0.7); /* 見やすくするための影 */
 }
 
+/* マウスが乗った時にアイコンを濃くする */
 #resizer:hover::before {
     opacity: 1;
 }
@@ -1733,6 +1735,16 @@ body.dark-mode #coord-converter-modal .modal-form-group input[type="text"], body
 
     .mode-toggle, .history-button, .bookmark-button, .share-button, .settings-button, .usage-button, .qr-button, .header-button { width: 35px; height: 35px; font-size: 16px; }
     .header-button-label { font-size: 9px; }
+    /* ▼▼▼【ここから追加】モバイルでのヘッダーボタンのはみ出し対策 ▼▼▼ */
+    .button-group {
+        border-left: none;
+        padding: 0;
+    }
+    .header-buttons {
+        gap: 0;
+        justify-content: space-around;
+    }
+    /* ▲▲▲【追加ここまで】▲▲▲ */
     .history-popup, .bookmark-popup, .project-dropdown, #csvPopup {
         left: 50%;
         transform: translateX(-50%);
