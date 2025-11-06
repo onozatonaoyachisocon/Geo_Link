@@ -1051,7 +1051,7 @@ color: var(--primary-color);
 margin-left: 10px;
 display: none;
 white-space: nowrap;
-background-color: var(--bg-light);F
+background-color: var(--bg-light);
 padding: 6px 10px;
 border-radius: 6px;
 }
@@ -1735,16 +1735,19 @@ body.dark-mode #coord-converter-modal .modal-form-group input[type="text"], body
 
     .mode-toggle, .history-button, .bookmark-button, .share-button, .settings-button, .usage-button, .qr-button, .header-button { width: 35px; height: 35px; font-size: 16px; }
     .header-button-label { font-size: 9px; }
-    /* ▼▼▼【ここから追加】モバイルでのヘッダーボタンのはみ出し対策 ▼▼▼ */
+    /* ▼▼▼【ここから変更】モバイルでのヘッダーボタンのはみ出し対策 ▼▼▼ */
     .button-group {
-        border-left: none;
-        padding: 0;
+        border-left: none; /* 仕切り線を非表示 */
+        padding: 0;        /* 仕切り線の左右の余白を削除 */
+        gap: 5px;          /* ← グループ内のボタンの隙間を狭くする（例: 10px -> 5px） */
     }
     .header-buttons {
         gap: 0;
-        justify-content: space-around;
+        /* justify-content: space-around; から space-between に変更して左右の余白を詰める */
+        justify-content: space-between;
     }
-    /* ▲▲▲【追加ここまで】▲▲▲ */
+    /* ▲▲▲【変更ここまで】▲▲▲ */
+
     .history-popup, .bookmark-popup, .project-dropdown, #csvPopup {
         left: 50%;
         transform: translateX(-50%);
@@ -3150,7 +3153,7 @@ body.dark-mode #settings-modal .btn-modal-cancel:hover {
         
         <div class="converter-grid">
             <div class="converter-panel">
-                <h4>🌐世界測地系 (JGD2011)</h4>
+                <h4>🌐緯度・経度(世界測地系)</h4>
                 <div class="converter-row">
                     <div class="modal-form-group">
                         <label for="conv-lat">緯度</label>
@@ -3174,7 +3177,7 @@ body.dark-mode #settings-modal .btn-modal-cancel:hover {
             </div>
 
             <div class="converter-panel">
-                <h4>📐平面直角座標系 (JGD2011)</h4>
+                <h4>📐平面直角座標(世界測地系)</h4>
                 <div class="converter-row">
                     <div class="modal-form-group">
                         <label for="conv-pref">都道府県</label>
@@ -3343,6 +3346,7 @@ const BOOKMARK_KEY = 'coordinateBookmarks', MYLINK_KEY = 'myCustomLinks', FAVORI
 let osmMap = null, osmMarker = null, autocompleteTimer = null, currentAutocompleteResults = [], selectedAutocompleteIndex = -1, isDMSFormat = false, currentLatLon = { lat: 35.72985474, lon: 139.77110828 };
 let navigationHistory = [], historyIndex = -1, MAX_NAV_HISTORY = 100;
 let currentCoordsRequestId = 0;
+let currentAbortController = null;
 let profileChartInstance = null;
 let lastProfileData = null;
 let rolloverMarker = null;
@@ -3460,12 +3464,69 @@ function loadProjects() {
 
 function saveProjects() {
     try {
-        localStorage.setItem(PROJECTS_KEY, JSON.stringify(projectsData));
+        const dataStr = JSON.stringify(projectsData);
+        // UTF-16文字を考慮して正確なバイト数を計算
+        const sizeInBytes = new Blob([dataStr]).size;
+        const sizeInMB = sizeInBytes / (1024 * 1024);
+
+        // 4.5MBを超えたら警告（上限は5MBが多いが、安全マージンをとる）
+        if (sizeInMB > 4.5) {
+            showNotification(
+                `データ容量が${sizeInMB.toFixed(1)}MBです。上限に近づいています。古いデータの削除やエクスポートを検討してください。`,
+                'warning',
+                8000 // 警告は少し長めに8秒表示
+            );
+        }
+
+        localStorage.setItem(PROJECTS_KEY, dataStr);
+
     } catch (e) {
-        console.error("プロジェクトデータの保存に失敗しました。", e);
-        showNotification("データの保存に失敗しました。ストレージの空き容量を確認してください。", "error");
+        // QuotaExceededErrorはブラウザによって名前が若干違う場合があるため、複数の可能性をチェック
+        if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || e.message.toLowerCase().includes('quota')) {
+            showNotification(
+                'ストレージ容量が不足しています。重要なデータをバックアップします。',
+                'error',
+                10000 // エラーは10秒表示
+            );
+            // 緊急バックアップをダウンロード
+            emergencyBackup();
+        } else {
+            console.error("プロジェクトデータの保存中に予期せぬエラーが発生しました。", e);
+            showNotification("データの保存に失敗しました。詳細はコンソールを確認してください。", "error");
+        }
     }
 }
+
+// ▼▼▼【ここに追加】▼▼▼
+/**
+ * 緊急時に現在のプロジェクトデータをJSONファイルとしてダウンロードさせる関数
+ */
+function emergencyBackup() {
+    try {
+        const dataStr = JSON.stringify(projectsData);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        
+        const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        a.href = url;
+        a.download = `GeoLinkNavi_EMERGENCY_BACKUP_${date}.json`;
+        
+        document.body.appendChild(a);
+        a.click();
+        
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        // ユーザーに追加の指示を出す
+        alert("ストレージ容量が上限に達しました。\n\n現在の全データを 'GeoLinkNavi_EMERGENCY_BACKUP.json' というファイル名でダウンロードしました。安全な場所に保管してください。\n\n今後アプリを正常に利用するには、不要な履歴やブックマークを削除して容量を確保する必要があります。");
+
+    } catch (e) {
+        console.error("緊急バックアップの作成に失敗しました:", e);
+        alert("ストレージ容量が上限に達しており、緊急バックアップファイルの作成にも失敗しました。開発者ツールコンソールを確認してください。");
+    }
+}
+// ▲▲▲【追加ここまで】▲▲▲
 
 function getActiveProjectData() {
     return projectsData.projects[activeProjectId]?.data || JSON.parse(JSON.stringify(defaultProjectData));
@@ -3678,9 +3739,9 @@ function populateMapVisibilitySettings() {
             mapsByCategory[catKey].forEach(map => {
                 const label = document.createElement('label');
                 const isHidden = hiddenSet.has(map.id);
-                label.innerHTML = `
-                    <input type="checkbox" data-map-id="${map.id}" ${isHidden ? 'checked' : ''}>
-                    <span>${escapeXml(map.name)}</span>
+label.innerHTML = `
+    <input type="checkbox" data-map-id="${map.id}" ${isHidden ? 'checked' : ''}>
+    <span>${sanitizeForHtml(map.name)}</span>
                 `;
                 categoryDiv.appendChild(label);
             });
@@ -3702,9 +3763,7 @@ function populateCategoryNameSettings() {
         
         const itemDiv = document.createElement('div');
         itemDiv.className = 'category-name-item';
-        itemDiv.innerHTML = `
-            <label for="cat-name-${catKey}">${meta.icon} ${meta.title}</label>
-            <input type="text" id="cat-name-${catKey}" data-cat-key="${catKey}" value="${escapeXml(currentName)}" placeholder="${escapeXml(meta.title)}">
+itemDiv.innerHTML = `<label for="cat-name-${catKey}">${meta.icon} ${meta.title}</label> <input type="text" id="cat-name-${catKey}" data-cat-key="${catKey}" value="${sanitizeForHtml(currentName)}" placeholder="${sanitizeForHtml(meta.title)}">
         `;
         container.appendChild(itemDiv);
     });
@@ -3712,7 +3771,13 @@ function populateCategoryNameSettings() {
 function showNotification(message, type = 'success') { $notification.textContent = message; $notification.className = `notification ${type}`; $notification.style.display = 'block'; setTimeout(() => $notification.style.display = 'none', 3000); }
 
 async function updateCurrentCoords(newCoords = null, skipHistorySave = false, fromNav = false) {
-    const requestId = ++currentCoordsRequestId;
+    // 既存のリクエストがあればキャンセルする
+    if (currentAbortController) {
+        currentAbortController.abort();
+    }
+    // 新しいリクエストのために AbortController を作成
+    currentAbortController = new AbortController();
+    const { signal } = currentAbortController;
 
     let latNum, lonNum;
     try {
@@ -3720,13 +3785,8 @@ async function updateCurrentCoords(newCoords = null, skipHistorySave = false, fr
             latNum = newCoords.lat;
             lonNum = newCoords.lon;
         } else {
-            if (isDMSFormat) {
-                latNum = dmsToDecimal($lat.value);
-                lonNum = dmsToDecimal($lon.value);
-            } else {
-                latNum = parseFloat($lat.value);
-                lonNum = parseFloat($lon.value);
-            }
+            latNum = isDMSFormat ? dmsToDecimal($lat.value) : parseFloat($lat.value);
+            lonNum = isDMSFormat ? dmsToDecimal($lon.value) : parseFloat($lon.value);
         }
         if (isNaN(latNum) || isNaN(lonNum)) throw new Error("Invalid number");
     } catch (e) {
@@ -3735,45 +3795,48 @@ async function updateCurrentCoords(newCoords = null, skipHistorySave = false, fr
     }
 
     const zoomNum = parseInt($zoom.value, 10);
-    if (latNum >= -90 && latNum <= 90 && lonNum >= -180 && lonNum <= 180) {
-        currentLatLon = { lat: latNum, lon: lonNum };
-        $coordsDisplay.textContent = `${latNum.toFixed(8)}°N, ${lonNum.toFixed(8)}°E`;
-        updateMapPreview(latNum, lonNum, zoomNum);
-        initOSMClickMap(latNum, lonNum, zoomNum);
+    if (latNum < -90 || latNum > 90 || lonNum < -180 || lonNum > 180) return;
 
-        if (!fromNav) {
-            if (historyIndex < navigationHistory.length - 1) {
-                navigationHistory = navigationHistory.slice(0, historyIndex + 1);
-            }
-            navigationHistory.push({ lat: latNum, lon: lonNum, zoom: zoomNum });
-            if (navigationHistory.length > MAX_NAV_HISTORY) {
-                navigationHistory.shift();
-            }
-            historyIndex = navigationHistory.length - 1;
+    // --- UIの即時更新 ---
+    currentLatLon = { lat: latNum, lon: lonNum };
+    $coordsDisplay.textContent = `${latNum.toFixed(8)}°N, ${lonNum.toFixed(8)}°E`;
+    updateMapPreview(latNum, lonNum, zoomNum);
+    initOSMClickMap(latNum, lonNum, zoomNum);
+
+    if (!fromNav) {
+        if (historyIndex < navigationHistory.length - 1) {
+            navigationHistory = navigationHistory.slice(0, historyIndex + 1);
         }
-        
+        navigationHistory.push({ lat: latNum, lon: lonNum, zoom: zoomNum });
+        if (navigationHistory.length > MAX_NAV_HISTORY) navigationHistory.shift();
+        historyIndex = navigationHistory.length - 1;
+    }
+    
+    try {
         showNotification('住所と標高を取得中...', 'warning');
         const [addressInfo, elevation] = await Promise.all([
-            getAddressFromCoords(latNum, lonNum),
-            getElevationFromCoords(latNum, lonNum)
+            getAddressFromCoords(latNum, lonNum, signal),
+            getElevationFromCoords(latNum, lonNum, signal)
         ]);
 
-        if (requestId !== currentCoordsRequestId) {
-            return; 
+        // 通信中に新しいリクエストが発生してキャンセルされた場合、ここで処理を中断
+        if (signal.aborted) {
+            console.log("古い座標更新リクエストはキャンセルされました。");
+            return;
         }
 
+        // --- 非同期処理後のUI更新 ---
         const popupContent = `
             <div style="font-size: 13px; line-height: 1.6;">
-                <strong>郵便番号:</strong> ${escapeXml(addressInfo.postcode || '---')}<br>
-                <strong>住所:</strong> ${escapeXml(addressInfo.structured || '---')}<br>
+                <strong>郵便番号:</strong> ${sanitizeForHtml(addressInfo.postcode || '---')}<br>
+                <strong>住所:</strong> ${sanitizeForHtml(addressInfo.structured || '---')}<br>
                 <strong>緯度:</strong> ${latNum.toFixed(6)}<br>
                 <strong>経度:</strong> ${lonNum.toFixed(6)}<br>
                 <strong>標高:</strong> ${elevation !== '---' ? `${elevation} m` : '---'}
             </div>
         `;
         if (osmMarker) {
-            osmMarker.setPopupContent(popupContent);
-            osmMarker.openPopup();
+            osmMarker.setPopupContent(popupContent).openPopup();
         }
 
         if (!skipHistorySave) {
@@ -3785,14 +3848,23 @@ async function updateCurrentCoords(newCoords = null, skipHistorySave = false, fr
         renderHistoryOnMap();
         renderBookmarksOnMap();
         updateNavButtons();
-    }
 
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            // これは正常なキャンセルなので、エラー表示はしない
+            console.log("座標更新の非同期処理がキャンセルされました。");
+            return;
+        }
+        // その他のネットワークエラーなど
+        console.error("座標情報の取得中にエラーが発生しました:", error);
+        showNotification('住所または標高の取得に失敗しました。', 'error');
+    }
 }
 
-async function fetchWithRetry(url, maxRetries = 3, delay = 1000) {
+async function fetchWithRetry(url, signal, maxRetries = 3, delay = 1000) {
     for (let i = 0; i < maxRetries; i++) {
         try {
-            const response = await fetch(url);
+            const response = await fetch(url, { signal }); //  signalオプションを追加
             if (response.status === 429) {
                 console.warn(`Rate limit hit for ${url}. Retrying in ${delay * (i + 1)}ms...`);
                 await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
@@ -3918,12 +3990,26 @@ function initOSMClickMap(lat, lon, zoom) {
         });
         osmMap.on('mousemove', e => { if (isMeasuring) handleMeasureMouseMove(e); });
 
-        historyLayer = L.markerClusterGroup().addTo(osmMap);
-        bookmarkLayer = L.markerClusterGroup().addTo(osmMap);
-        csvPlotLayer = L.markerClusterGroup().addTo(osmMap); // CSVプロット用レイヤー
+        // ▼▼▼【ここから変更】マーカークラスタリングのパフォーマンスオプションを追加 ▼▼▼
+        const clusterOptions = {
+            // パフォーマンス向上のオプション
+            removeOutsideVisibleBounds: true, // 画面外のマーカーをDOMから削除して負荷を軽減
+            chunkedLoading: true,             // マーカーを分割して読み込み、UIのフリーズを防止
+            
+            // 一般的な推奨オプション
+            maxClusterRadius: 80,             // マーカーをクラスタ化する範囲（ピクセル単位）
+            spiderfyOnMaxZoom: true,          // 最大ズーム時に重なったマーカーを展開表示
+            showCoverageOnHover: false,       // クラスタにマウスオーバーした際に範囲を表示しない
+            zoomToBoundsOnClick: true         // クラスタをクリックした際にその範囲にズーム
+        };
 
-osmMarker = L.marker(latlng).addTo(osmMap)
-               .bindPopup("情報を読み込み中...");
+        historyLayer = L.markerClusterGroup(clusterOptions).addTo(osmMap);
+        bookmarkLayer = L.markerClusterGroup(clusterOptions).addTo(osmMap);
+        csvPlotLayer = L.markerClusterGroup(clusterOptions).addTo(osmMap); // CSVプロット用レイヤー
+        // ▲▲▲【変更ここまで】▲▲▲
+
+        osmMarker = L.marker(latlng).addTo(osmMap)
+                       .bindPopup("情報を読み込み中...");
 
         osmMarker.on('mousedown', (e) => {
             L.DomEvent.stopPropagation(e);
@@ -3979,9 +4065,9 @@ const mainToggleBtnWrapper = document.getElementById('main-toggle-panel-btn-wrap
     }
 }
 
-async function getAddressFromCoords(lat, lon) {
+async function getAddressFromCoords(lat, lon, signal) {
     try {
-        const response = await fetchWithRetry(`https://geoapi.heartrails.com/api/json?method=searchByGeoLocation&x=${lon}&y=${lat}`);
+        const response = await fetchWithRetry(`https://geoapi.heartrails.com/api/json?method=searchByGeoLocation&x=${lon}&y=${lat}`, signal);
         const data = await response.json();
 
         if (!data.response || !data.response.location || data.response.location.length === 0) {
@@ -4005,9 +4091,9 @@ async function getAddressFromCoords(lat, lon) {
     }
 }
 
-async function getElevationFromCoords(lat, lon) {
+async function getElevationFromCoords(lat, lon, signal) {
   try {
-    const response = await fetchWithRetry(`https://cyberjapandata2.gsi.go.jp/general/dem/scripts/getelevation.php?lon=${lon}&lat=${lat}&outtype=JSON`);
+    const response = await fetchWithRetry(`https://cyberjapandata2.gsi.go.jp/general/dem/scripts/getelevation.php?lon=${lon}&lat=${lat}&outtype=JSON`, signal);
     const data = await response.json();
     if (data.elevation && data.elevation !== "none") {
       return parseFloat(data.elevation).toFixed(2);
@@ -4200,8 +4286,8 @@ function renderBookmarkList() {
     const b = getProjectData(BOOKMARK_KEY) || [];
     $bookmarkList.innerHTML = b.length === 0 ? '<p>ブックマークはありません。</p>' : b.map((item, index) =>
         `<div class="bookmark-item" data-index="${index}">
-            <strong>${escapeXml(item.name)}</strong>
-            <span>${escapeXml(item.address || '---')}</span>
+            <strong>${sanitizeForHtml(item.name)}</strong>
+<span>${sanitizeForHtml(item.address || '---')}</span>
             <span>${item.lat}°N, ${item.lon}°E | 標高: ${item.elevation}m</span>
             <div class="bookmark-actions">
                 <button class="btn-bookmark-load">適用</button>
@@ -4283,6 +4369,27 @@ async function exportToKML(data, docName, filename) {
 
 async function exportHistoryToKML() { exportToKML(getProjectData('coordinateHistory') || [], '座標履歴', 'coordinate_history'); }
 async function exportBookmarksToKML() { exportToKML(getProjectData(BOOKMARK_KEY) || [], '地点ブックマーク', 'bookmarks_export'); }
+
+// ▼▼▼【ここから追加】▼▼▼
+/**
+ * 文字列をHTMLとして表示するために安全な形にサニタイズ（無害化）する
+ * @param {any} str - サニタイズする文字列
+ * @returns {string} サニタイズ済みのHTML文字列
+ */
+function sanitizeForHtml(str) {
+    // 文字列でない場合は、安全な形に変換して返す
+    if (typeof str !== 'string') {
+        if (str === null || str === undefined) {
+            return '';
+        }
+        str = String(str);
+    }
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+// ▲▲▲【追加はここまで】▲▲▲
+
 function escapeXml(unsafe) {
     if (typeof unsafe !== 'string') {
         return unsafe;
@@ -4456,7 +4563,7 @@ function createMapCard(map, catKey, categoryHeader) {
             openMap(map);
         }
     });
-    card.innerHTML = `<div class="map-header-with-check"><div class="map-title"><span class="map-icon-in-title">${escapeXml(map.icon || '🔗')}</span> ${escapeXml(map.name)}</div><input type="checkbox" class="map-checkbox" data-map-id="${map.id}" aria-label="${escapeXml(map.name)}を選択"></div><div class="map-description">${escapeXml(map.desc || 'カスタムリンク')}</div>${map.noCoords ? '<div class="manual-input-warning">※手動設定が必要です</div>' : ''}`;
+    card.innerHTML = `<div class="map-header-with-check"><div class="map-title"><span class="map-icon-in-title">${sanitizeForHtml(map.icon || '🔗')}</span> ${sanitizeForHtml(map.name)}</div><input type="checkbox" class="map-checkbox" data-map-id="${map.id}" aria-label="${sanitizeForHtml(map.name)}を選択"></div><div class="map-description">${sanitizeForHtml(map.desc || 'カスタムリンク')}</div>${map.noCoords ? '<div class="manual-input-warning">※手動設定が必要です</div>' : ''}`;
 
     const checkbox = card.querySelector('.map-checkbox');
 
@@ -5490,8 +5597,8 @@ function renderHistoryTable() {
             <tr data-history-index="${originalIndex}">
                 <td><input type="checkbox" class="history-item-checkbox" data-history-index="${originalIndex}" aria-label="履歴 No.${originalIndex + 1} を選択"></td>
                 <td>${originalIndex + 1}</td>
-                <td>${escapeXml(item.postcode || '---')}</td>
-                <td>${escapeXml(item.address || '---')}</td>
+                <td>${sanitizeForHtml(item.postcode || '---')}</td>
+<td>${sanitizeForHtml(item.address || '---')}</td>
                 <td>${item.lat}</td>
                 <td>${item.lon}</td>
                 <td>${item.elevation}</td>
@@ -5712,12 +5819,12 @@ function renderBookmarkTable() {
     $bookmarkTableBody.innerHTML = filteredData.map(item => {
         const originalIndex = bookmarkData.findIndex(b => b.timestamp === item.timestamp);
         return `
-            <tr data-bookmark-index="${originalIndex}">
-                <td><input type="checkbox" class="bookmark-item-checkbox" data-bookmark-index="${originalIndex}" aria-label="ブックマーク「${escapeXml(item.name)}」を選択"></td>
+           <tr data-bookmark-index="${originalIndex}">
+    <td><input type="checkbox" class="bookmark-item-checkbox" data-bookmark-index="${originalIndex}" aria-label="ブックマーク「${sanitizeForHtml(item.name)}」を選択"></td>
                 <td>${originalIndex + 1}</td>
-                <td>${escapeXml(item.name)}</td>
-                <td>${escapeXml(item.postcode || '---')}</td>
-                <td>${escapeXml(item.address || '---')}</td>
+                <td>${sanitizeForHtml(item.name)}</td>
+<td>${sanitizeForHtml(item.postcode || '---')}</td>
+<td>${sanitizeForHtml(item.address || '---')}</td>
                 <td>${item.lat}</td>
                 <td>${item.lon}</td>
                 <td>${item.elevation}</td>
@@ -5726,8 +5833,8 @@ function renderBookmarkTable() {
                 <td>${(item.xy_system && item.xy_system !== '---') ? `${item.xy_system}系` : '---'}</td>
                 <td>${new Date(item.timestamp).toLocaleString()}</td>
                 <td class="actions-cell">
-                    <button class="btn-action copy" title="この行をコピー" aria-label="ブックマーク「${escapeXml(item.name)}」をコピー">📋</button>
-                    <button class="btn-action delete" title="この行を削除" aria-label="ブックマーク「${escapeXml(item.name)}」を削除">🗑️</button>
+<button class="btn-action copy" title="この行をコピー" aria-label="ブックマーク「${sanitizeForHtml(item.name)}」をコピー">📋</button>
+<button class="btn-action delete" title="この行を削除" aria-label="ブックマーク「${sanitizeForHtml(item.name)}」を削除">🗑️</button>
                 </td>
             </tr>
         `;
@@ -7415,9 +7522,9 @@ async function plotCsvData() {
     const nameCol = document.getElementById('csv-map-name')?.value;
 
     csvImportData.mapped.forEach(point => {
-        const popupContent = Object.entries(point.raw)
-            .map(([key, value]) => `<b>${escapeXml(key)}:</b> ${escapeXml(value)}`)
-            .join('<br>');
+const popupContent = Object.entries(point.raw)
+    .map(([key, value]) => `<b>${sanitizeForHtml(key)}:</b> ${sanitizeForHtml(String(value))}`)
+    .join('<br>');
 
         const marker = L.marker([point.lat, point.lon])
             .bindPopup(popupContent);
