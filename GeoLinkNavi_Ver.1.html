@@ -2429,12 +2429,8 @@ body.dark-mode #settings-modal .btn-modal-cancel:hover {
     <!-- 共有 グループ -->
     <div class="button-group">
         <div class="header-button-wrapper">
-            <button class="share-button" id="shareButton" onclick="generateShareUrl()" aria-label="リンク共有" title="現在の状態を共有">🔗</button>
-            <span class="header-button-label">リンク共有</span>
-        </div>
-        <div class="header-button-wrapper">
-            <button class="qr-button" onclick="openQrModal()" aria-label="QRコードで共有" title="QRコードで共有">📱</button>
-            <span class="header-button-label">QRコード</span>
+            <button class="qr-button" onclick="openQrModal()" aria-label="QRコードとリンクで共有" title="QRコードとリンクで共有">📱</button>
+            <span class="header-button-label">共有</span>
         </div>
     </div>
 
@@ -3113,8 +3109,17 @@ body.dark-mode #settings-modal .btn-modal-cancel:hover {
 <div class="modal-overlay" id="qr-modal" onclick="closeQrModal()">
     <div class="modal-content" onclick="event.stopPropagation()">
         <button type="button" class="modal-close-btn" onclick="closeQrModal()" title="閉じる" aria-label="QRコードを閉じる">&times;</button>
-        <h3>📱 QRコードで共有</h3>
+        <h3>📱 共有</h3>
         <div id="qrcode"></div>
+        <!-- ▼▼▼【ここから追加】共有リンク表示欄 ▼▼▼ -->
+        <div class="modal-form-group" style="margin-top: 15px;">
+            <label for="share-url-input">共有リンク</label>
+            <div style="display: flex; gap: 8px;">
+                <input type="text" id="share-url-input" readonly style="flex-grow: 1;">
+                <button type="button" class="btn-base" id="copy-url-btn" style="min-width: 80px; background-color: var(--primary-color);">コピー</button>
+            </div>
+        </div>
+        <!-- ▲▲▲【追加ここまで】▲▲▲ -->
         <div class="modal-buttons">
             <button type="button" class="btn-modal-cancel" onclick="closeQrModal()">閉じる</button>
         </div>
@@ -5213,15 +5218,36 @@ function generateShareUrl() {
 function openQrModal() {
     const modal = document.getElementById('qr-modal');
     const qrContainer = document.getElementById('qrcode');
-    qrContainer.innerHTML = '';
+    const urlInput = document.getElementById('share-url-input');
+    const copyBtn = document.getElementById('copy-url-btn');
+
+    const shareUrl = getShareUrl(); // 共有URLを取得
+
+    // 1. URLを入力欄に設定
+    urlInput.value = shareUrl;
+
+    // 2. QRコードを生成
+    qrContainer.innerHTML = ''; // 以前のQRコードをクリア
     new QRCode(qrContainer, {
-        text: getShareUrl(),
+        text: shareUrl,
         width: 256,
         height: 256,
         colorDark : "#000000",
         colorLight : "#ffffff",
         correctLevel : QRCode.CorrectLevel.H
     });
+
+    // 3. コピーボタンの機能を設定（一度だけ設定すれば良いように工夫）
+    if (!copyBtn.dataset.listenerAttached) {
+        copyBtn.addEventListener('click', () => {
+            urlInput.select();
+            document.execCommand('copy');
+            showNotification('共有URLをコピーしました');
+        });
+        copyBtn.dataset.listenerAttached = 'true';
+    }
+    
+    // 4. モーダルを表示
     modal.style.display = 'flex';
 }
 function closeQrModal() {
