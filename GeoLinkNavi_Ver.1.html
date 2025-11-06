@@ -2374,6 +2374,29 @@ body.dark-mode #settings-modal .btn-modal-cancel:hover {
 }
 /* ▲▲▲【追加ここまで】▲▲▲ */
 
+/* ▼▼▼【ここから追加】タブレット等の高解像度モバイル向け調整 ▼▼▼ */
+@media (min-width: 769px) and (max-width: 1280px) {
+    .header {
+        /* ヘッダー全体の左右の余白を少し詰める */
+        padding: 1px 10px;
+        /* 各要素の間の隙間を少し詰める */
+        gap: 10px;
+    }
+
+    .button-group {
+        border-left: none; /* 仕切り線を非表示にする */
+        padding: 0;        /* 仕切り線の余白を削除 */
+        gap: 8px;          /* グループ内のボタンの隙間を少し狭くする */
+    }
+
+    .header-buttons {
+        gap: 0;
+        /* グループ間の隙間を均等に配置して詰める */
+        justify-content: space-between;
+    }
+}
+/* ▲▲▲【追加ここまで】▲▲▲ */
+
 </style>
 </head>
 <body>
