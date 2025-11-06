@@ -17,12 +17,16 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.11.0/proj4.js" defer></script>
     <!-- GPX/KML Importer Plugin -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.7.0/gpx.min.js" defer></script>
-    <!-- QRコード生成ライブラリ -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js" defer></script>
     
-    <!-- ▼▼▼【ここから追加】CSV解析ライブラリ (PapaParse) ▼▼▼ -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js" defer></script>
-    <!-- ▲▲▲【追加ここまで】▲▲▲ -->
+    <!-- ▼▼▼【ここから変更】ライブラリを動的読み込みに変更するため、scriptタグを削除し、DOMPurifyを追加 ▼▼▼ -->
+    <!-- QRコード生成ライブラリ (動的読み込みに変更) -->
+    <!-- <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js" defer></script> -->
+    <!-- CSV解析ライブラリ (PapaParse) (動的読み込みに変更) -->
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js" defer></script> -->
+
+    <!-- XSS対策ライブラリ (DOMPurify) を追加 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.8/purify.min.js" defer></script>
+    <!-- ▲▲▲【変更ここまで】▲▲▲ -->
 
 <style>
 :root {
@@ -159,6 +163,45 @@ body.dark-mode {
 --shadow-other: 0 8px 24px rgba(156, 39, 176, 0.4);
 --shadow-mylink: 0 8px 24px rgba(255, 193, 7, 0.4);
 }
+
+/* ▼▼▼【ここから追加】データ消失リスク警告バナーのスタイル ▼▼▼ */
+.data-warning-banner {
+    background-color: #fff3cd;
+    color: #856404;
+    padding: 15px 20px;
+    text-align: center;
+    font-size: 14px;
+    position: sticky;
+    top: 0;
+    z-index: 9999;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #ffeeba;
+}
+.data-warning-banner p {
+    margin: 0;
+    padding-right: 20px;
+}
+.data-warning-banner button {
+    background: transparent;
+    border: none;
+    font-size: 24px;
+    font-weight: bold;
+    cursor: pointer;
+    color: #856404;
+    padding: 0 10px;
+    line-height: 1;
+}
+body.dark-mode .data-warning-banner {
+    background-color: #4d431c;
+    color: #fffacd;
+    border-bottom-color: #6c5e25;
+}
+body.dark-mode .data-warning-banner button {
+    color: #fffacd;
+}
+/* ▲▲▲【追加ここまで】▲▲▲ */
 
 * {
 margin: 0;
@@ -2400,6 +2443,12 @@ body.dark-mode #settings-modal .btn-modal-cancel:hover {
 </style>
 </head>
 <body>
+<!-- ▼▼▼【ここから追加】データ消失リスク警告バナー ▼▼▼ -->
+<div id="data-loss-warning-banner" style="display: none;">
+    <p>⚠️ <strong>重要:</strong> このアプリのデータ(ブックマーク、履歴等)は、お使いのブラウザ内に保存されます。ブラウザのキャッシュや履歴を消去すると、データが全て失われる可能性があります。大切なデータは定期的に「設定 → データ管理」からバックアップ(書き出し)してください。</p>
+    <button id="dismiss-warning-btn" title="閉じる">&times;</button>
+</div>
+<!-- ▲▲▲【追加ここまで】▲▲▲ -->
 <div class="notification" id="notification"></div>
 <div class="container">
 <header class="header">
@@ -2910,7 +2959,7 @@ body.dark-mode #settings-modal .btn-modal-cancel:hover {
     <p>
       本サービスは以下のオープンソースライブラリおよび公的機関のデータを使用しています:<br>
       - 地図データ: © 国土地理院, © OpenStreetMap contributors<br>
-      - ライブラリ: Leaflet (BSD-2), QRCode.js (MIT), proj4js (MIT), PapaParse (MIT)
+      - ライブラリ: Leaflet (BSD-2), QRCode.js (MIT), proj4js (MIT), PapaParse (MIT), DOMPurify (MPL-2.0)
     </p>
   </div>
 </footer>
@@ -4398,7 +4447,7 @@ async function exportToKML(data, docName, filename) {
 async function exportHistoryToKML() { exportToKML(getProjectData('coordinateHistory') || [], '座標履歴', 'coordinate_history'); }
 async function exportBookmarksToKML() { exportToKML(getProjectData(BOOKMARK_KEY) || [], '地点ブックマーク', 'bookmarks_export'); }
 
-// ▼▼▼【ここから追加】▼▼▼
+// ▼▼▼【ここから変更】XSS対策としてDOMPurifyを使用するように関数を強化 ▼▼▼
 /**
  * 文字列をHTMLとして表示するために安全な形にサニタイズ（無害化）する
  * @param {any} str - サニタイズする文字列
@@ -4412,11 +4461,17 @@ function sanitizeForHtml(str) {
         }
         str = String(str);
     }
+    // DOMPurifyが読み込まれていれば使用する
+    if (window.DOMPurify) {
+        return DOMPurify.sanitize(str);
+    }
+    // フォールバックとして、単純なテキストエスケープを行う
+    console.warn("DOMPurify not loaded. Using basic sanitization.");
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
 }
-// ▲▲▲【追加はここまで】▲▲▲
+// ▲▲▲【変更ここまで】▲▲▲
 
 function escapeXml(unsafe) {
     if (typeof unsafe !== 'string') {
@@ -5215,40 +5270,43 @@ function generateShareUrl() {
     navigator.clipboard.writeText(getShareUrl()).then(() => showNotification('共有URLをコピーしました'), () => showNotification('コピーに失敗', 'error'));
 }
 
-function openQrModal() {
-    const modal = document.getElementById('qr-modal');
-    const qrContainer = document.getElementById('qrcode');
-    const urlInput = document.getElementById('share-url-input');
-    const copyBtn = document.getElementById('copy-url-btn');
+async function openQrModal() {
+    try {
+        await loadQrCodeJs(); // ライブラリを動的に読み込む
+        const modal = document.getElementById('qr-modal');
+        const qrContainer = document.getElementById('qrcode');
+        const urlInput = document.getElementById('share-url-input');
+        const copyBtn = document.getElementById('copy-url-btn');
 
-    const shareUrl = getShareUrl(); // 共有URLを取得
+        const shareUrl = getShareUrl();
 
-    // 1. URLを入力欄に設定
-    urlInput.value = shareUrl;
+        urlInput.value = shareUrl;
 
-    // 2. QRコードを生成
-    qrContainer.innerHTML = ''; // 以前のQRコードをクリア
-    new QRCode(qrContainer, {
-        text: shareUrl,
-        width: 256,
-        height: 256,
-        colorDark : "#000000",
-        colorLight : "#ffffff",
-        correctLevel : QRCode.CorrectLevel.H
-    });
-
-    // 3. コピーボタンの機能を設定（一度だけ設定すれば良いように工夫）
-    if (!copyBtn.dataset.listenerAttached) {
-        copyBtn.addEventListener('click', () => {
-            urlInput.select();
-            document.execCommand('copy');
-            showNotification('共有URLをコピーしました');
+        qrContainer.innerHTML = '';
+        new QRCode(qrContainer, {
+            text: shareUrl,
+            width: 256,
+            height: 256,
+            colorDark: "#000000",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
         });
-        copyBtn.dataset.listenerAttached = 'true';
+
+        if (!copyBtn.dataset.listenerAttached) {
+            copyBtn.addEventListener('click', () => {
+                urlInput.select();
+                navigator.clipboard.writeText(urlInput.value).then(() => {
+                    showNotification('共有URLをコピーしました');
+                });
+            });
+            copyBtn.dataset.listenerAttached = 'true';
+        }
+
+        modal.style.display = 'flex';
+    } catch (error) {
+        console.error("QRコードの生成に失敗しました:", error);
+        showNotification("共有機能の読み込みに失敗しました。", "error");
     }
-    
-    // 4. モーダルを表示
-    modal.style.display = 'flex';
 }
 function closeQrModal() {
     document.getElementById('qr-modal').style.display = 'none';
@@ -6111,6 +6169,35 @@ async function loadChartJS() {
   });
 }
 
+// ▼▼▼【ここから追加】ライブラリの動的読み込み用関数 ▼▼▼
+function loadScript(src) {
+    return new Promise((resolve, reject) => {
+        // 同じスクリプトが既に読み込まれていないかチェック
+        if (document.querySelector(`script[src="${src}"]`)) {
+            resolve();
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = src;
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+        document.head.appendChild(script);
+    });
+}
+
+async function loadQrCodeJs() {
+    if (typeof QRCode === 'undefined') {
+        await loadScript('https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js');
+    }
+}
+
+async function loadPapaParse() {
+    if (typeof Papa === 'undefined') {
+        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js');
+    }
+}
+// ▲▲▲【追加ここまで】▲▲▲
+
 function initCategoryDragAndDrop() {
     const container = document.getElementById('map-categories-container');
     let draggingEle = null;
@@ -6551,6 +6638,40 @@ Y (東方向): ${y} m
         showNotification(e.message, 'error');
     }
 }
+
+// ▼▼▼【ここから変更】データ消失リスク関連の初期化処理を追加 ▼▼▼
+function initializeDataWarning() {
+    const banner = document.getElementById('data-loss-warning-banner');
+    const dismissBtn = document.getElementById('dismiss-warning-btn');
+    const warningDismissedKey = 'dataWarningDismissed';
+    const lastBackupPromptKey = 'lastBackupPrompt';
+    const oneWeek = 7 * 24 * 60 * 60 * 1000;
+
+    // 1. 警告バナーの表示
+    if (localStorage.getItem(warningDismissedKey) !== 'true') {
+        banner.style.display = 'flex';
+        // ヘッダーをバナーの下に配置
+        document.querySelector('.header').style.top = `${banner.offsetHeight}px`;
+    }
+
+    dismissBtn.addEventListener('click', () => {
+        banner.style.display = 'none';
+        document.querySelector('.header').style.top = '0';
+        localStorage.setItem(warningDismissedKey, 'true');
+    });
+    
+    // 2. 定期的なバックアップ推奨通知
+    const lastPrompt = localStorage.getItem(lastBackupPromptKey);
+    const now = new Date().getTime();
+    if (!lastPrompt || (now - parseInt(lastPrompt, 10)) > oneWeek) {
+        setTimeout(() => {
+            showNotification('データを保護するため、定期的なバックアップを推奨します。', 'warning', 7000);
+            localStorage.setItem(lastBackupPromptKey, now.toString());
+        }, 5000); // ページロードから5秒後に表示
+    }
+}
+// ▲▲▲【変更ここまで】▲▲▲
+
 document.addEventListener('DOMContentLoaded', () => {
     coordinateSystems.forEach(d => {
         const s = `+proj=tmerc +lat_0=${d.lat0} +lon_0=${d.lon0} +k=0.9999 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs`;
@@ -6559,6 +6680,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     migrateOldData();
     loadProjects();
+    initializeDataWarning(); // データ消失リスク警告の初期化を追加
 
     if (window.L) {
         startIcon = L.icon({
@@ -7284,28 +7406,34 @@ function toggleCsvPopup(open = true) {
  * CSVインポートモーダルを開く
  * @param {string} type - 'bookmark', 'plot', 'navigate'
  */
-function openCsvImportModal(type) {
-    currentImportType = type;
-    const title = document.getElementById('csv-import-title');
-    const description = document.getElementById('csv-import-description');
-    
-    switch(type) {
-        case 'bookmark':
-            title.textContent = 'ブックマークにCSVをインポート';
-            description.textContent = 'ブックマークに一括登録するCSVファイルを選択してください。';
-            break;
-        case 'plot':
-            title.textContent = 'CSV地点を地図にプロット';
-            description.textContent = '地図に一時的にプロットするCSVファイルを選択してください。';
-            break;
-        case 'navigate':
-            title.textContent = 'CSVで巡回ナビゲーション';
-            description.textContent = '巡回確認のためにサイドパネルに登録するCSVファイルを選択してください。';
-            break;
+async function openCsvImportModal(type) {
+    try {
+        await loadPapaParse(); // PapaParseを動的に読み込む
+        currentImportType = type;
+        const title = document.getElementById('csv-import-title');
+        const description = document.getElementById('csv-import-description');
+        
+        switch(type) {
+            case 'bookmark':
+                title.textContent = 'ブックマークにCSVをインポート';
+                description.textContent = 'ブックマークに一括登録するCSVファイルを選択してください。';
+                break;
+            case 'plot':
+                title.textContent = 'CSV地点を地図にプロット';
+                description.textContent = '地図に一時的にプロットするCSVファイルを選択してください。';
+                break;
+            case 'navigate':
+                title.textContent = 'CSVで巡回ナビゲーション';
+                description.textContent = '巡回確認のためにサイドパネルに登録するCSVファイルを選択してください。';
+                break;
+        }
+        
+        document.getElementById('csv-import-modal').style.display = 'flex';
+        showCsvImportStep('file');
+    } catch(error) {
+        console.error("CSVインポート機能の読み込みに失敗しました:", error);
+        showNotification("CSVインポート機能の読み込みに失敗しました。", "error");
     }
-    
-    document.getElementById('csv-import-modal').style.display = 'flex';
-    showCsvImportStep('file');
 }
 
 /**
