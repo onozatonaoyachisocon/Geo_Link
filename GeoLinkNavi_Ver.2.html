@@ -286,6 +286,18 @@ background: rgba(255, 255, 255, 0.4);
 transform: scale(1.05);
 }
 
+/* ▼▼▼【ここから追加】ボタンクリック時のアニメーション ▼▼▼ */
+.mode-toggle:active:not(:disabled), .history-button:active:not(:disabled), .bookmark-button:active:not(:disabled),
+.share-button:active:not(:disabled), .nav-button:active:not(:disabled), .settings-button:active:not(:disabled),
+.usage-button:active:not(:disabled), .qr-button:active:not(:disabled), .header-button:active:not(:disabled),
+.btn-base:active:not(:disabled) {
+    transform: translateY(1px) scale(0.97);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.15);
+    filter: brightness(0.95);
+    transition-duration: 0.1s;
+}
+/* ▲▲▲【追加ここまで】▲▲▲ */
+
 .nav-button:disabled {
     cursor: not-allowed;
     opacity: 0.5;
@@ -622,11 +634,12 @@ border: 2px solid var(--secondary-color);
 border-radius: 0;
 box-shadow: 0 4px 15px rgba(0,0,0,0.1);
 flex-shrink: 0;
+position: relative; /* ← この行を追加してください */
 }
 
 .input-section {
 background: var(--bg-container);
-padding: 0 15px;
+padding: 0 15px; /* ← この行を変更 */
 border-radius: var(--radius-base);
 box-shadow: var(--shadow-hover);
 border: 1px solid var(--border-color);
@@ -1681,6 +1694,71 @@ body.dark-mode #coord-converter-modal .modal-form-group input[type="text"], body
     margin-bottom: 0;
 }
 
+/* ▼▼▼【ここから追加】十字線のスタイル ▼▼▼ */
+.crosshair {
+    position: absolute;
+    background-color: #333;
+    pointer-events: none; /* マウスイベントを透過させる */
+    display: none; /* 初期状態は非表示 */
+    z-index: 999;
+}
+#crosshair-v, #crosshair-v-right { /* ← セレクタを追加 */
+    width: 1px;
+    height: 100%;
+    top: 0;
+}
+#crosshair-h, #crosshair-h-right { /* ← セレクタを追加 */
+    height: 1px;
+    width: 100%;
+    left: 0;
+}
+body.dark-mode .crosshair {
+    background-color: #eee;
+}
+#toggle-crosshair-btn.active {
+    background-color: #004D40; /* 距離計測ボタンのアクティブ時と同じスタイル */
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
+}
+/* ▲▲▲【追加ここまで】▲▲▲ */
+
+/* ▼▼▼【ここから変更】連絡体制図カテゴリ用のスタイル変更 ▼▼▼ */
+:root {
+    --shadow-liaison: 0 8px 24px rgba(236, 64, 122, 0.4);
+}
+body.dark-mode {
+    --shadow-liaison: 0 8px 24px rgba(236, 64, 122, 0.4);
+}
+.liaison-icon {
+    background: linear-gradient(135deg, #F8BBD0, #F48FB1);
+}
+.map-card[data-category="liaison"]:hover {
+    box-shadow: var(--shadow-liaison);
+}
+.map-card[data-category="liaison"] {
+    border-left: 3px solid #EC407A;
+}
+
+/* ▼▼▼【ここから追加】任意キーワード検索用のスタイル ▼▼▼ */
+.btn-add-emergency-search {
+    width: 100%;
+    padding: 10px;
+    font-size: 14px;
+    font-weight: bold;
+    background-color: #F8BBD0;
+    color: #880E4F;
+    border: 2px dashed #EC407A;
+    border-radius: var(--radius-base);
+    cursor: pointer;
+}
+.btn-add-emergency-search:hover {
+    background-color: #F48FB1;
+    border-color: #EC407A;
+}
+.map-card-actions .btn-emergency-search-edit { background-color: var(--primary-color); }
+.map-card-actions .btn-emergency-search-delete { background-color: var(--error-color); }
+/* ▲▲▲【追加ここまで】▲▲▲ */
+
+
 @media (min-width: 1800px) {
     .left-panel {
         flex: 5;
@@ -1726,6 +1804,28 @@ body.dark-mode #coord-converter-modal .modal-form-group input[type="text"], body
         height: 75vh;
         /* ▲▲▲【変更ここまで】▲▲▲ */
     }
+
+    /* ▼▼▼【ここから追加】▼▼▼ */
+    /* 2画面表示ボタンと十字線ボタンを非表示にする */
+    #toggleDualViewBtn,
+    #toggle-crosshair-btn {
+        display: none !important;
+    }
+
+    /* 2画面モードが有効でも、レイアウトを強制的に1画面に保つ */
+    #osmClickMap.dual-view-mode #mapLeft {
+        width: 100% !important;
+    }
+    #osmClickMap.dual-view-mode #mapRight {
+        width: 0 !important;
+        border-left: none !important;
+    }
+
+    /* 十字線を非表示にする */
+    .crosshair {
+        display: none !important;
+    }
+    /* ▲▲▲【追加ここまで】▲▲▲ */
 }
 
 @media (max-width: 768px) {
@@ -2414,11 +2514,215 @@ body.dark-mode #settings-modal .btn-modal-cancel:hover {
 }
 /* ▲▲▲【追加ここまで】▲▲▲ */
 
+/* ▼▼▼【ここから追加】2画面表示モード用のスタイル（改訂版） ▼▼▼ */
+
+/* --- 地図の親コンテナ(#osmClickMap)の基本設定 --- */
+#osmClickMap {
+    display: flex; /* 子要素を横並びにするため */
+    overflow: hidden; /* はみ出しを隠す */
+}
+
+/* --- 左右の地図コンテナの共通設定 --- */
+#mapLeft, #mapRight {
+    height: 100%; /* 親コンテナの高さ一杯に広がる */
+    transition: width 0.4s ease-in-out; /* 幅の変更をアニメーション */
+    background-color: #f0f0f0; /* 地図読み込み中の背景色 */
+}
+
+/* --- 通常時（1画面モード）のスタイル --- */
+#mapLeft {
+    width: 100%;
+}
+#mapRight {
+    width: 0;
+    /* display:none; の代わりに幅0で見えなくすることで、サイズ計算の問題を回避 */
+    border-left: none;
+}
+
+/* --- 2画面表示モード有効時のスタイル --- */
+#osmClickMap.dual-view-mode #mapLeft {
+    width: 50%;
+}
+#osmClickMap.dual-view-mode #mapRight {
+    width: 50%;
+    border-left: 2px solid var(--primary-color);
+}
+
+/* --- 2画面表示ボタンのアクティブ状態 --- */
+#toggleDualViewBtn.active {
+    background-color: var(--primary-color);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+}
+
+/* --- モバイル対応 --- */
+@media (max-width: 1024px) {
+    #toggleDualViewBtn,
+    #toggleDualViewBtn + .header-button-label {
+        display: none !important;
+    }
+}
+
+/* ▼▼▼【ここから追加】地図ヘッダー内の2画面表示ボタンのスタイル ▼▼▼ */
+.osm-map-header .header-button-wrapper {
+    margin-left: auto; /* ボタンを右端に配置 */
+}
+
+.osm-map-header #toggleDualViewBtn {
+    width: auto;
+    height: auto;
+    min-width: 100px;
+    padding: 6px 12px;
+    border-radius: var(--radius-base);
+    background-color: var(--bg-light);
+    color: var(--text-dark);
+    border: 1px solid var(--border-color);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.osm-map-header #toggleDualViewBtn:hover {
+    background-color: var(--border-color);
+    transform: none; /* ヘッダーボタンのホバー効果を打ち消し */
+}
+
+.osm-map-header #toggleDualViewBtn.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.osm-map-header .header-button-label {
+    display: none; /* ボタン内にテキストを入れるのでラベルは不要 */
+}
+
+/* ボタンのテキストをJSで変更するため、アイコンはCSSで表示 */
+.osm-map-header #toggleDualViewBtn::before {
+    content: '🔲 2画面表示';
+}
+.osm-map-header #toggleDualViewBtn.active::before {
+    content: '🔳 1画面表示';
+}
+.osm-map-header #toggleDualV-iewBtn {
+    font-size: 0; /* 元の絵文字アイコンを隠す */
+}
+/* ▲▲▲【追加ここまで】▲▲▲ */
+
+/* 既存の .header-button のスタイルに追従しつつ、アクティブ時のスタイルを定義 */
+.osm-map-header #toggle-crosshair-btn {
+    width: auto;
+    height: auto;
+    min-width: 35px;
+    padding: 6px;
+    border-radius: var(--radius-base);
+    background-color: var(--bg-light);
+    color: var(--text-dark);
+    border: 1px solid var(--border-color);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.osm-map-header #toggle-crosshair-btn:hover {
+    background-color: var(--border-color);
+    transform: none;
+}
+
+.osm-map-header #toggle-crosshair-btn.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+}
+
+/* ▲▲▲【追加ここまで】▲▲▲ */
+
+/* ▼▼▼【ここから追加】JSと連携する全画面表示対策用のCSS ▼▼▼ */
+
+/* JSによってbodyにクラスが付与されている間だけ、以下のスタイルを適用 */
+
+/* 1. スライドアニメーションを強制的に無効化する */
+body.left-map-is-fullscreen #mapLeft,
+body.left-map-is-fullscreen #mapRight {
+    /* これが最も重要！アニメーションを止めて描画の競合を防ぐ */
+    transition: none !important;
+}
+
+/* 2. 右側の地図を完全に非表示にする */
+body.left-map-is-fullscreen #mapRight {
+    /* 白い領域が残らないように、レイアウトから完全に取り除く */
+    display: none;
+}
+
+/* ▲▲▲【追加ここまで】▲▲▲ */
+
+/* ▼▼▼【ここから追加】スピナーのスタイル ▼▼▼ */
+.input-spinner {
+    display: none; /* 初期状態は非表示 */
+    box-sizing: border-box;
+    position: absolute;
+    top: 50%;
+    right: 40px; /* コピーボタンの左側 */
+    width: 18px;
+    height: 18px;
+    margin-top: -9px;
+    border: 3px solid var(--border-color);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.input-wrapper.loading .input-spinner {
+    display: block; /* loadingクラスが付いたら表示 */
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+/* ▲▲▲【追加ここまで】▲▲▲ */
+
+/* ▼▼▼【ここから追加】十字線有効時のカーソル制御スタイル ▼▼▼ */
+#osmClickMap .leaflet-container.crosshair-active {
+    cursor: grab; /* 十字線有効・静止時は手のひらカーソル */
+}
+#osmClickMap .leaflet-container.crosshair-active.leaflet-dragging {
+    cursor: none; /* ドラッグ中はカーソルを消す */
+}
+/* ▲▲▲【追加ここまで】▲▲▲ */
+
+/* ▼▼▼【ここから変更】設定モーダルの見やすさ改善スタイル ▼▼▼ */
+#settings-map-visibility-list, #settings-category-names {
+    /* スクロールをなくすため、max-heightを削除し、overflowをvisibleに */
+    max-height: none;
+    overflow-y: visible;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px;
+    background-color: var(--bg-light);
+}
+.settings-tab-content[data-tab-content="basic"] .modal-form-group {
+    padding: 15px 10px;
+    margin-bottom: 0;
+    border-radius: var(--radius-base);
+    transition: background-color 0.2s ease-in-out;
+}
+.settings-tab-content[data-tab-content="basic"] .modal-form-group + .modal-form-group {
+    border-top: 1px solid var(--border-color);
+}
+/* ホバー時の背景色を、コンテナの背景とは異なる色に変更 */
+.settings-tab-content[data-tab-content="basic"] .modal-form-group:hover {
+    background-color: #f8f9fa;
+}
+body.dark-mode .settings-tab-content[data-tab-content="basic"] .modal-form-group:hover {
+    background-color: #2d3748; /* ダークモード用の濃いグレー */
+}
+/* ▲▲▲【変更ここまで】▲▲▲ */
+
 </style>
 </head>
 <body>
 <!-- ▼▼▼【ここから追加】データ消失リスク警告バナー ▼▼▼ -->
-<div id="data-loss-warning-banner" style="display: none;">
+<div id="data-loss-warning-banner" class="data-warning-banner" style="display: none;">
     <p>⚠️ <strong>重要:</strong> このアプリのデータ(ブックマーク、履歴等)は、お使いのブラウザ内に保存されます。ブラウザのキャッシュや履歴を消去すると、データが全て失われる可能性があります。大切なデータは定期的に「設定 → データ管理」からバックアップ(書き出し)してください。</p>
     <button id="dismiss-warning-btn" title="閉じる">&times;</button>
 </div>
@@ -2490,7 +2794,7 @@ body.dark-mode #settings-modal .btn-modal-cancel:hover {
         <div class="header-button-wrapper">
             <button class="header-button" id="csvButton" aria-label="CSVデータ" title="CSVデータを管理">📄</button>
             <span class="header-button-label">CSVデータ</span>
-            <div id="csvPopup">
+            <div class="popup-buttons" id="csvPopup">
                 <h4>CSVデータ管理</h4>
                 <div class="popup-buttons" style="flex-direction: column; align-items: stretch;">
                     <button id="csv-plot-btn-header" class="btn-base" style="background-color: var(--primary-color);">🗺️ 地図にプロット</button>
@@ -2501,6 +2805,8 @@ body.dark-mode #settings-modal .btn-modal-cancel:hover {
         </div>
         <!-- ▲▲▲【追加ここまで】▲▲▲ -->
     </div>
+    <!-- データ管理 グループ -->
+
 
     <!-- 設定 グループ -->
     <div class="button-group">
@@ -2581,6 +2887,9 @@ body.dark-mode #settings-modal .btn-modal-cancel:hover {
                 <li>「▶️ チェックした項目を一括で開く」ボタンで、チェックを付けた複数の地図を一度に開くことができます。</li>
                 <li>任意の地図サービスにチェックをつけて「お気に入りセット」として登録できます。</li>
                 <li>「⭐ マイリンク」カテゴリでは、自分専用のWeb地図へのリンクを自由に追加・管理できます。</li>
+                 <!-- ▼▼▼【ここから変更】カスタム検索の説明を追加 ▼▼▼ -->
+                <li>「📞 緊急時連絡」カテゴリでは、よく使う検索キーワードを最大5つまで登録し、ワンクリックで周辺の施設を検索できます。</li>
+                <!-- ▲▲▲【変更ここまで】▲▲▲ -->
  <li>「⏱️履歴一覧」「⭐ブックマーク」タブ：履歴やブックマークの一覧を表示します。📋 テーブルコピーや選択をコピーすることで、Excelなどに貼り付けることができます。</li>
  <li>「地図に履歴（ブックマーク）を表示」をチェックすることで、履歴（ブックマーク）が地図上にプロットされます。なお、各項目のチェックボックスで選択して表示することもできます。</li>
  <li>「📋 テーブルコピー、選択をコピー」：クリップボードにコピーしてExcelに貼り付けることができます。</li>
@@ -2670,6 +2979,7 @@ body.dark-mode #settings-modal .btn-modal-cancel:hover {
         <div class="input-wrapper">
             <input type="text" id="latitude" value="35.72985474" placeholder="例: 35.681074">
             <button type="button" class="btn-copy-input" title="緯度をコピー" onclick="copyInputToClipboard('latitude')">📋</button>
+            <div class="input-spinner"></div>
         </div>
         <label for="latitude">📍緯度 (Latitude)</label>
     </div>
@@ -2678,6 +2988,7 @@ body.dark-mode #settings-modal .btn-modal-cancel:hover {
         <div class="input-wrapper">
             <input type="text" id="longitude" value="139.77110828" placeholder="例: 139.767843">
             <button type="button" class="btn-copy-input" title="経度をコピー" onclick="copyInputToClipboard('longitude')">📋</button>
+            <div class="input-spinner"></div>
         </div>
         <label for="longitude">📍経度 (Longitude)</label>
     </div>
@@ -2692,6 +3003,7 @@ body.dark-mode #settings-modal .btn-modal-cancel:hover {
             <div class="input-wrapper">
                 <input type="text" id="addressInput" placeholder="例: 東京都千代田区千代田1-1">
                 <div id="autocompleteList" class="autocomplete-list"></div>
+                <div class="input-spinner"></div>
             </div>
             <label for="addressInput">🏠住所・施設名</label>
         </div>
@@ -2709,16 +3021,37 @@ body.dark-mode #settings-modal .btn-modal-cancel:hover {
     <span class="input-button-label">パネル</span>
 </div>
 </div>
+
 </section>
         <section class="osm-map-container" id="mainMapContainer" aria-labelledby="main-map-title">
             <!-- ▼▼▼【ここから変更】onclickを削除、アイコンを削除 ▼▼▼ -->
             <div class="osm-map-header">
                 <h3 id="main-map-title">🗺️ クリックで座標取得 / 地図プレビュー</h3>
+    <!-- ▼▼▼【ここに移動】表示モード グループ ▼▼▼ -->
+    <div class="button-group">
+        <!-- ▼▼▼【ここに追加】▼▼▼ -->
+        <div class="header-button-wrapper">
+            <button class="header-button" id="toggle-crosshair-btn" aria-label="十字線表示切り替え" title="十字線 ON/OFF">╋</button>
+            <span class="header-button-label">十字線</span>
+        </div>
+        <!-- ▲▲▲【追加ここまで】▲▲▲ -->
+        <div class="header-button-wrapper">
+            <button class="header-button" id="toggleDualViewBtn" aria-label="2画面表示モード切り替え" title="2画面表示モード切り替え">🔲</button>
+            <span class="header-button-label">2画面表示</span>
+        </div>
+    </div>
+    <!-- ▲▲▲【移動ここまで】▲▲▲ -->
             </div>
             <!-- ▲▲▲【変更ここまで】▲▲▲ -->
             <div class="osm-map-wrapper">
                 <div id="osmClickMap">
-                    <div class="analysis-tools-overlay collapsed" id="analysis-tools">
+                           <!-- ▼▼▼【ここから変更】左右の地図コンテナを追加 ▼▼▼ -->
+        <div id="mapLeft">
+            <!-- 既存のツール類は左の地図に属するので、この中に移動します -->
+            <div class="analysis-tools-overlay collapsed" id="analysis-tools">
+
+
+
                         <h3 id="analysis-tools-header">🛠️ 測量・解析ツール <span class="toggle-icon">▶</span></h3>
                         <div class="analysis-tools-controls">
 <div class="analysis-tool-row">
@@ -2748,9 +3081,21 @@ body.dark-mode #settings-modal .btn-modal-cancel:hover {
                         <label for="zoomLevel">ズーム:</label>
                         <input type="range" id="zoomLevel" value="16" min="1" max="20" aria-label="地図のズームレベル">
                         <span id="zoomLevelDisplay">16</span>
-                    </div>
-                </div>
-            </div>
+
+        </div>
+    <!-- ▼▼▼【ここから追加】十字線用のHTML要素 ▼▼▼ -->
+    <div id="crosshair-v" class="crosshair"></div>
+    <div id="crosshair-h" class="crosshair"></div>
+    <!-- ▲▲▲【追加ここまで】▲▲▲ -->
+    </div>
+    <div id="mapRight">
+        <!-- ▼▼▼【ここに追加】▼▼▼ -->
+        <div id="crosshair-v-right" class="crosshair"></div>
+        <div id="crosshair-h-right" class="crosshair"></div>
+        <!-- ▲▲▲【追加ここまで】▲▲▲ -->
+    </div>
+    <!-- ▲▲▲【変更ここまで】▲▲▲ -->
+</div>
         </section>
 
         <!-- ▼▼▼【ここから変更】プレビューセクションを削除 ▼▼▼ -->
@@ -2969,6 +3314,27 @@ body.dark-mode #settings-modal .btn-modal-cancel:hover {
 </div>
 </div>
 
+<!-- ▼▼▼【ここから追加】緊急時連絡のカスタム検索用モーダル ▼▼▼ -->
+<div class="modal-overlay" id="emergency-search-modal">
+    <div class="modal-content">
+        <button type="button" class="modal-close-btn" onclick="closeEmergencySearchModal()" title="閉じる" aria-label="カスタム検索編集を閉じる">&times;</button>
+        <h3 id="emergency-search-modal-title">緊急時連絡カスタム検索</h3>
+        <form id="emergency-search-form">
+            <input type="hidden" id="emergency-search-id">
+            <div class="modal-form-group">
+                <label for="emergency-search-keyword">検索キーワード</label>
+                <input type="text" id="emergency-search-keyword" required placeholder="例: 建設会社, 防災倉庫">
+                <small>Googleマップで検索するキーワードを入力します。</small>
+            </div>
+            <div class="modal-buttons">
+                <button type="button" class="btn-modal-cancel" id="btn-emergency-search-modal-cancel">キャンセル</button>
+                <button type="submit" class="btn-modal-save">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+<!-- ▲▲▲【追加ここまで】▲▲▲ -->
+
 <div class="modal-overlay" id="settings-modal">
     <div class="modal-content">
         <button type="button" class="modal-close-btn" onclick="closeSettingsModal()" title="閉じる" aria-label="設定を閉じる">&times;</button>
@@ -2988,10 +3354,17 @@ body.dark-mode #settings-modal .btn-modal-cancel:hover {
     <div class="settings-tab-content-wrapper">
         <div class="settings-tab-content active" data-tab-content="basic">
             <div class="modal-form-group">
-                <label for="settings-default-layer">デフォルトの地図レイヤー</label>
+                <label for="settings-default-layer">デフォルトの地図レイヤー (左側)</label>
                 <select id="settings-default-layer"></select>
-                <small>起動時に最初に表示される地図レイヤーを選択します。</small>
+                <small>起動時に最初に表示される左側地図のレイヤーを選択します。</small>
             </div>
+            <!-- ▼▼▼【ここから追加】2画面目のデフォルトレイヤー設定 ▼▼▼ -->
+            <div class="modal-form-group">
+                <label for="settings-default-layer-right">2画面表示時の右側地図レイヤー</label>
+                <select id="settings-default-layer-right"></select>
+                <small>2画面表示をONにした際に、右側に表示されるデフォルトの地図レイヤーです。</small>
+            </div>
+            <!-- ▲▲▲【追加ここまで】▲▲▲ -->
             <div class="modal-form-group">
                 <label for="settings-coord-format">座標の表示形式</label>
                 <select id="settings-coord-format">
@@ -3190,6 +3563,13 @@ body.dark-mode #settings-modal .btn-modal-cancel:hover {
     <div class="modal-content">
         <button type="button" class="modal-close-btn" id="coord-converter-close-btn" title="閉じる">&times;</button>
         <h3>🧭緯度経度 ⇔ 平面直角座標 変換</h3>
+
+        <!-- ▼▼▼【ここから追加】地殻変動の警告表示エリア ▼▼▼ -->
+        <div id="crustal-deformation-warning" style="display: none; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #FFD54F; background-color: #FFF8E1; color: #8D6E63;">
+            <p style="margin: 0; font-weight: bold; font-size: 14px;">⚠️ 地殻変動による座標補正の注意</p>
+            <p id="deformation-details" style="margin: 5px 0 0; font-size: 13px;"></p>
+        </div>
+        <!-- ▲▲▲【追加ここまで】▲▲▲ -->
         
         <div class="converter-grid">
             <div class="converter-panel">
@@ -3333,7 +3713,8 @@ function decimalToGsiDms(dd) {
     return resultValue.toFixed(5);
 }
 
-const CATEGORY_META = { 'all': { title: 'すべての地図', icon: '🌐', class: '' }, 'terrain': { title: '地図・地理情報', icon: '🗻', class: 'terrain-icon' }, 'geology': { title: '地質・地盤情報', icon: '🏔️', class: 'geology-icon' }, 'weather': { title: '天気・気象情報', icon: '🌦️', class: 'weather-icon' }, 'disaster': { title: '防災・ハザード情報', icon: '⚠️', class: 'disaster-icon' }, 'survey': { title: '測量・解析ツール', icon: '📐', class: 'survey-icon' }, 'other': { title: 'その他の情報', icon: '💡', class: 'other-icon' }, 'mylink': { title: '⭐ マイリンク', icon: '⭐', class: 'mylink-icon'} };
+// ▼▼▼【変更】カテゴリ名を「緊急時連絡」に変更 ▼▼▼
+const CATEGORY_META = { 'all': { title: 'すべての地図', icon: '🌐', class: '' }, 'terrain': { title: '地図・地理情報', icon: '🗻', class: 'terrain-icon' }, 'geology': { title: '地質・地盤情報', icon: '🏔️', class: 'geology-icon' }, 'weather': { title: '天気・気象情報', icon: '🌦️', class: 'weather-icon' }, 'disaster': { title: '防災・ハザード情報', icon: '⚠️', class: 'disaster-icon' }, 'survey': { title: '測量・解析ツール', icon: '📐', class: 'survey-icon' }, 'other': { title: 'その他の情報', icon: '💡', class: 'other-icon' }, 'liaison': { title: '緊急時連絡', icon: '📞', class: 'liaison-icon' }, 'mylink': { title: '⭐ マイリンク', icon: '⭐', class: 'mylink-icon'} };
 
 const BASE_LAYERS = {
     'osm': { name: 'OpenStreetMap', url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '© OpenStreetMap contributors', layer: null, maxZoom: 19 },
@@ -3343,7 +3724,123 @@ const BASE_LAYERS = {
     'gsi_relief': { name: '地理院地図（色別標高図）', url: 'https://cyberjapandata.gsi.go.jp/xyz/relief/{z}/{x}/{y}.png', attribution: '© 国土地理院', layer: null, maxZoom: 15 }
 };
 
-const MAP_DEFINITIONS = [ { id: 'gsi_std', name: '地理院地図', desc: '国土地理院の基本地図。標高、地形、土地利用など', category: 'terrain', icon: '🗺️', noCoords: false, url: (lat, lon, zoom) => `https://maps.gsi.go.jp/#${zoom}/${lat}/${lon}/&base=std&ls=std&disp=1&vs=c0g1j0h0k0l0u0t0z0r0s0m0f1&d=m` }, { id: 'gsi_time', name: '地理院時系列', desc: '過去から現在までの地図を時系列で比較', category: 'terrain', icon: '⏳', noCoords: false, url: (lat, lon, zoom) => `https://maps.gsi.go.jp/#${zoom}/${lat}/${lon}/&ls=gsi-compare-photo&lcd=gsi-compare-photo&vs=c0j0h0k0l0u0t0z0r0s0m0f1&d=m` }, { id: 'gsi_flood', name: '治水地形分類図', desc: '河川周辺の地形特性と洪水リスクを把握', category: 'terrain', icon: '🖼️', noCoords: false, url: (lat, lon, zoom) => `https://maps.gsi.go.jp/#${zoom}/${lat}/${lon}/&base=std&ls=lcmfc2%2C0.8%7Chillshademap&blend=01&disp=111&lcd=hillshademap&vs=c1g1j0h0k0l0u0t0z0r0s0m0f1&d=m` }, { id: 'google_maps', name: 'Googleマップ', desc: 'ストリートビューや経路検索も可能', category: 'terrain', icon: '📍', noCoords: false, url: (lat, lon) => `https://maps.google.co.jp/maps?q=${lat},${lon}` }, { id: 'google_earth', name: 'Google Earth', desc: '3D地形と衛星画像で地表を詳細に確認', category: 'terrain', icon: '🌍', noCoords: false, url: (lat, lon, zoom) => `https://earth.google.com/web/@${lat},${lon},0a,${Math.round(300000*Math.pow(0.5,(parseInt(zoom,10)-1)/3))}d,0y,0h` }, { id: 'konjaku', name: '今昔マップ', desc: '明治から現代までの地形図を並べて表示', category: 'terrain', icon: '📜', noCoords: false, url: (lat, lon, zoom) => `https://ktgis.net/kjmapw/kjmapw.html?lat=${lat}&lng=${lon}&zoom=${zoom}&dataset=&age=3&screen=2&scr1tile=k_cj4&scr2tile=k_cj4&scr3tile=k_cj4&mapOpacity=10&overGSItile=no&altitudeOpacity=2` }, { id: 'gsi_photos', name: '地図・空中写真閲覧', desc: '過去の空中写真を閲覧', category: 'terrain', icon: '📷', noCoords: false, url: (lat, lon, zoom) => `https://service.gsi.go.jp/map-photos/app/map?search=photo#${zoom}/${lat}/${lon}` }, { id: 'geonavi', name: '地質図Navi', desc: '日本全国の地質情報を詳細に表示', category: 'geology', icon: '⛏️', noCoords: false, url: (lat, lon, zoom) => `https://gbank.gsj.jp/geonavi/geonavi.php#${zoom},${lat},${lon}` }, { id: 'gsi_landslide', name: '地すべり地形分布図', desc: '国土地理院が提供する地すべり地形の分布図', category: 'geology', icon: '⛰️', noCoords: false, url: (lat, lon, zoom) => `https://maps.gsi.go.jp/#${zoom}/${lat}/${lon}/&base=std&ls=std%7Clandslide%2C0.75&blend=0&disp=11&vs=c1g1j0h0k0l0u0t0z0r0s0m0f1&d=m` }, { id: 'qchizu_pond', name: '農業用ため池マップ', desc: '全国の農業用ため池の位置を表示（Q地図）', category: 'geology', icon: '💧', noCoords: false, url: (lat, lon, zoom) => `https://maps.qchizu.xyz/#${zoom}/${lat}/${lon}/&base=pale&ls=pale%7Cmaff-pond20200925-6%7Cmaff-pond20200925-5%7Cmaff-pond20200925-4%7Cmaff-pond20200925-1&disp=11111&lcd=maff-pond20200925-1&vs=c1g1j0h0k0l0u0t0z0r0s0m0f1&d=m` }, { id: 'kunijiban', name: '国土地盤情報 KuniJiban', desc: 'ボーリングデータなど地盤情報を検索', category: 'geology', icon: '📊', noCoords: true, url: () => `https://www.kunijiban.pwri.go.jp/viewer/` }, { id: 'ngic', name: '国土地盤情報センター', desc: '全国の地盤情報データベース', category: 'geology', icon: '📈', noCoords: true, url: () => `https://publicweb.ngic.or.jp/viewer/` }, { id: 'geo_station', name: 'ジオ・ステーション', desc: '地質・地盤情報の統合プラットフォーム。開いた後に位置を検索してください', category: 'geology', icon: '🧭', noCoords: true, url: () => `https://www.geo-stn.bosai.go.jp/mapping_page.html` }, { id: 'gsj_activefault', name: '活断層データベース', desc: '産業技術総合研究所が提供する活断層の情報。開いた後に位置を検索してください', category: 'geology', icon: '〰️', noCoords: true, url: () => `https://gbank.gsj.jp/activefault/cgi/tyousati` }, { id: 'tokyo_jiban', name: '東京の地盤（GIS）', desc: '東京都内の詳細な地盤データ。開いた後に位置を検索してください', category: 'geology', icon: '🏢', noCoords: true, url: () => `https://doboku.metro.tokyo.lg.jp/start/03-jyouhou/geo-web/geo-webmap.aspx` }, { id: 'hazard_map', name: '重ねるハザードマップ', desc: '洪水、土砂災害、津波などの危険区域を表示', category: 'disaster', icon: '🚨', noCoords: false, url: (lat, lon, zoom) => `https://disaportal.gsi.go.jp/maps/?ll=${lat},${lon}&z=${zoom}&base=pale&ls=tameike_raster%2C0.75%7Cflood_list_l2%2C0.75%7Cdisaster1&disp=110&vs=c1j0l0u0` }, { id: 'hazard_flood_topo', name: 'ハザードマップ（治水地形分類図）', desc: '治水地形分類図とハザード情報の重ね合わせ', category: 'disaster', icon: '🚫', noCoords: false, url: (lat, lon, zoom) => `https://disaportal.gsi.go.jp/maps/?ll=${lat},${lon}&z=${zoom}&base=pale&ls=hillshademap%7CLCMFC02&disp=11&vs=c1j0l0u0t0h0z0` }, { id: 'river_bousai', name: '川の防災情報', desc: 'リアルタイムの河川水位と雨量情報', category: 'disaster', icon: '💧', noCoords: false, url: (lat, lon, zoom) => { let s=4; if(zoom>=18)s=3; if(zoom<=15)s=5; if(zoom<=13)s=6; return `https://www.river.go.jp/kawabou/pc/ov?zm=${zoom}&fld=0&clat=${lat}&clon=${lon}&mapType=0&viewGrpStg=0&viewRd=1&viewRW=1&viewRiver=1&viewPoint=1`;} }, { id: 'jma_warnings', name: '気象警報・注意報', desc: '気象庁が発表する警報・注意報を地図で確認', category: 'disaster', icon: '📢', noCoords: false, url: (lat, lon, zoom) => `https://www.jma.go.jp/bosai/map.html#${zoom}/${lat}/${lon}/&elem=all&contents=warning` }, { id: 'kikikuru', name: 'キキクル（危険度分布）', desc: '土砂災害・浸水・洪水の危険度をリアルタイム表示', category: 'weather', icon: '⛈️', noCoords: false, url: (lat, lon, zoom) => `https://www.jma.go.jp/bosai/risk/#zoom:${zoom}/lat:${lat}/lon:${lon}/colordepth:deep/elements:land` }, { id: 'jma_nowcast', name: '高解像度降水ナウキャスト', desc: '気象庁が提供するリアルタイムの降水予報', category: 'weather', icon: '🌧️', noCoords: false, url: (lat, lon, zoom) => `https://www.jma.go.jp/bosai/nowc/#lat:${lat}/lon:${lon}/zoom:${zoom}/colordepth:normal/elements:hrpns&slmcs&slmcs_fcst` }, { id: 'windy', name: 'Windy', desc: '風、波、気温などを視覚的に表示する気象予報サイト', category: 'weather', icon: '💨', noCoords: false, url: (lat, lon, zoom) => `https://www.windy.com/?${lat},${lon},${zoom}` }, { id: 'kijunten', name: '基準点閲覧サービス', desc: '三角点・水準点などの基準点情報', category: 'survey', icon: '📏', noCoords: false, url: (lat, lon, zoom) => `https://service.gsi.go.jp/kijunten/app/map/#${zoom}/${lat}/${lon}/&base=std&ls=std&disp=1&vs=c1z0f0` }, { id: 'suimon_suisitsu', name: '水文水質データベース', desc: '河川の水位・流量・水質データ', category: 'survey', icon: '🔬', noCoords: false, url: (lat, lon, zoom) => { let s=4; if(zoom>=18)s=3; if(zoom<=15)s=5; if(zoom<=13)s=6; return `http://www1.river.go.jp/cgi-bin/SelectMap.do?cntX=${lon}&cntY=${lat}&scaleCd=${s}`;} }, { id: 'qchizu_moj', name: '法務局地図', desc: '法務局の地図データを表示（Q地図）', category: 'survey', icon: '⚖️', noCoords: false, url: (lat, lon, zoom) => `https://maps.qchizu.xyz/#${zoom}/${lat}/${lon}/&base=pale&base_grayscale=1&ls=pale%7C60_moj_chiban_2022_01&disp=11&vs=c1g1j0h0k0l0u0t0z0r0s0m0f0&d=m` }, { id: 'topo_profile', name: 'Web地形断面メーカー', desc: '2点間の地形断面図を自動作成。開いた後に位置を設定してください', category: 'survey', icon: '〽️', noCoords: true, url: () => `https://ktgis.net/service/topoprofile/` }, { id: 'web_contour', name: 'Web等高線メーカー', desc: '指定範囲の等高線図を作成。開いた後に位置を設定してください', category: 'survey', icon: '🏔️', noCoords: true, url: () => `https://ktgis.net/service/webcontour/index.html` }, { id: 'yahoo_map', name: 'Yahoo地図', desc: '雨雲レーダーや混雑情報も表示可能', category: 'other', icon: '☁️', noCoords: false, url: (lat, lon, zoom) => `https://map.yahoo.co.jp/?lat=${lat}&lon=${lon}&zoom=${zoom}&maptype=satellite` }, { id: 'mapion', name: 'Mapion（マップコード）', desc: 'カーナビ用のマップコードを取得。右クリック→地図URLでマップコードを表示', category: 'other', icon: '📍', noCoords: false, url: (lat, lon, zoom) => `https://www.mapion.co.jp/m2/${lat},${lon},${zoom}` }, { id: 'itsmo_navi', name: 'いつもNAVI', desc: 'ゼンリンデータコムが提供する詳細な地図', category: 'other', icon: '🚗', noCoords: false, url: (lat, lon, zoom) => { const tokyoCoords = convertWgs84ToTokyo(lat, lon);return `https://www.its-mo.com/maps/?lat=${tokyoCoords.lat}&lon=${tokyoCoords.lon}&z=${zoom}`; } }, { id: 'qchizu_bridge', name: '橋梁マップ', desc: '全国の橋梁の位置と情報を表示（Q地図）', category: 'disaster', icon: '🌉', noCoords: false, url: (lat, lon, zoom) => `https://maps.qchizu.xyz/#${zoom}/${lat}/${lon}/&base=std&ls=std%7C04_thematic_55_mlit_road_structures_bridge_2024&disp=11&vs=c1g1j0h0k0l0u0t0z0r0s0m0f2&d=m` }, { id: 'qchizu_footbridge', name: '歩道橋マップ', desc: '全国の歩道橋の位置と情報を表示（Q地図）', category: 'disaster', icon: '🚶', noCoords: false, url: (lat, lon, zoom) => `https://maps.qchizu.xyz/#${zoom}/${lat}/${lon}/&base=std&ls=std%7C04_thematic_55_mlit_road_structures_footbridge_2024&disp=11&lcd=04_thematic_55_mlit_road_structures_footbridge_2024&vs=c1g1j0h0k0l0u0t0z0r0s0m0f2&d=m` }, { id: 'chika_map', name: '地価マップ', desc: '公示地価・基準地価を地図上に表示', category: 'other', icon: '💵', noCoords: false, url: (lat, lon) => `https://www.chikamap.jp/chikamap/Map?mid=220&mps=2500&mpx=${parseFloat(lon)+0.002365}&mpy=${parseFloat(lat)-0.00328}&mtl=47,37,77,27,67,57&mcl=3,30,30,30;2,20,312,312;7,70,310,310;1,10,312,312;1,10,310,310;5,50,50,50;4,40,40,40&gprj=1&flgInit=1&vpc=0` }];
+// ▼▼▼【ここから追加】地殻変動エリアのデータと判定ロジック ▼▼▼
+
+/**
+ * 地殻変動による座標補正が必要なエリアのデータ
+ * 注意：市町村名は、合併などにより現在の名称と異なる場合があります。
+ *       より広い範囲をカバーするため、都道府県単位での指定も活用しています。
+ */
+const DEFORMATION_AREAS = [
+    {
+        name: "平成15年(2003年)十勝沖地震",
+        municipalities: [
+            // tokachi2003.par
+            "夕張市", "富良野市", "由仁町", "栗山町", "上富良野町", "中富良野町", "南富良野町", "占冠村", "厚真町", "鵡川町", "穂別町", "日高町", "平取町", "門別町", "新冠町", "静内町", "三石町", "浦河町", "様似町", "えりも町",
+            "釧路市", "帯広市", "根室市", "津別町", "訓子府町", "置戸町", "留辺蘂町", "音更町", "士幌町", "上士幌町", "鹿追町", "新得町", "清水町", "芽室町", "中札内村", "更別村", "忠類村", "大樹町", "広尾町", "幕別町", "池田町", "豊頃町", "本別町", "足寄町", "陸別町", "浦幌町", "釧路町", "厚岸町", "浜中町", "標茶町", "阿寒町", "鶴居村", "白糠町", "音別町", "別海町",
+            // tokachi2003b.par
+            "北見市", "網走市", "東藻琴村", "女満別町", "美幌町", "斜里町", "清里町", "小清水町", "端野町", "佐呂間町", "常呂町", "弟子屈町", "中標津町", "標津町", "羅臼町"
+        ],
+        prefectures: ["北海道"] // 網羅性を高めるため広めに設定
+    },
+    {
+        name: "平成17年(2005年)福岡県西方沖地震",
+        municipalities: [ "福岡市", "春日市", "大野城市", "前原市", "古賀市", "新宮町", "志摩町" ],
+        prefectures: ["福岡県"]
+    },
+    {
+        name: "平成19年(2007年)能登半島地震",
+        municipalities: [ "輪島市", "七尾市", "志賀町", "穴水町", "能登町" ],
+        prefectures: ["石川県"]
+    },
+    {
+        name: "平成19年(2007年)中越沖地震",
+        municipalities: [ "柏崎市", "上越市", "出雲崎町", "刈羽村" ],
+        prefectures: ["新潟県"]
+    },
+    {
+        name: "平成20年(2008年)岩手・宮城内陸地震",
+        municipalities: [ "一関市", "奥州市", "西和賀町", "平泉町", "藤沢町", "登米市", "栗原市", "大崎市", "加美町", "横手市", "湯沢市", "由利本荘市", "羽後町", "東成瀬村", "新庄市", "金山町", "最上町", "真室川町", "鮭川村" ],
+        prefectures: ["岩手県", "宮城県", "秋田県", "山形県"]
+    },
+    {
+        name: "平成23年(2011年)東北地方太平洋沖地震",
+        municipalities: [], // 範囲が広すぎるため都道府県で判定
+        prefectures: [
+            "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県", "茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県", "新潟県", "富山県", "石川県", "福井県", "山梨県", "長野県", "岐阜県"
+        ]
+    },
+    {
+        name: "平成28年(2016年)熊本地震",
+        municipalities: [
+            "久留米市", "八女市", "うきは市", "広川町", "島原市", "雲仙市", "南島原市", "日田市", "竹田市", "豊後大野市", "九重町", "玖珠町", "椎葉村",
+            // 熊本県の大部分
+            "熊本市", "八代市", "人吉市", "荒尾市", "水俣市", "玉名市", "山鹿市", "菊池市", "宇土市", "上天草市", "宇城市", "阿蘇市", "合志市", "美里町", "玉東町", "南関町", "長洲町", "和水町", "大津町", "菊陽町", "南小国町", "小国町", "産山村", "高森町", "西原村", "南阿蘇村", "御船町", "嘉島町", "益城町", "甲佐町", "山都町", "氷川町", "芦北町", "津奈木町", "錦町", "多良木町", "湯前町", "水上村", "相良村", "五木村", "山江村", "球磨村", "あさぎり町"
+        ],
+        prefectures: ["熊本県", "福岡県", "長崎県", "大分県", "宮崎県"]
+    },
+    {
+        name: "令和6年能登半島地震",
+        municipalities: [
+            // noto2024_BL.par
+            "長野原町", "嬬恋村", "草津町", "長岡市", "柏崎市", "小千谷市", "十日町市", "糸魚川市", "妙高市", "上越市", "佐渡市", "南魚沼市", "出雲崎町", "湯沢町", "津南町", "刈羽村", "富山市", "高岡市", "魚津市", "滑川市", "黒部市", "砺波市", "小矢部市", "射水市", "舟橋村", "上市町", "立山町", "入善町", "朝日町", "長野市", "上田市", "須坂市", "小諸市", "中野市", "大町市", "飯山市", "千曲市", "東御市", "安曇野市", "麻績村", "生坂村", "筑北村", "池田町", "松川村", "白馬村", "小谷村", "坂城町", "小布施町", "高山村", "山ノ内町", "木島平村", "野沢温泉村", "信濃町", "小川村", "飯綱町", "栄村",
+            // noto2024_02BL.par
+            "氷見市", "七尾市", "輪島市", "珠洲市", "羽咋市", "かほく市", "津幡町", "内灘町", "志賀町", "宝達志水町", "中能登町", "穴水町", "能登町"
+        ],
+        prefectures: ["新潟県", "富山県", "石川県", "群馬県", "長野県"]
+    },
+    {
+        name: "令和6年日向灘を震源とする地震",
+        municipalities: [ "宮崎市", "都城市", "日南市", "小林市", "西都市", "三股町", "高原町", "国富町", "綾町", "高鍋町", "新富町", "木城町", "川南町" ],
+        prefectures: ["宮崎県"]
+    }
+];
+
+/**
+ * 指定された座標が地殻変動エリアに含まれるかチェックし、該当するすべての地震名を配列で返す
+ * @param {number} lat 緯度
+ * @param {number} lon 経度
+ * @returns {Promise<string[]>} 該当する地震の名称の配列、または空の配列
+ */
+async function checkCrustalDeformation(lat, lon) {
+    try {
+        const addressInfo = await getAddressFromCoords(lat, lon);
+        if (!addressInfo || !addressInfo.structured || addressInfo.structured === '---') {
+            return []; // 判定不能時は空の配列を返す
+        }
+        
+        const address = addressInfo.structured;
+        const foundEvents = []; // 見つかった地震名を格納する配列
+
+        for (const area of DEFORMATION_AREAS) {
+            // 1. 都道府県でチェック
+            const prefecturesMatch = area.prefectures.some(pref => address.startsWith(pref));
+            if (prefecturesMatch) {
+                // 2. 市区町村でより詳細にチェック
+                const municipalitiesMatch = area.municipalities.some(muni => address.includes(muni));
+                // 市区町村リストが空の場合は都道府県の一致だけで判定
+                if (municipalitiesMatch || area.municipalities.length === 0) {
+                    foundEvents.push(area.name); // 配列に追加（ここでreturnしない）
+                }
+            }
+        }
+        return foundEvents; // すべてのチェックが終わった後で配列を返す
+    } catch (e) {
+        console.error("地殻変動エリアの判定中にエラー:", e);
+        return []; // エラー時も空の配列を返す
+    }
+}
+// ▲▲▲【追加ここまで】▲▲▲
+
+// ▼▼▼【変更】リンクの追加と並べ替え、任意検索欄の削除 ▼▼▼
+const MAP_DEFINITIONS = [ { id: 'gsi_std', name: '地理院地図', desc: '国土地理院の基本地図。標高、地形、土地利用など', category: 'terrain', icon: '🗺️', noCoords: false, url: (lat, lon, zoom) => `https://maps.gsi.go.jp/#${zoom}/${lat}/${lon}/&base=std&ls=std&disp=1&vs=c0g1j0h0k0l0u0t0z0r0s0m0f1&d=m` }, { id: 'gsi_time', name: '地理院時系列', desc: '過去から現在までの地図を時系列で比較', category: 'terrain', icon: '⏳', noCoords: false, url: (lat, lon, zoom) => `https://maps.gsi.go.jp/#${zoom}/${lat}/${lon}/&ls=gsi-compare-photo&lcd=gsi-compare-photo&vs=c0j0h0k0l0u0t0z0r0s0m0f1&d=m` }, { id: 'gsi_flood', name: '治水地形分類図', desc: '河川周辺の地形特性と洪水リスクを把握', category: 'terrain', icon: '🖼️', noCoords: false, url: (lat, lon, zoom) => `https://maps.gsi.go.jp/#${zoom}/${lat}/${lon}/&base=std&ls=lcmfc2%2C0.8%7Chillshademap&blend=01&disp=111&lcd=hillshademap&vs=c1g1j0h0k0l0u0t0z0r0s0m0f1&d=m` }, { id: 'google_maps', name: 'Googleマップ', desc: 'ストリートビューや経路検索も可能', category: 'terrain', icon: '📍', noCoords: false, url: (lat, lon) => `https://maps.google.co.jp/maps?q=${lat},${lon}` }, { id: 'google_earth', name: 'Google Earth', desc: '3D地形と衛星画像で地表を詳細に確認', category: 'terrain', icon: '🌍', noCoords: false, url: (lat, lon, zoom) => `https://earth.google.com/web/@${lat},${lon},0a,${Math.round(300000*Math.pow(0.5,(parseInt(zoom,10)-1)/3))}d,0y,0h` }, { id: 'konjaku', name: '今昔マップ', desc: '明治から現代までの地形図を並べて表示', category: 'terrain', icon: '📜', noCoords: false, url: (lat, lon, zoom) => `https://ktgis.net/kjmapw/kjmapw.html?lat=${lat}&lng=${lon}&zoom=${zoom}&dataset=&age=3&screen=2&scr1tile=k_cj4&scr2tile=k_cj4&scr3tile=k_cj4&mapOpacity=10&overGSItile=no&altitudeOpacity=2` }, { id: 'gsi_photos', name: '地図・空中写真閲覧', desc: '過去の空中写真を閲覧', category: 'terrain', icon: '📷', noCoords: false, url: (lat, lon, zoom) => `https://service.gsi.go.jp/map-photos/app/map?search=photo#${zoom}/${lat}/${lon}` }, { id: 'geonavi', name: '地質図Navi', desc: '日本全国の地質情報を詳細に表示', category: 'geology', icon: '⛏️', noCoords: false, url: (lat, lon, zoom) => `https://gbank.gsj.jp/geonavi/geonavi.php#${zoom},${lat},${lon}` }, { id: 'gsi_landslide', name: '地すべり地形分布図', desc: '国土地理院が提供する地すべり地形の分布図', category: 'geology', icon: '⛰️', noCoords: false, url: (lat, lon, zoom) => `https://maps.gsi.go.jp/#${zoom}/${lat}/${lon}/&base=std&ls=std%7Clandslide%2C0.75&blend=0&disp=11&vs=c1g1j0h0k0l0u0t0z0r0s0m0f1&d=m` }, { id: 'qchizu_pond', name: '農業用ため池マップ', desc: '全国の農業用ため池の位置を表示（Q地図）', category: 'geology', icon: '💧', noCoords: false, url: (lat, lon, zoom) => `https://maps.qchizu.xyz/#${zoom}/${lat}/${lon}/&base=pale&ls=pale%7Cmaff-pond20200925-6%7Cmaff-pond20200925-5%7Cmaff-pond20200925-4%7Cmaff-pond20200925-1&disp=11111&lcd=maff-pond20200925-1&vs=c1g1j0h0k0l0u0t0z0r0s0m0f1&d=m` }, { id: 'kunijiban', name: '国土地盤情報 KuniJiban', desc: 'ボーリングデータなど地盤情報を検索', category: 'geology', icon: '📊', noCoords: true, url: () => `https://www.kunijiban.pwri.go.jp/viewer/` }, { id: 'ngic', name: '国土地盤情報センター', desc: '全国の地盤情報データベース', category: 'geology', icon: '📈', noCoords: true, url: () => `https://publicweb.ngic.or.jp/viewer/` }, { id: 'geo_station', name: 'ジオ・ステーション', desc: '地質・地盤情報の統合プラットフォーム。開いた後に位置を検索してください', category: 'geology', icon: '🧭', noCoords: true, url: () => `https://www.geo-stn.bosai.go.jp/mapping_page.html` }, { id: 'gsj_activefault', name: '活断層データベース', desc: '産業技術総合研究所が提供する活断層の情報。開いた後に位置を検索してください', category: 'geology', icon: '〰️', noCoords: true, url: () => `https://gbank.gsj.jp/activefault/cgi/tyousati` }, { id: 'tokyo_jiban', name: '東京の地盤（GIS）', desc: '東京都内の詳細な地盤データ。開いた後に位置を検索してください', category: 'geology', icon: '🏢', noCoords: true, url: () => `https://doboku.metro.tokyo.lg.jp/start/03-jyouhou/geo-web/geo-webmap.aspx` }, { id: 'hazard_map', name: '重ねるハザードマップ', desc: '洪水、土砂災害、津波などの危険区域を表示', category: 'disaster', icon: '🚨', noCoords: false, url: (lat, lon, zoom) => `https://disaportal.gsi.go.jp/maps/?ll=${lat},${lon}&z=${zoom}&base=pale&ls=tameike_raster%2C0.75%7Cflood_list_l2%2C0.75%7Cdisaster1&disp=110&vs=c1j0l0u0` }, { id: 'hazard_flood_topo', name: 'ハザードマップ（治水地形分類図）', desc: '治水地形分類図とハザード情報の重ね合わせ', category: 'disaster', icon: '🚫', noCoords: false, url: (lat, lon, zoom) => `https://disaportal.gsi.go.jp/maps/?ll=${lat},${lon}&z=${zoom}&base=pale&ls=hillshademap%7CLCMFC02&disp=11&vs=c1j0l0u0t0h0z0` }, { id: 'river_bousai', name: '川の防災情報', desc: 'リアルタイムの河川水位と雨量情報', category: 'disaster', icon: '💧', noCoords: false, url: (lat, lon, zoom) => { let s=4; if(zoom>=18)s=3; if(zoom<=15)s=5; if(zoom<=13)s=6; return `https://www.river.go.jp/kawabou/pc/ov?zm=${zoom}&fld=0&clat=${lat}&clon=${lon}&mapType=0&viewGrpStg=0&viewRd=1&viewRW=1&viewRiver=1&viewPoint=1`;} }, { id: 'jma_warnings', name: '気象警報・注意報', desc: '気象庁が発表する警報・注意報を地図で確認', category: 'disaster', icon: '📢', noCoords: false, url: (lat, lon, zoom) => `https://www.jma.go.jp/bosai/map.html#${zoom}/${lat}/${lon}/&elem=all&contents=warning` }, { id: 'kikikuru', name: 'キキクル（危険度分布）', desc: '土砂災害・浸水・洪水の危険度をリアルタイム表示', category: 'weather', icon: '⛈️', noCoords: false, url: (lat, lon, zoom) => `https://www.jma.go.jp/bosai/risk/#zoom:${zoom}/lat:${lat}/lon:${lon}/colordepth:deep/elements:land` }, { id: 'jma_nowcast', name: '高解像度降水ナウキャスト', desc: '気象庁が提供するリアルタイムの降水予報', category: 'weather', icon: '🌧️', noCoords: false, url: (lat, lon, zoom) => `https://www.jma.go.jp/bosai/nowc/#lat:${lat}/lon:${lon}/zoom:${zoom}/colordepth:normal/elements:hrpns&slmcs&slmcs_fcst` }, { id: 'windy', name: 'Windy', desc: '風、波、気温などを視覚的に表示する気象予報サイト', category: 'weather', icon: '💨', noCoords: false, url: (lat, lon, zoom) => `https://www.windy.com/?${lat},${lon},${zoom}` }, { id: 'kijunten', name: '基準点閲覧サービス', desc: '三角点・水準点などの基準点情報', category: 'survey', icon: '📏', noCoords: false, url: (lat, lon, zoom) => `https://service.gsi.go.jp/kijunten/app/map/#${zoom}/${lat}/${lon}/&base=std&ls=std&disp=1&vs=c1z0f0` }, { id: 'suimon_suisitsu', name: '水文水質データベース', desc: '河川の水位・流量・水質データ', category: 'survey', icon: '🔬', noCoords: false, url: (lat, lon, zoom) => { let s=4; if(zoom>=18)s=3; if(zoom<=15)s=5; if(zoom<=13)s=6; return `http://www1.river.go.jp/cgi-bin/SelectMap.do?cntX=${lon}&cntY=${lat}&scaleCd=${s}`;} }, { id: 'qchizu_moj', name: '法務局地図', desc: '法務局の地図データを表示（Q地図）', category: 'survey', icon: '⚖️', noCoords: false, url: (lat, lon, zoom) => `https://maps.qchizu.xyz/#${zoom}/${lat}/${lon}/&base=pale&base_grayscale=1&ls=pale%7C60_moj_chiban_2022_01&disp=11&vs=c1g1j0h0k0l0u0t0z0r0s0m0f0&d=m` }, { id: 'topo_profile', name: 'Web地形断面メーカー', desc: '2点間の地形断面図を自動作成。開いた後に位置を設定してください', category: 'survey', icon: '〽️', noCoords: true, url: () => `https://ktgis.net/service/topoprofile/` }, { id: 'web_contour', name: 'Web等高線メーカー', desc: '指定範囲の等高線図を作成。開いた後に位置を設定してください', category: 'survey', icon: '🏔️', noCoords: true, url: () => `https://ktgis.net/service/webcontour/index.html` }, { id: 'yahoo_map', name: 'Yahoo地図', desc: '雨雲レーダーや混雑情報も表示可能', category: 'other', icon: '☁️', noCoords: false, url: (lat, lon, zoom) => `https://map.yahoo.co.jp/?lat=${lat}&lon=${lon}&zoom=${zoom}&maptype=satellite` }, { id: 'mapion', name: 'Mapion（マップコード）', desc: 'カーナビ用のマップコードを取得。右クリック→地図URLでマップコードを表示', category: 'other', icon: '📍', noCoords: false, url: (lat, lon, zoom) => `https://www.mapion.co.jp/m2/${lat},${lon},${zoom}` }, { id: 'itsmo_navi', name: 'いつもNAVI', desc: 'ゼンリンデータコムが提供する詳細な地図', category: 'other', icon: '🚗', noCoords: false, url: (lat, lon, zoom) => { const tokyoCoords = convertWgs84ToTokyo(lat, lon);return `https://www.its-mo.com/maps/?lat=${tokyoCoords.lat}&lon=${tokyoCoords.lon}&z=${zoom}`; } }, { id: 'qchizu_bridge', name: '橋梁マップ', desc: '全国の橋梁の位置と情報を表示（Q地図）', category: 'disaster', icon: '🌉', noCoords: false, url: (lat, lon, zoom) => `https://maps.qchizu.xyz/#${zoom}/${lat}/${lon}/&base=std&ls=std%7C04_thematic_55_mlit_road_structures_bridge_2024&disp=11&vs=c1g1j0h0k0l0u0t0z0r0s0m0f2&d=m` }, { id: 'qchizu_footbridge', name: '歩道橋マップ', desc: '全国の歩道橋の位置と情報を表示（Q地図）', category: 'disaster', icon: '🚶', noCoords: false, url: (lat, lon, zoom) => `https://maps.qchizu.xyz/#${zoom}/${lat}/${lon}/&base=std&ls=std%7C04_thematic_55_mlit_road_structures_footbridge_2024&disp=11&lcd=04_thematic_55_mlit_road_structures_footbridge_2024&vs=c1g1j0h0k0l0u0t0z0r0s0m0f2&d=m` }, { id: 'chika_map', name: '地価マップ', desc: '公示地価・基準地価を地図上に表示', category: 'other', icon: '💵', noCoords: false, url: (lat, lon) => `https://www.chikamap.jp/chikamap/Map?mid=220&mps=2500&mpx=${parseFloat(lon)+0.002365}&mpy=${parseFloat(lat)-0.00328}&mtl=47,37,77,27,67,57&mcl=3,30,30,30;2,20,312,312;7,70,310,310;1,10,312,312;1,10,310,310;5,50,50,50;4,40,40,40&gprj=1&flgInit=1&vpc=0` },
+{ id: 'gmap_search_hospital', name: '救急指定病院', desc: '周辺の救急指定病院を検索', category: 'liaison', icon: '🏥', noCoords: false, url: (lat, lon, zoom) => `https://www.google.com/maps/search/${encodeURIComponent('救急指定病院')}/@${lat},${lon},${zoom}z` },
+{ id: 'gmap_search_police', name: '警察署', desc: '周辺の警察署を検索', category: 'liaison', icon: '🚓', noCoords: false, url: (lat, lon, zoom) => `https://www.google.com/maps/search/${encodeURIComponent('警察署')}/@${lat},${lon},${zoom}z` },
+{ id: 'gmap_search_fire', name: '消防署', desc: '周辺の消防署を検索', category: 'liaison', icon: '🚒', noCoords: false, url: (lat, lon, zoom) => `https://www.google.com/maps/search/${encodeURIComponent('消防署')}/@${lat},${lon},${zoom}z` },
+{ id: 'gmap_search_cityhall', name: '役所', desc: '周辺の市役所・区役所・町村役場を検索', category: 'liaison', icon: '🏢', noCoords: false, url: (lat, lon, zoom) => `https://www.google.com/maps/search/${encodeURIComponent('市役所 OR 区役所 OR 町役場 OR 村役場')}/@${lat},${lon},${zoom}z` },
+{ id: 'gmap_search_shelter', name: '避難所', desc: '周辺の指定避難所を検索', category: 'liaison', icon: '避', noCoords: false, url: (lat, lon, zoom) => `https://www.google.com/maps/search/${encodeURIComponent('指定避難所')}/@${lat},${lon},${zoom}z` },
+{ id: 'gmap_search_kankatsusho', name: '労働基準監督署', desc: '周辺の労働基準監督署を検索', category: 'liaison', icon: '🏢', noCoords: false, url: (lat, lon, zoom) => `https://www.google.com/maps/search/${encodeURIComponent('労働基準監督署')}/@${lat},${lon},${zoom}z` }
+];
 
 // ▼▼▼【ここから変更】プレビュー関連のDOM参照を削除 ▼▼▼
 const $lat = document.getElementById('latitude'), $lon = document.getElementById('longitude'), $zoom = document.getElementById('zoomLevel'), $zoomDisplay = document.getElementById('zoomLevelDisplay'), $container = document.getElementById('map-categories-container'), $notification = document.getElementById('notification'), $historyPopup = document.getElementById('historyPopup'), $historyList = document.getElementById('historyList'), $bookmarkPopup = document.getElementById('bookmarkPopup'), $bookmarkList = document.getElementById('bookmarkList'), $addressInput = document.getElementById('addressInput'), $autocompleteList = document.getElementById('autocompleteList'), $coordFormatToggle = document.getElementById('coord-format-toggle'), $areaDisplay = document.getElementById('area-display'), $mainMapContainer = document.getElementById('mainMapContainer');
@@ -3365,11 +3862,12 @@ const defaultProjectData = {
         defaultZoom: 16, 
         coordFormat: 'decimal', 
         historySize: 100, 
-        defaultLayer: 'gsi_std', 
+        defaultLayer: 'gsi_std',
+        defaultLayerRight: 'gsi_seamlessphoto',
         panelState: 'pinned',
         panelWidth: 500, 
         hiddenMapIds: [],
-        categoryOrder: ['terrain', 'geology', 'weather', 'disaster', 'survey', 'other', 'mylink'],
+        categoryOrder: ['terrain', 'geology', 'weather', 'disaster', 'survey', 'liaison', 'other', 'mylink'],
         categoryNameOverrides: {},
         mapCategoryOverrides: {},
         mapOrderInCategory: {},
@@ -3377,7 +3875,11 @@ const defaultProjectData = {
             'map-links': 500,
             'history': 1200,
             'bookmarks': 1300
-        }
+        },
+        crosshairEnabled: false,
+        // ▼▼▼【ここから追加】緊急時連絡のカスタム検索データを保存する場所を追加 ▼▼▼
+        emergencySearches: []
+        // ▲▲▲【追加ここまで】▲▲▲
     },
     geoLinkNaviTabOrder: ['map-links', 'history', 'bookmarks']
 };
@@ -3385,7 +3887,12 @@ const defaultProjectData = {
 
 let MAX_HISTORY = 100;
 const BOOKMARK_KEY = 'coordinateBookmarks', MYLINK_KEY = 'myCustomLinks', FAVORITE_SETS_KEY = 'favoriteSets', SETTINGS_KEY = 'geoLinkNaviSettings', TAB_ORDER_KEY = 'geoLinkNaviTabOrder';
-let osmMap = null, osmMarker = null, autocompleteTimer = null, currentAutocompleteResults = [], selectedAutocompleteIndex = -1, isDMSFormat = false, currentLatLon = { lat: 35.72985474, lon: 139.77110828 };
+// ▼▼▼【ここから変更】2画面表示用のグローバル変数を追加し、旧変数との互換性を維持 ▼▼▼
+let mapLeft = null, mapRight = null, markerLeft = null, markerRight = null, isDualView = false, isSyncing = false;
+// 既存コードとの互換性のため、osmMapとosmMarkerをmapLeftとmarkerLeftの別名として維持
+let osmMap, osmMarker; 
+let autocompleteTimer = null, currentAutocompleteResults = [], selectedAutocompleteIndex = -1, isDMSFormat = false, currentLatLon = { lat: 35.72985474, lon: 139.77110828 };
+// ▲▲▲【変更ここまで】▲▲▲
 let navigationHistory = [], historyIndex = -1, MAX_NAV_HISTORY = 100;
 let currentCoordsRequestId = 0;
 let currentAbortController = null;
@@ -3398,7 +3905,8 @@ let isFirstMapLoad = true;
 // ▲▲▲【変更ここまで】▲▲▲
 
 let historyLayer = null, bookmarkLayer = null; 
-let isHistoryVisibleOnMap = false, isBookmarksVisibleOnMap = false;
+let isHistoryVisibleOnMap = false;
+let isBookmarksVisibleOnMap = false;
 
 // ▼▼▼【ここから追加】CSVプロット用レイヤーと巡回データ用のグローバル変数 ▼▼▼
 let csvPlotLayer = null;
@@ -3409,6 +3917,12 @@ let csvNavigatorData = {
 };
 // ▲▲▲【追加ここまで】▲▲▲
 
+// ▼▼▼【ここから追加】十字線用のグローバル変数 ▼▼▼
+let isCrosshairEnabled = false;
+let $crosshairV, $crosshairH;
+// ▲▲▲【追加ここまで】▲▲▲
+
+
 let startIcon, endIcon;
 
 const defaultSettings = { 
@@ -3416,11 +3930,12 @@ const defaultSettings = {
     defaultZoom: 16, 
     coordFormat: 'decimal', 
     historySize: 100, 
-    defaultLayer: 'gsi_std', 
+    defaultLayer: 'gsi_std',
+    defaultLayerRight: 'gsi_seamlessphoto',
     panelState: 'closed', 
     panelWidth: 500, 
     hiddenMapIds: [],
-    categoryOrder: ['terrain', 'geology', 'weather', 'disaster', 'survey', 'other', 'mylink'],
+    categoryOrder: ['terrain', 'geology', 'weather', 'disaster', 'survey', 'liaison', 'other', 'mylink'],
     categoryNameOverrides: {},
     mapCategoryOverrides: {},
     mapOrderInCategory: {},
@@ -3428,7 +3943,11 @@ const defaultSettings = {
         'map-links': 500,
         'history': 1200,
         'bookmarks': 1300
-    }
+    },
+    crosshairEnabled: false,
+    // ▼▼▼【ここから追加】緊急時連絡のカスタム検索データを保存する場所を追加 ▼▼▼
+    emergencySearches: []
+    // ▲▲▲【追加ここまで】▲▲▲
 };
 let currentSettings = {};
 
@@ -3676,13 +4195,23 @@ function applySettings() {
 
     updatePanelWidth(currentSettings.panelWidth);
     
+    // ▼▼▼【ここから追加】十字線の設定を適用 ▼▼▼
+    isCrosshairEnabled = !!currentSettings.crosshairEnabled;
+    const toggleBtn = document.getElementById('toggle-crosshair-btn');
+    if (toggleBtn) {
+        toggleBtn.classList.toggle('active', isCrosshairEnabled);
+        toggleBtn.textContent = isCrosshairEnabled ? '╋' : '╋';
+    }
+    // ▲▲▲【追加ここまで】▲▲▲
+
     if (!location.search) {
         setZoomLevel(currentSettings.defaultZoom);
     }
 }
 
-function populateLayerSettings() {
-    const select = document.getElementById('settings-default-layer');
+function populateLayerSettings(selectId, currentValue) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
     select.innerHTML = '';
     for (const key in BASE_LAYERS) {
         const option = document.createElement('option');
@@ -3690,14 +4219,19 @@ function populateLayerSettings() {
         option.textContent = BASE_LAYERS[key].name;
         select.appendChild(option);
     }
+    select.value = currentValue;
 }
+
 
 function openSettingsModal() {
     document.getElementById('settings-zoom').value = currentSettings.defaultZoom;
     document.getElementById('settings-zoom-value').textContent = currentSettings.defaultZoom;
     document.getElementById('settings-panel-width').value = currentSettings.panelWidth;
     document.getElementById('settings-panel-width-value').textContent = currentSettings.panelWidth;
-    document.getElementById('settings-default-layer').value = currentSettings.defaultLayer;
+    
+    populateLayerSettings('settings-default-layer', currentSettings.defaultLayer);
+    populateLayerSettings('settings-default-layer-right', currentSettings.defaultLayerRight);
+
     document.getElementById('settings-theme').value = currentSettings.theme;
     document.getElementById('settings-coord-format').value = currentSettings.coordFormat;
     document.getElementById('settings-history-size').value = currentSettings.historySize;
@@ -3725,6 +4259,7 @@ function saveSettings(e) {
     currentSettings.defaultZoom = document.getElementById('settings-zoom').value;
     currentSettings.panelWidth = document.getElementById('settings-panel-width').value;
     currentSettings.defaultLayer = document.getElementById('settings-default-layer').value;
+    currentSettings.defaultLayerRight = document.getElementById('settings-default-layer-right').value;
     currentSettings.theme = document.getElementById('settings-theme').value;
     currentSettings.coordFormat = document.getElementById('settings-coord-format').value;
     currentSettings.historySize = document.getElementById('settings-history-size').value;
@@ -3770,7 +4305,7 @@ function populateMapVisibilitySettings() {
         return acc;
     }, {});
 
-    const categoryOrder = ['terrain', 'geology', 'weather', 'disaster', 'survey', 'other', 'mylink'];
+    const categoryOrder = ['terrain', 'geology', 'weather', 'disaster', 'liaison', 'survey', 'other', 'mylink'];
     const hiddenSet = new Set(currentSettings.hiddenMapIds || []);
 
     categoryOrder.forEach(catKey => {
@@ -3815,61 +4350,60 @@ itemDiv.innerHTML = `<label for="cat-name-${catKey}">${meta.icon} ${meta.title}<
 function showNotification(message, type = 'success') { $notification.textContent = message; $notification.className = `notification ${type}`; $notification.style.display = 'block'; setTimeout(() => $notification.style.display = 'none', 3000); }
 
 async function updateCurrentCoords(newCoords = null, skipHistorySave = false, fromNav = false) {
-    // 既存のリクエストがあればキャンセルする
     if (currentAbortController) {
         currentAbortController.abort();
     }
-    // 新しいリクエストのために AbortController を作成
     currentAbortController = new AbortController();
     const { signal } = currentAbortController;
 
-    let latNum, lonNum;
+    const spinners = document.querySelectorAll('.input-wrapper');
+    spinners.forEach(s => s.classList.add('loading'));
+
     try {
-        if (newCoords && typeof newCoords.lat === 'number' && typeof newCoords.lon === 'number') {
-            latNum = newCoords.lat;
-            lonNum = newCoords.lon;
-        } else {
-            latNum = isDMSFormat ? dmsToDecimal($lat.value) : parseFloat($lat.value);
-            lonNum = isDMSFormat ? dmsToDecimal($lon.value) : parseFloat($lon.value);
+        let latNum, lonNum;
+        try {
+            if (newCoords && typeof newCoords.lat === 'number' && typeof newCoords.lon === 'number') {
+                latNum = newCoords.lat;
+                lonNum = newCoords.lon;
+            } else {
+                latNum = isDMSFormat ? dmsToDecimal($lat.value) : parseFloat($lat.value);
+                lonNum = isDMSFormat ? dmsToDecimal($lon.value) : parseFloat($lon.value);
+            }
+            if (isNaN(latNum) || isNaN(lonNum)) throw new Error("Invalid number");
+        } catch (e) {
+            console.error("座標の解析に失敗しました:", e);
+            spinners.forEach(s => s.classList.remove('loading'));
+            return;
         }
-        if (isNaN(latNum) || isNaN(lonNum)) throw new Error("Invalid number");
-    } catch (e) {
-        console.error("座標の解析に失敗しました:", e);
-        return;
-    }
 
-    const zoomNum = parseInt($zoom.value, 10);
-    if (latNum < -90 || latNum > 90 || lonNum < -180 || lonNum > 180) return;
-
-    // --- UIの即時更新 ---
-    currentLatLon = { lat: latNum, lon: lonNum };
-    // ▼▼▼【ここから変更】プレビュー関連の処理を削除 ▼▼▼
-    initOSMClickMap(latNum, lonNum, zoomNum);
-    // ▲▲▲【変更ここまで】▲▲▲
-
-    if (!fromNav) {
-        if (historyIndex < navigationHistory.length - 1) {
-            navigationHistory = navigationHistory.slice(0, historyIndex + 1);
+        const zoomNum = parseInt($zoom.value, 10);
+        if (latNum < -90 || latNum > 90 || lonNum < -180 || lonNum > 180) {
+            spinners.forEach(s => s.classList.remove('loading'));
+            return;
         }
-        navigationHistory.push({ lat: latNum, lon: lonNum, zoom: zoomNum });
-        if (navigationHistory.length > MAX_NAV_HISTORY) navigationHistory.shift();
-        historyIndex = navigationHistory.length - 1;
-    }
-    
-    try {
-        showNotification('住所と標高を取得中...', 'warning');
+
+        currentLatLon = { lat: latNum, lon: lonNum };
+        initLeftMap(latNum, lonNum, zoomNum);
+
+        if (!fromNav) {
+            if (historyIndex < navigationHistory.length - 1) {
+                navigationHistory = navigationHistory.slice(0, historyIndex + 1);
+            }
+            navigationHistory.push({ lat: latNum, lon: lonNum, zoom: zoomNum });
+            if (navigationHistory.length > MAX_NAV_HISTORY) navigationHistory.shift();
+            historyIndex = navigationHistory.length - 1;
+        }
+
         const [addressInfo, elevation] = await Promise.all([
             getAddressFromCoords(latNum, lonNum, signal),
             getElevationFromCoords(latNum, lonNum, signal)
         ]);
 
-        // 通信中に新しいリクエストが発生してキャンセルされた場合、ここで処理を中断
         if (signal.aborted) {
             console.log("古い座標更新リクエストはキャンセルされました。");
             return;
         }
 
-        // --- 非同期処理後のUI更新 ---
         const popupContent = `
             <div style="font-size: 13px; line-height: 1.6;">
                 <strong>郵便番号:</strong> ${sanitizeForHtml(addressInfo.postcode || '---')}<br>
@@ -3879,8 +4413,11 @@ async function updateCurrentCoords(newCoords = null, skipHistorySave = false, fr
                 <strong>標高:</strong> ${elevation !== '---' ? `${elevation} m` : '---'}
             </div>
         `;
-        if (osmMarker) {
-            osmMarker.setPopupContent(popupContent).openPopup();
+        if (markerLeft) {
+            markerLeft.setPopupContent(popupContent).openPopup();
+        }
+        if (isDualView && markerRight) {
+            markerRight.setLatLng([latNum, lonNum]);
         }
 
         if (!skipHistorySave) {
@@ -3894,16 +4431,17 @@ async function updateCurrentCoords(newCoords = null, skipHistorySave = false, fr
         updateNavButtons();
 
     } catch (error) {
-        if (error.name === 'AbortError') {
-            // これは正常なキャンセルなので、エラー表示はしない
-            console.log("座標更新の非同期処理がキャンセルされました。");
-            return;
+        if (error.name !== 'AbortError') {
+            console.error("座標情報の取得中にエラーが発生しました:", error);
+            showNotification('住所または標高の取得に失敗しました。', 'error');
         }
-        // その他のネットワークエラーなど
-        console.error("座標情報の取得中にエラーが発生しました:", error);
-        showNotification('住所または標高の取得に失敗しました。', 'error');
+    } finally {
+        if (!signal.aborted) {
+            spinners.forEach(s => s.classList.remove('loading'));
+        }
     }
 }
+
 
 async function fetchWithRetry(url, signal, maxRetries = 3, delay = 1000) {
     for (let i = 0; i < maxRetries; i++) {
@@ -3965,85 +4503,92 @@ async function initGeolocation() {
 // function toggleMainMap() { ... }
 // ▲▲▲【変更ここまで】▲▲▲
 
-function initOSMClickMap(lat, lon, zoom) {
+// ▼▼▼【ここから変更】関数名を initLeftMap に変更し、左地図専用の初期化処理に修正 ▼▼▼
+function initLeftMap(lat, lon, zoom) {
     const latlng = [lat, lon];
-    if (osmMap === null) {
-        osmMap = L.map('osmClickMap', { fullscreenControl: { title: { 'false': '全画面', 'true': '通常表示' } } }).setView(latlng, zoom);
+    if (mapLeft === null) {
+        // 地図を #osmClickMap ではなく、#mapLeft コンテナに生成する
+        mapLeft = L.map('mapLeft', { fullscreenControl: { title: { 'false': '全画面', 'true': '通常表示' } } }).setView(latlng, zoom);
+
+        // ▼▼▼【ここから追加】旧変数との互換性を確保 ▼▼▼
+        osmMap = mapLeft;
+        // ▲▲▲【追加ここまで】▲▲▲
+        
+        // ▼▼▼【ここから追加】十字線の初期化とイベント設定 ▼▼▼
+        initCrosshair();
+        // ▲▲▲【追加ここまで】▲▲▲
+
 
         if (L.control.currentLocation) {
-            L.control.currentLocation({ position: 'topleft' }).addTo(osmMap);
+            L.control.currentLocation({ position: 'topleft' }).addTo(mapLeft);
         }
-        L.control.scale({ imperial: false }).addTo(osmMap);
+        L.control.scale({ imperial: false }).addTo(mapLeft);
         
-        setupAnalysisTools();
+        setupAnalysisTools(); // 解析ツールは左地図に紐付け
         const baseMaps = {};
         for(const key in BASE_LAYERS) {
             const config = BASE_LAYERS[key];
             config.layer = L.tileLayer(config.url, { maxZoom: config.maxZoom || 19, attribution: config.attribution });
             baseMaps[config.name] = config.layer;
         }
-        L.control.layers(baseMaps).addTo(osmMap);
+        L.control.layers(baseMaps).addTo(mapLeft);
 
         const defaultLayerKey = currentSettings.defaultLayer || 'gsi_std';
-        BASE_LAYERS[defaultLayerKey].layer.addTo(osmMap);
-        osmMap.setMaxZoom(BASE_LAYERS[defaultLayerKey].maxZoom);
+        BASE_LAYERS[defaultLayerKey].layer.addTo(mapLeft);
+        mapLeft.setMaxZoom(BASE_LAYERS[defaultLayerKey].maxZoom);
 
-        osmMap.on('baselayerchange', e => {
+        mapLeft.on('baselayerchange', e => {
             for (const key in BASE_LAYERS) {
                 if (BASE_LAYERS[key].name === e.name) {
                     const newMaxZoom = BASE_LAYERS[key].maxZoom;
-                    osmMap.setMaxZoom(newMaxZoom);
-                    if (osmMap.getZoom() > newMaxZoom) {
-                        osmMap.setZoom(newMaxZoom);
+                    mapLeft.setMaxZoom(newMaxZoom);
+                    if (mapLeft.getZoom() > newMaxZoom) {
+                        mapLeft.setZoom(newMaxZoom);
                     }
                     break;
                 }
             }
         });
 
-        osmMap.on('zoomend', () => {
-            const newZoom = osmMap.getZoom();
+        mapLeft.on('zoomend', () => {
+            const newZoom = mapLeft.getZoom();
             if (newZoom !== parseInt($zoom.value, 10)) {
                 setZoomLevel(newZoom);
-                // ▼▼▼【ここから変更】プレビュー更新処理を削除 ▼▼▼
-                // updateMapPreview(currentLatLon.lat, currentLatLon.lon, newZoom);
-                // ▲▲▲【変更ここまで】▲▲▲
             }
         });
-        osmMap.on('click', async e => {
+        mapLeft.on('click', async e => {
             if (isMeasuring) return handleMeasureClick(e);
             if (isMeasuringArea) return handleAreaMeasureClick(e);
             updateLatLonInputs(e.latlng.lat, e.latlng.lng);
             await updateCurrentCoords();
         });
-        osmMap.on('dblclick', e => {
+        mapLeft.on('dblclick', e => {
             if (isMeasuring) return handleMeasureDoubleClick(e);
             if (isMeasuringArea) return handleAreaMeasureDoubleClick(e);
         });
-        osmMap.on('mousemove', e => { if (isMeasuring) handleMeasureMouseMove(e); });
+        mapLeft.on('mousemove', e => { if (isMeasuring) handleMeasureMouseMove(e); });
 
-        // ▼▼▼【ここから変更】マーカークラスタリングのパフォーマンスオプションを追加 ▼▼▼
         const clusterOptions = {
-            // パフォーマンス向上のオプション
-            removeOutsideVisibleBounds: true, // 画面外のマーカーをDOMから削除して負荷を軽減
-            chunkedLoading: true,             // マーカーを分割して読み込み、UIのフリーズを防止
-            
-            // 一般的な推奨オプション
-            maxClusterRadius: 80,             // マーカーをクラスタ化する範囲（ピクセル単位）
-            spiderfyOnMaxZoom: true,          // 最大ズーム時に重なったマーカーを展開表示
-            showCoverageOnHover: false,       // クラスタにマウスオーバーした際に範囲を表示しない
-            zoomToBoundsOnClick: true         // クラスタをクリックした際にその範囲にズーム
+            removeOutsideVisibleBounds: true,
+            chunkedLoading: true,
+            maxClusterRadius: 80,
+            spiderfyOnMaxZoom: true,
+            showCoverageOnHover: false,
+            zoomToBoundsOnClick: true
         };
 
-        historyLayer = L.markerClusterGroup(clusterOptions).addTo(osmMap);
-        bookmarkLayer = L.markerClusterGroup(clusterOptions).addTo(osmMap);
-        csvPlotLayer = L.markerClusterGroup(clusterOptions).addTo(osmMap); // CSVプロット用レイヤー
-        // ▲▲▲【変更ここまで】▲▲▲
+        historyLayer = L.markerClusterGroup(clusterOptions).addTo(mapLeft);
+        bookmarkLayer = L.markerClusterGroup(clusterOptions).addTo(mapLeft);
+        csvPlotLayer = L.markerClusterGroup(clusterOptions).addTo(mapLeft);
 
-        osmMarker = L.marker(latlng).addTo(osmMap)
+        markerLeft = L.marker(latlng).addTo(mapLeft)
                        .bindPopup("情報を読み込み中...");
 
-        osmMarker.on('mousedown', (e) => {
+        // ▼▼▼【ここから追加】旧変数との互換性を確保 ▼▼▼
+        osmMarker = markerLeft;
+        // ▲▲▲【追加ここまで】▲▲▲
+
+        markerLeft.on('mousedown', (e) => {
             L.DomEvent.stopPropagation(e);
         });
 
@@ -4061,20 +4606,22 @@ function initOSMClickMap(lat, lon, zoom) {
                     shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.7.0/pin-shadow.png'
                 }
             }).on('loaded', function(e) {
-                osmMap.fitBounds(e.target.getBounds());
+                mapLeft.fitBounds(e.target.getBounds());
                 analysisLayer.addLayer(e.target);
-            }).addTo(osmMap);
+            }).addTo(mapLeft);
         }
     }
-    osmMap.setView(latlng, zoom);
-    osmMarker.setLatLng(latlng);
-    osmMap.invalidateSize();
+    mapLeft.setView(latlng, zoom);
+    if(markerLeft) markerLeft.setLatLng(latlng); // markerLeftが存在するか確認
+    mapLeft.invalidateSize();
 
     if (isFirstMapLoad) {
         isFirstMapLoad = false;
         applyInitialPanelState();
     }
 }
+// ▲▲▲【変更ここまで】▲▲▲
+
 
 function applyInitialPanelState() {
     if (window.innerWidth <= 1024) return;
@@ -4512,11 +5059,26 @@ async function pasteCoordinates() {
 }
 function toggleUsage() { document.getElementById('usageGuide').classList.toggle('show'); }
 function toggleCategory(header) { header.classList.toggle('collapsed'); header.nextElementSibling.classList.toggle('hidden'); }
+
+// ▼▼▼【ここから変更】緊急時カスタム検索も結合するように修正 ▼▼▼
 function getCombinedMapDefinitions() {
     const customLinks = getProjectData(MYLINK_KEY) || [];
     const customMaps = customLinks.filter(l => l).map(link => ({ ...link, isCustom: true }));
-    return [...MAP_DEFINITIONS, ...customMaps];
+    
+    const emergencySearches = (currentSettings.emergencySearches || []).map(s => ({
+        id: `emergency-${s.id}`,
+        name: s.keyword,
+        desc: `周辺の「${s.keyword}」をGoogleマップで検索`,
+        category: 'liaison',
+        icon: '🔍',
+        isEmergencySearch: true,
+        url: (lat, lon, zoom) => `https://www.google.com/maps/search/${encodeURIComponent(s.keyword)}/@${lat},${lon},${zoom}z`
+    }));
+
+    return [...MAP_DEFINITIONS, ...customMaps, ...emergencySearches];
 }
+// ▲▲▲【変更ここまで】▲▲▲
+
 function renderMapCards() {
     $container.innerHTML = '';
     let allMaps = getCombinedMapDefinitions();
@@ -4536,9 +5098,18 @@ function renderMapCards() {
     const categoryOrder = currentSettings.categoryOrder || defaultSettings.categoryOrder;
 
     for (const catKey of categoryOrder) {
-        if (!mapsByCategory[catKey] && catKey !== 'mylink') continue;
-        const catGroup = mapsByCategory[catKey] || { meta: CATEGORY_META.mylink, maps: [] };
-        if (catGroup.maps.length === 0 && catKey !== 'mylink') continue;
+        if (!mapsByCategory[catKey] && catKey !== 'mylink' && catKey !== 'liaison') continue;
+        
+        let catGroup;
+        if (mapsByCategory[catKey]) {
+            catGroup = mapsByCategory[catKey];
+        } else {
+            // マイリンクや緊急時連絡のように、最初は空のカテゴリも描画する
+            catGroup = { meta: CATEGORY_META[catKey], maps: [] };
+        }
+        
+        if (catGroup.maps.length === 0 && catKey !== 'mylink' && catKey !== 'liaison') continue;
+
         const categoryDiv = document.createElement('div');
         categoryDiv.className = 'category';
         categoryDiv.setAttribute('data-category-key', catKey);
@@ -4579,6 +5150,7 @@ function renderMapCards() {
         }
 
         catGroup.maps.forEach(map => mapGrid.appendChild(createMapCard(map, catKey, categoryHeader)));
+        
         if (catKey === 'mylink') {
             const addBtn = document.createElement('button');
             addBtn.className = 'btn-add-mylink';
@@ -4586,48 +5158,79 @@ function renderMapCards() {
             addBtn.onclick = () => openMyLinkModal();
             mapGrid.appendChild(addBtn);
         }
+        
+        // ▼▼▼【ここから追加】緊急時連絡カテゴリに「追加」ボタンを設置 ▼▼▼
+        if (catKey === 'liaison') {
+            const emergencySearches = currentSettings.emergencySearches || [];
+            if (emergencySearches.length < 5) {
+                const addBtn = document.createElement('button');
+                addBtn.className = 'btn-add-emergency-search';
+                addBtn.textContent = '＋ 検索キーワードを追加';
+                addBtn.onclick = () => openEmergencySearchModal();
+                mapGrid.appendChild(addBtn);
+            }
+        }
+        // ▲▲▲【追加ここまで】▲▲▲
+
         categoryDiv.appendChild(mapGrid);
         $container.appendChild(categoryDiv);
     }
 }
+
+// ▼▼▼【ここから変更】createMapCard関数を修正 ▼▼▼
 function createMapCard(map, catKey, categoryHeader) {
     const card = document.createElement('div');
     card.className = 'map-card';
     card.dataset.category = catKey;
     card.dataset.mapId = map.id;
-    card.setAttribute('draggable', true);
+
+    // カスタム検索カードはドラッグ不可にする
+    card.setAttribute('draggable', !map.isEmergencySearch);
+    
     card.addEventListener('click', e => {
         if (!e.target.closest('.map-checkbox, .map-card-actions, a')) {
             openMap(map);
         }
     });
-    card.innerHTML = `<div class="map-header-with-check"><div class="map-title"><span class="map-icon-in-title">${sanitizeForHtml(map.icon || '🔗')}</span> ${sanitizeForHtml(map.name)}</div><input type="checkbox" class="map-checkbox" data-map-id="${map.id}" aria-label="${sanitizeForHtml(map.name)}を選択"></div><div class="map-description">${sanitizeForHtml(map.desc || 'カスタムリンク')}</div>${map.noCoords ? '<div class="manual-input-warning">※手動設定が必要です</div>' : ''}`;
+
+    let actionsHtml = '';
+    if (map.isCustom) {
+        actionsHtml = `<div class="map-card-actions">
+            <button class="btn-mylink-edit">✏️ 編集</button>
+            <button class="btn-mylink-delete">🗑️ 削除</button>
+        </div>`;
+    } else if (map.isEmergencySearch) {
+        const searchItem = (currentSettings.emergencySearches || []).find(s => `emergency-${s.id}` === map.id);
+        actionsHtml = `<div class="map-card-actions">
+            <button class="btn-emergency-search-edit" data-search-id="${searchItem.id}">✏️ 編集</button>
+            <button class="btn-emergency-search-delete" data-search-id="${searchItem.id}">🗑️ 削除</button>
+        </div>`;
+    }
+
+    card.innerHTML = `<div class="map-header-with-check"><div class="map-title"><span class="map-icon-in-title">${sanitizeForHtml(map.icon || '🔗')}</span> ${sanitizeForHtml(map.name)}</div><input type="checkbox" class="map-checkbox" data-map-id="${map.id}" aria-label="${sanitizeForHtml(map.name)}を選択"></div><div class="map-description">${sanitizeForHtml(map.desc || 'カスタムリンク')}</div>${map.noCoords ? '<div class="manual-input-warning">※手動設定が必要です</div>' : ''}${actionsHtml}`;
 
     const checkbox = card.querySelector('.map-checkbox');
-
-    checkbox.onclick = (e) => {
-        e.stopPropagation();
-    };
-
+    checkbox.onclick = (e) => e.stopPropagation();
     checkbox.onchange = () => {
         const btn = categoryHeader.querySelector('.btn-toggle-all-checks');
-        if(btn) {
-            const allChecked = document.querySelectorAll(`.map-card[data-category="${catKey}"] .map-checkbox:checked`).length === document.querySelectorAll(`.map-card[data-category="${catKey}"] .map-checkbox`).length;
-            btn.classList.toggle('checked', allChecked);
+        if (btn) {
+            const allCheckboxes = document.querySelectorAll(`.map-card[data-category="${catKey}"] .map-checkbox`);
+            const checkedCheckboxes = document.querySelectorAll(`.map-card[data-category="${catKey}"] .map-checkbox:checked`);
+            btn.classList.toggle('checked', allCheckboxes.length > 0 && checkedCheckboxes.length === allCheckboxes.length);
         }
     };
 
     if (map.isCustom) {
-        const actions = document.createElement('div');
-        actions.className = 'map-card-actions';
-        actions.innerHTML = `<button class="btn-mylink-edit">✏️ 編集</button><button class="btn-mylink-delete">🗑️ 削除</button>`;
-        actions.querySelector('.btn-mylink-edit').onclick = (e) => { e.stopPropagation(); openMyLinkModal(map); };
-        actions.querySelector('.btn-mylink-delete').onclick = (e) => { e.stopPropagation(); deleteMyLink(map.id); };
-        card.appendChild(actions);
+        card.querySelector('.btn-mylink-edit').onclick = (e) => { e.stopPropagation(); openMyLinkModal(map); };
+        card.querySelector('.btn-mylink-delete').onclick = (e) => { e.stopPropagation(); deleteMyLink(map.id); };
+    } else if (map.isEmergencySearch) {
+        card.querySelector('.btn-emergency-search-edit').onclick = (e) => { e.stopPropagation(); openEmergencySearchModal(e.target.dataset.searchId); };
+        card.querySelector('.btn-emergency-search-delete').onclick = (e) => { e.stopPropagation(); deleteEmergencySearch(e.target.dataset.searchId); };
     }
+
     return card;
 }
-
+// ▲▲▲【変更ここまで】▲▲▲
 
 function decimalToDMS(dd, isLat) { const dir = dd < 0 ? (isLat ? 'S' : 'W') : (isLat ? 'N' : 'E'); dd = Math.abs(dd); const d = Math.floor(dd), m = Math.floor((dd - d) * 60), s = (((dd - d) * 60 - m) * 60).toFixed(5); return `${d}°${String(m).padStart(2,'0')}'${String(s).padStart(6,'0')}" ${dir}`; }
 function dmsToDecimal(dms) { dms = String(dms).trim().toUpperCase(); const parts = dms.match(/(-?\d+\.?\d*)[°D\s]+(\d+)[`'’\s]+([\d.]+)[S"”\s]*\s*([NSEW])?/); if (!parts) throw new Error("Invalid DMS format"); let dd = Math.abs(parseFloat(parts[1])) + parseFloat(parts[2])/60 + parseFloat(parts[3])/3600; if (parseFloat(parts[1]) < 0 || parts[4] === 'S' || parts[4] === 'W') dd = -dd; return dd; }
@@ -4694,6 +5297,94 @@ let measurePointMarkers = [];
 let areaPoints = [], tempAreaPolygon = null;
 let areaPointMarkers = [];
 let analysisLayer;
+
+// ▼▼▼【ここから追加】十字線の機能 ▼▼▼
+function initCrosshair() {
+    $crosshairV = document.getElementById('crosshair-v');
+    $crosshairH = document.getElementById('crosshair-h');
+    // ▼▼▼【ここから追加】右側の要素を取得 ▼▼▼
+    let $crosshairVRight = document.getElementById('crosshair-v-right');
+    let $crosshairHRight = document.getElementById('crosshair-h-right');
+    // ▲▲▲【追加ここまで】▲▲▲
+    const toggleBtn = document.getElementById('toggle-crosshair-btn');
+
+    if (!$crosshairV || !$crosshairH || !toggleBtn || !mapLeft) return;
+
+    mapLeft.on('mousemove', (e) => {
+        if (isCrosshairEnabled) {
+            // 左側の地図
+            $crosshairV.style.left = `${e.containerPoint.x}px`;
+            $crosshairH.style.top = `${e.containerPoint.y}px`;
+            
+            // ▼▼▼【ここから追加】右側の地図も更新 ▼▼▼
+            if (isDualView && $crosshairVRight) {
+                $crosshairVRight.style.left = `${e.containerPoint.x}px`;
+                $crosshairHRight.style.top = `${e.containerPoint.y}px`;
+            }
+            // ▲▲▲【追加ここまで】▲▲▲
+        }
+    });
+
+    mapLeft.on('mouseover', () => {
+        if (isCrosshairEnabled) {
+            $crosshairV.style.display = 'block';
+            $crosshairH.style.display = 'block';
+            // ▼▼▼【ここから追加】右側も表示 ▼▼▼
+            if (isDualView && $crosshairVRight) {
+                $crosshairVRight.style.display = 'block';
+                $crosshairHRight.style.display = 'block';
+            }
+            // ▲▲▲【追加ここまで】▲▲▲
+        }
+    });
+
+    mapLeft.on('mouseout', () => {
+        $crosshairV.style.display = 'none';
+        $crosshairH.style.display = 'none';
+        // ▼▼▼【ここから追加】右側も非表示 ▼▼▼
+        if ($crosshairVRight) { // isDualViewのチェックは不要
+            $crosshairVRight.style.display = 'none';
+            $crosshairHRight.style.display = 'none';
+        }
+        // ▲▲▲【追加ここまで】▲▲▲
+    });
+    
+    toggleBtn.addEventListener('click', toggleCrosshair);
+}
+
+// `toggleCrosshair` 関数を置き換える
+function toggleCrosshair() {
+    isCrosshairEnabled = !isCrosshairEnabled;
+    const toggleBtn = document.getElementById('toggle-crosshair-btn');
+    const mapContainers = document.querySelectorAll('#mapLeft .leaflet-container, #mapRight .leaflet-container');
+
+    toggleBtn.classList.toggle('active', isCrosshairEnabled);
+
+    if (isCrosshairEnabled) {
+        $crosshairV.style.display = 'block';
+        $crosshairH.style.display = 'block';
+        toggleBtn.title = '十字線 OFF';
+        mapContainers.forEach(c => c.classList.add('crosshair-active'));
+        if (isDualView && mapRight) { 
+            document.getElementById('crosshair-v-right').style.display = 'block';
+            document.getElementById('crosshair-h-right').style.display = 'block';
+        }
+    } else {
+        $crosshairV.style.display = 'none';
+        $crosshairH.style.display = 'none';
+        toggleBtn.title = '十字線 ON';
+        mapContainers.forEach(c => c.classList.remove('crosshair-active'));
+        if (mapRight) {
+             document.getElementById('crosshair-v-right').style.display = 'none';
+             document.getElementById('crosshair-h-right').style.display = 'none';
+        }
+    }
+
+    currentSettings.crosshairEnabled = isCrosshairEnabled;
+    setProjectData(SETTINGS_KEY, currentSettings);
+}
+
+// ▲▲▲【追加ここまで】▲▲▲
 
 function setupAnalysisTools() {
     if (!osmMap) return;
@@ -4886,7 +5577,8 @@ return 0;
 function latLngsToKmlCoordinates(latlngs, closeRing = false) {
     let coords = latlngs.map(p => `${p.lng},${p.lat},0`).join(' ');
     if (closeRing && latlngs.length > 0) {
-        coords += ` ${latlngs[0].lng},${latlngs[0].lat},0`;
+        const firstPoint = latlngs[0];
+        coords += ` ${firstPoint.lng},${firstPoint.lat},0`;
     }
     return coords;
 }
@@ -6160,10 +6852,18 @@ function initCategoryDragAndDrop() {
     let draggingEle = null;
 
     container.addEventListener('dragstart', (e) => {
-        if (e.target.classList.contains('category')) {
-            draggingEle = e.target;
+        // ドラッグが地図カードから開始された場合は、この関数では何もしない
+        // (カード移動用の別の関数に処理を任せる)
+        if (e.target.closest('.map-card')) {
+            return;
+        }
+        
+        // そうでない場合（＝カテゴリヘッダーなどがドラッグされた場合）のみ処理を続行
+        const targetCategory = e.target.closest('.category');
+        if (targetCategory) {
+            draggingEle = targetCategory;
             setTimeout(() => {
-                draggingEle.classList.add('dragging');
+                if (draggingEle) draggingEle.classList.add('dragging');
             }, 0);
         }
     });
@@ -6233,6 +6933,12 @@ function initCardDragAndDrop() {
         e.preventDefault();
         const targetCategory = e.target.closest('.category');
         if (!targetCategory || !draggingCard) return;
+        
+        // ▼▼▼【ここから変更】カスタム検索はドラッグできないようにする ▼▼▼
+        if (draggingCard.dataset.category === 'liaison' && !draggingCard.dataset.mapId.startsWith('gmap_search_')) {
+             return;
+        }
+        // ▲▲▲【変更ここまで】▲▲▲
 
         document.querySelectorAll('.category:not(.drag-over)').forEach(cat => cat.classList.remove('drag-over'));
         targetCategory.classList.add('drag-over');
@@ -6257,7 +6963,7 @@ function initCardDragAndDrop() {
         if (afterElement) {
             grid.insertBefore(draggingCard, afterElement);
         } else {
-            const addBtn = grid.querySelector('.btn-add-mylink');
+            const addBtn = grid.querySelector('.btn-add-mylink, .btn-add-emergency-search');
             if (addBtn) grid.insertBefore(draggingCard, addBtn);
             else grid.appendChild(draggingCard);
         }
@@ -6322,6 +7028,40 @@ function saveMapOrderInCategory(categoryKey) {
 async function openCoordConverterModal() {
     const lat = isDMSFormat ? dmsToDecimal($lat.value) : parseFloat($lat.value);
     const lon = isDMSFormat ? dmsToDecimal($lon.value) : parseFloat($lon.value);
+
+    const warningDiv = document.getElementById('crustal-deformation-warning');
+    const detailsP = document.getElementById('deformation-details');
+    
+    warningDiv.style.display = 'none';
+    detailsP.innerHTML = '';
+
+    if (!isNaN(lat) && !isNaN(lon)) {
+        // 地殻変動エリアのチェックを実行（結果は配列で返ってくる）
+        const deformationInfo = await checkCrustalDeformation(lat, lon);
+        
+        // 配列に1つ以上の要素があれば警告を表示
+        if (deformationInfo && deformationInfo.length > 0) {
+            let messageHtml;
+
+            if (deformationInfo.length === 1) {
+                // 該当が1つの場合
+                messageHtml = `現在の座標は「<strong>${deformationInfo[0]}</strong>」の地殻変動があったエリアの可能性があります。`;
+            } else {
+                // 該当が複数の場合
+                messageHtml = '現在の座標は、以下の複数の地震による地殻変動があったエリアの可能性があります：' +
+                              '<ul style="margin: 8px 0 0 20px; padding: 0;">' +
+                              deformationInfo.map(name => `<li><strong>${name}</strong></li>`).join('') +
+                              '</ul>';
+            }
+            
+            // 共通の注意文を追加
+            messageHtml += '<p style="margin-top: 10px;">座標変換の際は、国土地理院のサイトで該当する<strong>座標補正パラメータファイル</strong>を適用する必要があるか確認してください。</p>';
+            
+            detailsP.innerHTML = messageHtml;
+            warningDiv.style.display = 'block';
+        }
+    }
+    // ▲▲▲【変更ここまで】▲▲▲
 
     document.getElementById('conv-lat').value = isNaN(lat) ? '' : lat.toFixed(8);
     document.getElementById('conv-lon').value = isNaN(lon) ? '' : lon.toFixed(8);
@@ -6629,6 +7369,77 @@ function initializeDataWarning() {
 }
 // ▲▲▲【変更ここまで】▲▲▲
 
+// ▼▼▼【ここから追加】緊急時カスタム検索のモーダル関連関数 ▼▼▼
+function openEmergencySearchModal(searchId = null) {
+    const form = document.getElementById('emergency-search-form');
+    form.reset();
+    document.getElementById('emergency-search-id').value = '';
+    const title = document.getElementById('emergency-search-modal-title');
+
+    if (searchId) {
+        const searches = currentSettings.emergencySearches || [];
+        const searchItem = searches.find(s => s.id === searchId);
+        if (searchItem) {
+            title.textContent = '検索キーワードを編集';
+            document.getElementById('emergency-search-id').value = searchItem.id;
+            document.getElementById('emergency-search-keyword').value = searchItem.keyword;
+        }
+    } else {
+        title.textContent = '新しい検索キーワードを追加';
+    }
+    
+    document.getElementById('emergency-search-modal').style.display = 'flex';
+}
+
+function closeEmergencySearchModal() {
+    document.getElementById('emergency-search-modal').style.display = 'none';
+}
+
+function saveEmergencySearch(e) {
+    e.preventDefault();
+    const keyword = document.getElementById('emergency-search-keyword').value.trim();
+    if (!keyword) {
+        showNotification('検索キーワードを入力してください。', 'error');
+        return;
+    }
+
+    const searchId = document.getElementById('emergency-search-id').value;
+    let searches = currentSettings.emergencySearches || [];
+
+    if (searchId) { // 編集の場合
+        const index = searches.findIndex(s => s.id === searchId);
+        if (index > -1) {
+            searches[index].keyword = keyword;
+        }
+    } else { // 新規追加の場合
+        if (searches.length >= 5) {
+            showNotification('カスタム検索は最大5個までです。', 'error');
+            return;
+        }
+        searches.push({
+            id: `es-${Date.now()}`,
+            keyword: keyword
+        });
+    }
+
+    currentSettings.emergencySearches = searches;
+    setProjectData(SETTINGS_KEY, currentSettings);
+    renderMapCards();
+    closeEmergencySearchModal();
+    showNotification('検索キーワードを保存しました。');
+}
+
+function deleteEmergencySearch(searchId) {
+    if (confirm('この検索キーワードを削除しますか？')) {
+        let searches = currentSettings.emergencySearches || [];
+        currentSettings.emergencySearches = searches.filter(s => s.id !== searchId);
+        setProjectData(SETTINGS_KEY, currentSettings);
+        renderMapCards();
+        showNotification('検索キーワードを削除しました。');
+    }
+}
+// ▲▲▲【追加ここまで】▲▲▲
+
 document.addEventListener('DOMContentLoaded', () => {
     coordinateSystems.forEach(d => {
         const s = `+proj=tmerc +lat_0=${d.lat0} +lon_0=${d.lon0} +k=0.9999 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs`;
@@ -6637,7 +7448,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     migrateOldData();
     loadProjects();
-    initializeDataWarning(); // データ消失リスク警告の初期化を追加
+    initializeDataWarning();
 
     if (window.L) {
         startIcon = L.icon({
@@ -6717,7 +7528,6 @@ tabs.forEach(tab => {
 
 loadSettings();
 loadTabOrder();
-populateLayerSettings();
 renderMapCards();
 loadFavoriteSets();
 initResizer();
@@ -6725,18 +7535,14 @@ renderHistoryList(getProjectData('coordinateHistory') || []);
 renderHistoryTable();
 renderBookmarkTable();
 initTabDragAndDrop();
-initCategoryDragAndDrop();
+initCategoryDragAndDrop(); // ← この行を追記
 initCardDragAndDrop();
 
 initProjectSwitcher();
 initProjectManagementModal();
 initCoordConverter();
-
-// ▼▼▼【ここから変更】CSV関連の初期化 ▼▼▼
 initCsvImport();
-initCsvPlotter(); // ヘッダーボタンのイベント設定を呼び出す
-// ▲▲▲【変更ここまで】▲▲▲
-
+initCsvPlotter();
 
 const today = new Date();
 document.getElementById('lastUpdated').textContent = `最終更新日: ${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
@@ -6749,22 +7555,38 @@ async function initializeApp() {
     }
 }
 
+function initializeFullscreenHandler() {
+    if (!mapLeft) return;
+
+    mapLeft.on('fullscreenchange', function () {
+        const body = document.body;
+
+        if (mapLeft.isFullscreen()) {
+            body.classList.add('left-map-is-fullscreen');
+        } else {
+            body.classList.remove('left-map-is-fullscreen');
+            if (isDualView) {
+                console.log("Re-initializing dual view after fullscreen exit.");
+                toggleDualViewMode();
+                setTimeout(() => {
+                    toggleDualViewMode();
+                }, 100);
+            }
+        }
+    });
+}
+
 initializeApp();
+initializeFullscreenHandler();
 $lat.addEventListener('change', () => updateCurrentCoords());
 $lon.addEventListener('change', () => updateCurrentCoords());
 $zoom.addEventListener('input', e => {
     const zoomVal = e.target.value;
     $zoomDisplay.textContent = zoomVal;
-    // ▼▼▼【ここから変更】プレビュー関連の処理を削除 ▼▼▼
-    // $currentZoom.textContent = zoomVal;
-    // ▲▲▲【変更ここまで】▲▲▲
 });
 $zoom.addEventListener('change', e => {
     const newZoom = parseInt(e.target.value, 10);
     if(osmMap) osmMap.setZoom(newZoom);
-    // ▼▼▼【ここから変更】プレビュー更新処理を削除 ▼▼▼
-    // updateMapPreview(currentLatLon.lat, currentLatLon.lon, newZoom);
-    // ▲▲▲【変更ここまで】▲▲▲
 });
 $coordFormatToggle.addEventListener('click', toggleCoordFormat);
 $addressInput.addEventListener('keypress', async e => { if (e.key === 'Enter') { e.preventDefault(); selectedAutocompleteIndex !== -1 ? await selectAutocompleteItem(selectedAutocompleteIndex) : await searchAddress(); } });
@@ -6776,7 +7598,6 @@ document.addEventListener('click', e => {
         $historyPopup.style.display = 'none'; 
         $bookmarkPopup.style.display = 'none'; 
         document.getElementById('projectSwitcherDropdown').style.display = 'none'; 
-        // ▼▼▼【重要】CSVポップアップを閉じる処理を追加 ▼▼▼
         document.getElementById('csvPopup').style.display = 'none'; 
     } 
     if(!e.target.closest('.usage-button, .usage-guide')) { 
@@ -6799,7 +7620,7 @@ $settingsModal.addEventListener('click', e => e.target === $settingsModal && clo
 document.getElementById('settings-zoom').addEventListener('input', e => { document.getElementById('settings-zoom-value').textContent = e.target.value; });
 document.getElementById('settings-panel-width').addEventListener('input', e => { document.getElementById('settings-panel-width-value').textContent = e.target.value; updatePanelWidth(e.target.value); });
 document.getElementById('reset-panel-width').addEventListener('click', () => { 
-    const val = 330;
+    const val = 500;
     document.getElementById('settings-panel-width').value = val; 
     document.getElementById('settings-panel-width-value').textContent = val; 
     updatePanelWidth(val); 
@@ -6826,9 +7647,6 @@ document.getElementById('save-set').addEventListener('click', saveFavoriteSet);
 document.getElementById('delete-set').addEventListener('click', deleteFavoriteSet);
 document.getElementById('clear-all-checks').addEventListener('click', () => { document.querySelectorAll('.map-checkbox').forEach(cb => cb.checked = false); document.getElementById('favorite-sets').value = ''; showNotification('すべてのチェックを解除しました。'); });
 document.getElementById('open-set').addEventListener('click', openFavoriteSet);
-// ▼▼▼【ここから変更】プレビュー関連のイベントリスナーを削除 ▼▼▼
-// document.getElementById('toggleMapTypeBtn').addEventListener('click', ...);
-// ▲▲▲【変更ここまで】▲▲▲
 document.addEventListener('keydown', handleUndoLastPoint);
 document.getElementById('btn-export-data').addEventListener('click', exportData);
 document.getElementById('btn-import-data').addEventListener('click', importDataTrigger);
@@ -7285,6 +8103,17 @@ if (window.ResizeObserver) {
             legalToggle.textContent = isHidden ? '免責事項 (クリックで非表示)' : '免責事項 (クリックで表示)';
         });
     }
+    
+    // ▼▼▼【ここから追加】緊急時連絡カスタム検索用のイベントリスナー ▼▼▼
+    const emergencySearchModal = document.getElementById('emergency-search-modal');
+    document.getElementById('emergency-search-form').addEventListener('submit', saveEmergencySearch);
+    document.getElementById('btn-emergency-search-modal-cancel').addEventListener('click', closeEmergencySearchModal);
+    emergencySearchModal.addEventListener('click', (e) => {
+        if (e.target === emergencySearchModal) {
+            closeEmergencySearchModal();
+        }
+    });
+    // ▲▲▲【追加ここまで】▲▲▲
 
 });
 
@@ -7775,6 +8604,116 @@ function navigateCsv(direction) {
 }
 
 // ▲▲▲【貼り付けはここまで】▲▲▲
+
+// ▼▼▼【ここから追加】ステップ3 統合最終版コード ▼▼▼
+
+function initRightMap() {
+    if (mapRight) {
+        mapRight.remove();
+        mapRight = null;
+    }
+    const mapContainer = document.getElementById('mapRight');
+    if (!mapContainer) return;
+
+    try {
+        const center = mapLeft.getCenter();
+        const zoom = mapLeft.getZoom();
+
+        mapRight = L.map('mapRight', {
+            zoomControl: false, attributionControl: true
+        }).setView(center, zoom);
+
+        const rightBaseMaps = {};
+        for (const key in BASE_LAYERS) {
+            const config = BASE_LAYERS[key];
+            rightBaseMaps[config.name] = L.tileLayer(config.url, { maxZoom: config.maxZoom || 19, attribution: config.attribution });
+        }
+        L.control.layers(rightBaseMaps).addTo(mapRight);
+        
+        const defaultRightLayerKey = currentSettings.defaultLayerRight || 'gsi_seamlessphoto';
+        const defaultRightLayer = Object.values(rightBaseMaps).find(l => l.options.attribution === BASE_LAYERS[defaultRightLayerKey].attribution && l._url.includes(BASE_LAYERS[defaultRightLayerKey].url.split('/')[3]));
+        if (defaultRightLayer) {
+            defaultRightLayer.addTo(mapRight);
+        } else {
+            Object.values(rightBaseMaps)[3].addTo(mapRight); // フォールバック
+        }
+
+        markerRight = L.marker(center).addTo(mapRight);
+
+        mapRight.dragging.disable();
+        mapRight.touchZoom.disable();
+        mapRight.doubleClickZoom.disable();
+        mapRight.scrollWheelZoom.disable();
+        mapContainer.style.cursor = 'default';
+
+    } catch (e) {
+        console.error("右地図の初期化中にエラー:", e);
+    }
+}
+
+
+let syncTimeout;
+function syncRightMap() {
+    if (isSyncing || !mapRight) return;
+    isSyncing = true;
+    mapRight.setView(mapLeft.getCenter(), mapLeft.getZoom(), { animate: false, noMoveStart: true });
+    clearTimeout(syncTimeout);
+    syncTimeout = setTimeout(() => { isSyncing = false; }, 50);
+}
+
+function startSync() {
+    if (mapLeft) mapLeft.on('move zoom', syncRightMap);
+}
+
+function stopSync() {
+    if (mapLeft) mapLeft.off('move zoom', syncRightMap);
+}
+
+function toggleDualViewMode() {
+    if (window.innerWidth <= 1024) {
+        showNotification('2画面表示はPCでのみ利用可能です。', 'warning');
+        return;
+    }
+
+    const mapContainer = document.getElementById('osmClickMap');
+    const toggleBtn = document.getElementById('toggleDualViewBtn');
+    
+    isDualView = !isDualView;
+    mapContainer.classList.toggle('dual-view-mode', isDualView);
+    toggleBtn.classList.toggle('active', isDualView);
+    // toggleBtn.innerHTML = isDualView ? '🔳' : '🔲';
+
+    if (isDualView) {
+        // initRightMapはレイアウト変更のアニメーション後に呼び出す
+        setTimeout(() => {
+            initRightMap();
+            startSync();
+        }, 410);
+    } else {
+        stopSync();
+        if (mapRight) {
+            mapRight.remove();
+            mapRight = null;
+        }
+    }
+    
+    // invalidateSizeを両方の地図に対して、より確実なタイミングで呼び出す
+    setTimeout(() => {
+        if (mapLeft) mapLeft.invalidateSize();
+        if (isDualView && mapRight) {
+            mapRight.invalidateSize();
+        }
+    }, 420); // アニメーション完了直後
+}
+
+// DOMContentLoaded内でイベントリスナーを一度だけ設定
+document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('toggleDualViewBtn');
+    if (btn) {
+        btn.addEventListener('click', toggleDualViewMode);
+    }
+});
+// ▲▲▲【追加ここまで】▲▲▲
 
 </script>
 </body>
