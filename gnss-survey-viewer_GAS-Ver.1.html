@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GNSSデータビューア</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌐</text></svg>">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <style>
+        :root { --header-height: 60px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-direction: column; background: #f0f2f5; }
+        .header { background: #2c3e50; color: white; padding: 0 20px; height: var(--header-height); display: flex; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); flex-shrink: 0; }
+        .header h1 { font-size: 1.2em; }
+        .main-container { display: flex; flex: 1; overflow: hidden; flex-direction: row; }
+        .left-panel { width: 60%; display: flex; flex-direction: column; background: #ecf0f1; border-right: 2px solid #bdc3c7; }
+        .right-panel { width: 40%; position: relative; }
+        #map { width: 100%; height: 100%; }
+
+        .info-panel { padding: 15px; background: #fff; margin: 10px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); flex-shrink: 0; }
+        .info-panel h3 { margin-bottom: 15px; color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 5px; font-size: 1.1em; }
+        
+        .controls-grid { display: grid; grid-template-columns: 1.5fr 0.8fr 1.2fr 1fr auto; gap: 12px; align-items: end; }
+        .control-group label { font-size: 0.8em; margin-bottom: 4px; color: #555; font-weight: bold; display: block; }
+        .control-group input[type="file"], .control-group select, .control-group button { padding: 8px; background: #fff; border-radius: 4px; border: 1px solid #ccc; font-size: 0.9em; width: 100%; }
+        .control-group button { background-color: #3498db; color: white; border: none; cursor: pointer; transition: background-color 0.2s; white-space: nowrap; }
+        .control-group button:hover { background-color: #2980b9; }
+        .line-toggle { display: flex; align-items: center; gap: 8px; color: #333; font-size: 0.9em; padding-bottom: 8px; }
+        
+        #tableContainer { flex-grow: 1; overflow-y: auto; margin: 0 10px 10px 10px; border: 1px solid #ccc; }
+        table { width: 100%; border-collapse: collapse; background: white; font-size: 0.8em; }
+        thead { position: sticky; top: 0; background: #34495e; color: white; z-index: 10; }
+        th, td { padding: 8px 10px; text-align: left; border: 1px solid #ddd; white-space: nowrap; }
+        th { font-weight: 600; }
+        tbody tr:nth-child(even) { background-color: #f8f9fa; }
+        tbody tr:hover { background: #e8f4f8; cursor: pointer; }
+        .diff-alert { color: #e74c3c; font-weight: bold; }
+        .help-icon { cursor: help; font-style: normal; display: inline-block; background: #7f8c8d; color: white; border-radius: 50%; width: 16px; height: 16px; text-align: center; line-height: 16px; font-size: 12px; margin-left: 4px; }
+
+        .drop-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(44, 62, 80, 0.7); color: white; display: none; justify-content: center; align-items: center; font-size: 2em; text-align: center; z-index: 10000; pointer-events: none; }
+        body.drag-over .drop-overlay { display: flex; }
+        
+        /* --- スマートフォン向けレイアウト調整 --- */
+        @media (max-width: 768px) {
+            .main-container { flex-direction: column; }
+            .left-panel { width: 100%; height: 65%; border-right: none; border-bottom: 2px solid #bdc3c7; } /* 表を65%に */
+            .right-panel { width: 100%; height: 35%; } /* 地図を35%に */
+            
+            .info-panel { margin: 8px; padding: 12px; }
+            .controls-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+            .desktop-only { display: none; } /* スマホで非表示にするためのクラス */
+            .mobile-hidden { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header"><h1>🌐GNSS測量(GPX)データビューア</h1></div>
+    <div class="main-container">
+        <div class="left-panel">
+            <div class="info-panel">
+                <h3>📊 操作パネル</h3>
+                <div class="controls-grid">
+                    <div class="control-group"><label for="fileInput">GPXファイル</label><input type="file" id="fileInput" accept=".gpx"></div>
+                    <div class="control-group"><label for="coordSystem">座標系</label><select id="coordSystem"></select></div>
+                    <div class="control-group"><label for="poleHeight">ポール高補正</label><select id="poleHeight"><option value="0">補正なし</option><option value="2.246">シンワ伸縮ポール (2.246m)</option><option value="2.186">GNSSカーボンポール (2.186m)</option><option value="1.961">一脚 (1.961m)</option></select></div>
+                    <div class="control-group desktop-only"><label>その他</label><div class="line-toggle"><input type="checkbox" id="toggleLine" checked><label for="toggleLine">接続ライン</label></div></div>
+                    <div class="control-group desktop-only"><label>&nbsp;</label><button id="downloadCsvBtn" style="visibility: hidden;">CSVエクスポート</button></div>
+                </div>
+            </div>
+            <div id="tableContainer"><div class="loading" style="text-align:center; padding-top: 50px;">GPXファイルを選択してください</div></div>
+        </div>
+        <div class="right-panel"><div id="map"></div></div>
+    </div>
+    <div class="drop-overlay"><p>ここにGPXをドロップ</p></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <script>
+        let map, markers = [], polylineLayer = null, rawSurveyPoints = [];
+        const GRS80 = { a: 6378137.0, f: 1 / 298.257222101 };
+        const jprcsParams = { 1: { phi0_deg: 33.0, lambda0_deg: 129.5 }, 2: { phi0_deg: 33.0, lambda0_deg: 131.0 }, 3: { phi0_deg: 36.0, lambda0_deg: 132.166666666667 }, 4: { phi0_deg: 33.0, lambda0_deg: 133.5 }, 5: { phi0_deg: 36.0, lambda0_deg: 134.333333333333 }, 6: { phi0_deg: 36.0, lambda0_deg: 136.0 }, 7: { phi0_deg: 36.0, lambda0_deg: 137.166666666667 }, 8: { phi0_deg: 36.0, lambda0_deg: 138.5 }, 9: { phi0_deg: 36.0, lambda0_deg: 139.833333333333 }, 10: { phi0_deg: 40.0, lambda0_deg: 140.833333333333 }, 11: { phi0_deg: 44.0, lambda0_deg: 140.25 }, 12: { phi0_deg: 44.0, lambda0_deg: 142.25 }, 13: { phi0_deg: 44.0, lambda0_deg: 144.25 }, 14: { phi0_deg: 26.0, lambda0_deg: 142.0 }, 15: { phi0_deg: 26.0, lambda0_deg: 127.5 }, 16: { phi0_deg: 26.0, lambda0_deg: 124.0 }, 17: { phi0_deg: 26.0, lambda0_deg: 131.0 }, 18: { phi0_deg: 20.0, lambda0_deg: 136.0 }, 19: { phi0_deg: 26.0, lambda0_deg: 154.0 } };
+        
+        function latLonToXY(lat, lon, params) { /* (座標変換計算は変更なし) */
+            const phi = lat * Math.PI / 180, lambda = lon * Math.PI / 180, phi0 = params.phi0_deg * Math.PI / 180, lambda0 = params.lambda0_deg * Math.PI / 180; const a = GRS80.a, f = GRS80.f, m0 = 0.9999, FN = 0.0, FE = 0.0; const n = f / (2 - f), n2 = n * n, n3 = n2 * n, n4 = n3 * n; const A = [ (1 + n2/4 + n4/64), -(3/2) * (n - n3/8), (15/16) * (n2 - n4/4), -(35/48) * n3 ]; const S = (p) => a / (1 + n) * (A[0] * p + A[1] * Math.sin(2 * p) + A[2] * Math.sin(4 * p) + A[3] * Math.sin(6 * p)); const S0 = S(phi0); const e2 = f * (2 - f); const nu = a / Math.sqrt(1 - e2 * Math.pow(Math.sin(phi), 2)); const t = Math.tan(phi), l = lambda - lambda0; const eta2 = e2 / (1 - e2) * Math.pow(Math.cos(phi), 2); const term1 = (S(phi) - S0) * m0, term2 = (m0 * nu * Math.sin(phi) * Math.cos(phi) / 2) * l*l, term3 = (m0 * nu * Math.sin(phi) * Math.pow(Math.cos(phi), 3) / 24) * (5 - t*t + 9 * eta2 + 4 * eta2*eta2) * Math.pow(l, 4), term4 = (m0 * nu * Math.sin(phi) * Math.pow(Math.cos(phi), 5) / 720) * (61 - 58 * t*t + t*t*t*t) * Math.pow(l, 6); const X = FN + term1 + term2 + term3 + term4; const term5 = m0 * nu * Math.cos(phi) * l, term6 = (m0 * nu * Math.pow(Math.cos(phi), 3) / 6) * (1 - t*t + eta2) * Math.pow(l, 3), term7 = (m0 * nu * Math.pow(Math.cos(phi), 5) / 120) * (5 - 18 * t*t + t*t*t*t + 14 * eta2 - 58 * eta2 * t*t) * Math.pow(l, 5); return { x: X, y: FE + term5 + term6 + term7 };
+        }
+        
+        function initMap() { /* (地図レイヤーは変更なし) */
+            const gsiStd = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', { attribution: '© <a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>' }); const gsiPale = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', { attribution: '© <a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>' }); const gsiOrt = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/ort/{z}/{x}/{y}.jpg', { attribution: '© <a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>' }); const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }); map = L.map('map', { layers: [gsiStd] }).setView([36.2, 139.0], 5); const baseMaps = { "地理院地図(標準)": gsiStd, "地理院地図(淡色)": gsiPale, "地理院地図(写真)": gsiOrt, "OpenStreetMap": osm }; L.control.layers(baseMaps).addTo(map); L.control.scale({ imperial: false }).addTo(map);
+        }
+        
+        function parseGPX(xmlText) {
+            const parser = new DOMParser(); const xmlDoc = parser.parseFromString(xmlText, 'text/xml'); const wpts = xmlDoc.getElementsByTagName('wpt'); const points = [];
+            for (let wpt of wpts) { const getTagText = (p, t) => p.getElementsByTagName(t)[0]?.textContent || null; const getTagTextNS = (p, t) => p.getElementsByTagName(t)[0]?.textContent || p.getElementsByTagName(`b:${t}`)[0]?.textContent || null;
+                const d = { name: getTagText(wpt, 'name') || `P${points.length + 1}`, lat: parseFloat(wpt.getAttribute('lat')), lon: parseFloat(wpt.getAttribute('lon')), antennaHeight: parseFloat(getTagText(wpt, 'ele') || 0), time: getTagText(wpt, 'time') || '', cmtText: getTagText(wpt, 'cmt') || '', pointGeoidHeight: parseFloat(getTagText(wpt, 'geoidheight') || 0), geoidSystem: 'N/A', fixMode: getTagText(wpt, 'fix') || 'N/A', ellipsoidHeight: null, eleDiff: null };
+                if (d.cmtText) { const m = d.cmtText.match(/ellipsoidHeight=([\d\.-]+)/); if (m) d.ellipsoidHeight = parseFloat(m[1]); }
+                const ext = wpt.getElementsByTagName('extensions')[0]; if (ext) { const mes = ext.getElementsByTagName('measurement')[0] || ext.getElementsByTagName('b:measurement')[0]; if (mes) { d.geoidSystem = getTagTextNS(mes, 'geoidSystem') || d.geoidSystem; d.fixMode = getTagTextNS(mes, 'fixMode') || d.fixMode; } }
+                if (d.ellipsoidHeight !== null && d.pointGeoidHeight !== null) { const ce = d.ellipsoidHeight - d.pointGeoidHeight; d.eleDiff = d.antennaHeight - ce; }
+                points.push(d);
+            } return points;
+        }
+
+        function updateUI() {
+            if (rawSurveyPoints.length === 0) return; const sys = document.getElementById('coordSystem').value; const pole = parseFloat(document.getElementById('poleHeight').value); const params = jprcsParams[sys];
+            const processed = rawSurveyPoints.map(p => ({ ...p, x: latLonToXY(p.lat, p.lon, params).x, y: latLonToXY(p.lat, p.lon, params).y, correctedEle: p.antennaHeight - pole }));
+            displayTable(processed); addMarkersAndLine(processed);
+        }
+        
+        function displayTable(points) {
+            const helpText = "GPXファイルに記録された標高(<ele>タグ)と、楕円体高とジオイド高から計算した標高の差です。0に近いほど、受信機内部の計算が自己矛盾なく行われていることを示します。";
+            let tableHTML = `<table><thead><tr>
+                <th>測点名</th><th class="mobile-hidden">測定日時</th><th>緯度</th><th>経度</th>
+                <th>X (m)</th><th>Y (m)</th><th class="mobile-hidden">FIX</th><th class="mobile-hidden">ジオイド</th>
+                <th>アンテナ高</th><th>補正後標高</th><th class="mobile-hidden">標高差<i class="help-icon" title="${helpText}">?</i></th>
+                </tr></thead><tbody>`;
+            points.forEach((p, index) => {
+                const timeStr = p.time ? new Date(p.time).toLocaleString('ja-JP', { hour12: false }).replace(/\//g, '-') : 'N/A';
+                const diffStr = p.eleDiff !== null ? p.eleDiff.toFixed(4) : 'N/A'; const diffClass = Math.abs(p.eleDiff) > 0.01 ? 'diff-alert' : '';
+                tableHTML += `<tr onclick="focusMarker(${index})">
+                    <td><strong>${p.name}</strong></td><td class="mobile-hidden">${timeStr}</td>
+                    <td>${p.lat.toFixed(9)}</td><td>${p.lon.toFixed(9)}</td>
+                    <td>${p.x.toFixed(3)}</td><td>${p.y.toFixed(3)}</td><td class="mobile-hidden">${p.fixMode}</td>
+                    <td class="mobile-hidden">${p.geoidSystem}</td><td>${p.antennaHeight.toFixed(3)}</td>
+                    <td>${p.correctedEle.toFixed(3)}</td><td class="mobile-hidden ${diffClass}">${diffStr}</td></tr>`;
+            });
+            document.getElementById('tableContainer').innerHTML = tableHTML + `</tbody></table>`;
+        }
+        
+        function addMarkersAndLine(points) {
+            markers.forEach(m => map.removeLayer(m)); markers = []; if (polylineLayer) map.removeLayer(polylineLayer); const bounds = [];
+            points.forEach(p => { const marker = L.marker([p.lat, p.lon]).addTo(map); marker.bindPopup(`<strong>${p.name}</strong><br>補正後標高: ${p.correctedEle.toFixed(3)}m`); markers.push(marker); bounds.push([p.lat, p.lon]); });
+            const lineShouldBeVisible = document.getElementById('toggleLine').checked;
+            if (points.length > 1 && lineShouldBeVisible) {
+                polylineLayer = L.polyline(bounds, { color: 'red', weight: 2 }).addTo(map);
+            }
+            if (bounds.length > 0) map.fitBounds(bounds, { padding: [20, 20] });
+        }
+        
+        window.focusMarker = (index) => { if (markers[index]) { markers[index].openPopup(); map.setView(markers[index].getLatLng(), 18); } };
+
+        function processFile(file) {
+            if (!file || !file.name.toLowerCase().endsWith('.gpx')) { alert('GPXファイルを選択してください。'); return; } const reader = new FileReader();
+            reader.onload = (e) => { try { rawSurveyPoints = parseGPX(e.target.result); if (rawSurveyPoints.length === 0) { alert('GPXに測点(<wpt>)がありません。'); return; } handleResize(); updateUI(); document.getElementById('downloadCsvBtn').style.visibility = 'visible'; } catch (err) { alert('GPX解析エラー: ' + err.message); console.error(err); } };
+            reader.readAsText(file);
+        }
+
+        function handleResize() {
+            if (window.innerWidth <= 768) {
+                const toggleLine = document.getElementById('toggleLine');
+                if (toggleLine.checked) {
+                    toggleLine.checked = false;
+                    if (polylineLayer) map.removeLayer(polylineLayer);
+                }
+            }
+            // Ensure map size is updated after layout changes
+            setTimeout(() => { map.invalidateSize() }, 100);
+        }
+        
+        // --- イベントリスナー ---
+        document.getElementById('fileInput').addEventListener('change', (e) => processFile(e.target.files[0]));
+        ['coordSystem', 'poleHeight'].forEach(id => document.getElementById(id).addEventListener('change', updateUI));
+        document.getElementById('toggleLine').addEventListener('change', (e) => { if (!polylineLayer) return; if (e.target.checked) map.addLayer(polylineLayer); else map.removeLayer(polylineLayer); });
+        const body = document.body; body.addEventListener('dragover', (e) => { e.preventDefault(); body.classList.add('drag-over'); }); body.addEventListener('dragleave', () => body.classList.remove('drag-over')); body.addEventListener('drop', (e) => { e.preventDefault(); body.classList.remove('drag-over'); processFile(e.dataTransfer.files[0]); });
+        document.getElementById('downloadCsvBtn').addEventListener('click', () => {
+            if (rawSurveyPoints.length === 0) return; const sys = document.getElementById('coordSystem').value; const pole = parseFloat(document.getElementById('poleHeight').value); const params = jprcsParams[sys]; let csv = "\uFEFF";
+            csv += "測点名,測定日時,緯度,経度,X座標(m),Y座標(m),FIXモード,ジオイドシステム,楕円体高(m),点のジオイド高(m),アンテナ高(m),標高差(m),ポール高(m),補正後標高(m),cmt\r\n";
+            rawSurveyPoints.forEach(p => {
+                const xy = latLonToXY(p.lat, p.lon, params); const ce = p.antennaHeight - pole; const ts = p.time ? new Date(p.time).toLocaleString('ja-JP') : '';
+                const cmtSanitized = '"' + (p.cmtText || '').replace(/"/g, '""') + '"'; // Quote and escape quotes
+                const row = [ p.name, ts, p.lat.toFixed(9), p.lon.toFixed(9), xy.x.toFixed(4), xy.y.toFixed(4), p.fixMode, p.geoidSystem, p.ellipsoidHeight?.toFixed(4) || '', p.pointGeoidHeight?.toFixed(4) || '', p.antennaHeight.toFixed(4), p.eleDiff?.toFixed(4) || '', pole.toFixed(4), ce.toFixed(4), cmtSanitized ].join(",");
+                csv += row + "\r\n";
+            });
+            const link = document.createElement("a"); link.setAttribute("href", 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv)); link.setAttribute("download", `survey_data_系${sys}.csv`);
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        });
+        
+        function initialize() {
+            const coordSelect = document.getElementById('coordSystem');
+            for (let i = 1; i <= 19; i++) { const opt = document.createElement('option'); opt.value = i; opt.textContent = `第${i}系`; if (i === 9) opt.selected = true; coordSelect.appendChild(opt); }
+            initMap();
+            handleResize(); // 初期表示時のレイアウトをチェック
+            window.addEventListener('resize', handleResize); // ウィンドウサイズ変更時にレイアウトをチェック
+        }
+
+        initialize();
+    </script>
+</body>
+</html>
