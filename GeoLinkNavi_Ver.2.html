@@ -1015,8 +1015,6 @@ font-size: 16px;
 .map-description { display: none; }
 .manual-input-warning { color: var(--red-alert); font-size: 11px; margin-top: 5px; font-weight: 600; }
 
-.status-bar { background: var(--bg-light); padding: 3px 10px; border-top: 1px solid var(--border-color); display: flex; justify-content:  center; align-items: center; font-size: 12px; color: var(--text-medium); gap: 15px; flex-shrink: 0; }
-.status-bar strong { color: var(--text-dark); }
 .notification { position: fixed; top: 20px; right: 20px; background: var(--success-color); color: white; padding: 15px 25px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: none; animation: slideIn 0.3s ease; z-index: 2000; font-weight: 600; }
 .notification.error { background: var(--error-color); }
 .notification.warning { background: #FFA000; color: white; }
@@ -3234,9 +3232,6 @@ body.dark-mode .settings-tab-content[data-tab-content="basic"] .modal-form-group
     </aside>
 </main>
 
-<div class="status-bar">
-    <span id="lastUpdated"></span>
-</div>
 </div>
 
 <style>
@@ -3251,9 +3246,16 @@ body.dark-mode .settings-tab-content[data-tab-content="basic"] .modal-form-group
 </style>
 
 <footer class="legal-notice" style="font-size: 11px; text-align: center; padding: 5px 0; color: var(--text-medium); background: var(--bg-container);">
-  <div id="legal-toggle" style="cursor: pointer; font-weight: bold; padding: 5px;">
-    免責事項 (クリックで表示)
+  <!-- ▼▼▼【ここから変更】▼▼▼ -->
+  <div style="display: flex; justify-content: center; align-items: center; gap: 2em;">
+    <span id="lastUpdated"></span>
+    <div id="legal-toggle" style="cursor: pointer; font-weight: bold; padding: 5px;">
+      免責事項 (クリックで表示)
+    </div>
   </div>
+  <!-- ▲▲▲【変更ここまで】▲▲▲ -->
+
+
   <div id="legal-details" style="display: none; margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 10px;">
     <p class="copyright" style="font-weight: bold;">
       Copyright &copy; 2025 (株)地圏総合コンサルタント All Rights Reserved.
@@ -7545,7 +7547,7 @@ initCsvImport();
 initCsvPlotter();
 
 const today = new Date();
-document.getElementById('lastUpdated').textContent = `最終更新日: ${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
+document.getElementById('lastUpdated').textContent = `最終更新日: 2025年11月13日`;
 
 async function initializeApp() {
     if (applyStateFromUrl()) {
@@ -8676,7 +8678,7 @@ function toggleDualViewMode() {
     }
 
     const mapContainer = document.getElementById('osmClickMap');
-    const toggleBtn = document.getElementById('toggleDualViewBtn');
+    const toggleBtn = document.getElementById('toggleDualViewBtn');F
     
     isDualView = !isDualView;
     mapContainer.classList.toggle('dual-view-mode', isDualView);
