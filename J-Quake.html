@@ -1371,7 +1371,7 @@ function saveSettings(){ localStorage.setItem("jq_config_v5", JSON.stringify(con
 function cancelSettings(){ if(configBackup){config=configBackup; rebuildList(); updateUserMarkersAndDropdown();} document.getElementById("modal-overlay").style.display="none"; }
 function updateUserMarkersAndDropdown(){
     userLocationMarkers.forEach(m=>map.removeLayer(m)); userLocationMarkers=[];
-    const sel=document.getElementById("header-loc-select"); sel.innerHTML='<option value="">📍 地点...</option>';
+    const sel=document.getElementById("header-loc-select"); sel.innerHTML='<option value="">📍登録地点</option>';
     config.savedLocations.forEach((l,i)=>{
         const o=document.createElement("option"); o.value=i; o.textContent=l.name; sel.appendChild(o);
         const m=L.marker([l.lat,l.lon],{icon:L.divIcon({className:'user-icon',html:'<div style="background:#2196F3;width:12px;height:12px;border-radius:50%;border:2px solid white;"></div>',iconSize:[16,16]})}).addTo(map).bindTooltip(l.name);
