@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>J-Quake</title>
+<title>J-Quake Pro</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌊</text></svg>">
 <!-- Leaflet -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -28,12 +28,11 @@
     /* Layout */
     #app-container {
         display: grid;
-        grid-template-columns: 0px 0px 1fr; /* デフォルトはオーバーレイモード */
+        grid-template-columns: 0px 0px 1fr;
         grid-template-rows: 50px 1fr;
         height: 100vh; width: 100vw;
         transition: grid-template-columns 0.3s ease;
     }
-    /* ピン留めモード時のレイアウト */
     #app-container.pinned {
         grid-template-columns: var(--sidebar-width) 6px 1fr;
     }
@@ -71,24 +70,12 @@
         grid-row: 2 / 3; grid-column: 1 / 2; background-color: var(--panel-bg);
         overflow-y: auto; display: flex; flex-direction: column;
         border-right: 1px solid #333;
-        
-        /* オーバーレイ(非ピン留め)モードの挙動 */
         position: absolute; top: 50px; left: 0; bottom: 0; width: var(--sidebar-width);
         transform: translateX(-100%); transition: transform 0.3s ease; z-index: 3000;
     }
-    
-    /* サイドバーが表示状態（オーバーレイ） */
-    aside.visible {
-        transform: translateX(0);
-        box-shadow: 5px 0 15px rgba(0,0,0,0.5);
-    }
-    /* ピン留め時はGrid内に収まるためTransform不要 */
-    #app-container.pinned aside {
-        position: relative; top: auto; left: auto; bottom: auto;
-        transform: none; z-index: 1; border-right: none;
-    }
+    aside.visible { transform: translateX(0); box-shadow: 5px 0 15px rgba(0,0,0,0.5); }
+    #app-container.pinned aside { position: relative; top: auto; left: auto; bottom: auto; transform: none; z-index: 1; border-right: none; }
 
-    /* Sidebar Header (Pin) */
     .sidebar-header {
         display: flex; justify-content: space-between; align-items: center;
         padding: 8px 10px; background: #252525; border-bottom: 1px solid #333;
@@ -122,32 +109,39 @@
     .quake-time { color: #888; font-size: 0.75rem; }
     .quake-place { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: bold; }
 
-    /* Resizer (Only visible when pinned) */
     #gutter {
         grid-row: 2 / 3; grid-column: 2 / 3; background: #111; cursor: col-resize;
-        border-left: 1px solid #333; border-right: 1px solid #333; z-index: 100;
-        display: none; /* デフォルト非表示 */
+        border-left: 1px solid #333; border-right: 1px solid #333; z-index: 100; display: none;
     }
     #app-container.pinned #gutter { display: block; }
 
-    /* Map Area */
     main { grid-column: 3 / 4; grid-row: 2 / 3; position: relative; background: #000; width: 100%; height: 100%; }
     #map { width: 100%; height: 100%; z-index: 1; }
-    
     .crosshair-cursor { cursor: crosshair !important; }
+
+    /* Map Icons (Updated) */
+    .map-shindo-icon {
+        display: flex; justify-content: center; align-items: center;
+        border-radius: 4px; color: #000; font-weight: bold;
+        font-size: 11px; box-shadow: 0 0 3px rgba(0,0,0,0.5);
+        border: 1px solid rgba(255,255,255,0.8);
+    }
 
     /* Panels on Map */
     #latest-info-panel {
         position: absolute; top: 10px; left: 10px; width: 240px; max-width: 60vw;
         background: rgba(0, 0, 0, 0.85); border: 1px solid #444; border-radius: 8px;
-        padding: 10px; z-index: 1000; pointer-events: none; backdrop-filter: blur(5px);
+        padding: 10px; z-index: 1000; backdrop-filter: blur(5px);
+        cursor: pointer; transition: background 0.2s; /* Clickable style */
     }
+    #latest-info-panel:hover { background: rgba(30, 30, 30, 0.95); border-color: #666; }
+    
     .panel-row { display: flex; justify-content: space-between; align-items: baseline; }
     .big-place { font-size: 1.2rem; font-weight: bold; margin: 5px 0; }
     .mag-depth { font-family: 'Roboto Mono', monospace; color: #bbb; font-size: 0.85rem; }
     .shindo-display { display: flex; align-items: center; gap: 10px; margin-top: 5px; background: #222; padding: 5px 10px; border-radius: 4px; }
+    .click-hint { font-size: 0.7rem; color: #888; text-align: right; margin-top: 4px; }
 
-    /* Floating Tool Panel */
     #map-tool-container {
         position: absolute; bottom: 25px; left: 10px; z-index: 1200;
         display: flex; flex-direction: column-reverse; align-items: flex-start;
@@ -165,12 +159,10 @@
         backdrop-filter: blur(5px); display: none; flex-direction: column; gap: 8px; 
         box-shadow: 0 4px 15px rgba(0,0,0,0.6);
     }
-    
     .tool-section-label { font-size: 0.7rem; color: #888; border-bottom: 1px solid #444; margin-bottom: 4px; padding-bottom: 2px;}
     .tool-row { display: flex; flex-direction: column; gap: 4px; }
     .tool-control { width: 100%; box-sizing: border-box; background: #222; border: 1px solid #444; color: #fff; padding: 4px; border-radius: 4px; font-size: 0.85rem; }
     
-    /* GPS Button */
     #btn-gps-main {
         position: absolute; bottom: 100px; right: 10px; z-index: 1000;
         width: 40px; height: 40px; background: #fff; color: #000;
@@ -180,9 +172,7 @@
         font-size: 1.5rem; transition: background 0.2s;
     }
     #btn-gps-main:hover { background: #f0f0f0; }
-    #btn-gps-main:active { background: #ddd; }
 
-    /* Tsunami Panel */
     #tsunami-panel {
         display: none; position: absolute; top: 90px; left: 50%; transform: translateX(-50%); width: 350px; max-width: 90%;
         background: rgba(0, 0, 50, 0.95); border: 2px solid var(--accent-blue); border-radius: 8px;
@@ -220,67 +210,56 @@
     }
     .legend-item { display: flex; align-items: center; gap: 5px; margin-bottom: 2px; }
     .legend-icon { width: 14px; height: 14px; display: inline-block; flex-shrink: 0; }
-    .leaflet-interactive { cursor: pointer; }
-
+    
     @keyframes flash { from { opacity: 1; } to { opacity: 0.8; } }
 
-    /* Modal */
-    #modal-overlay {
+    /* Modal Common */
+    .modal-overlay-common {
         display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.5); z-index: 9999;
+        background: rgba(0,0,0,0.5); z-index: 9999; backdrop-filter: blur(2px);
     }
-    #modal-window {
-        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-        background: #222; width: 500px; max-width: 95%; max-height: 90vh; overflow-y: auto;
-        border-radius: 8px; padding: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-        border: 1px solid #444;
-    }
-    .modal-header { 
-        font-size: 1.1rem; font-weight: bold; margin-bottom: 10px; 
-        border-bottom: 1px solid #444; padding-bottom: 5px; display:flex; 
-        justify-content:space-between; cursor: move; user-select: none;
-    }
-    .form-group { margin-bottom: 10px; background: #2a2a2a; padding: 10px; border-radius: 5px; }
-    .form-label { display: block; margin-bottom: 5px; color: #aaa; font-size: 0.85rem; }
-    
-    .loc-list-item { display: flex; justify-content: space-between; align-items: center; background: #333; padding: 5px; margin-bottom: 5px; border-radius: 4px; font-size: 0.9rem;}
-    .btn-primary { background: var(--accent-blue); color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 10px; }
-    .btn-cancel { background: #444; color: #ddd; border: none; padding: 8px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 10px; }
-    .btn-close { background:transparent; border:none; color:#888; font-size:1.5rem; cursor:pointer;}
-    .btn-row { display: flex; gap: 10px; margin-top: 15px; }
-
-    input[type="number"], input[type="text"], select { background: #333; border: 1px solid #555; color: #fff; padding: 5px; border-radius: 4px; width: 100%; box-sizing: border-box; }
-    input[type="color"] { background: none; border: none; width: 30px; height: 30px; cursor: pointer; }
-    .color-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-    .color-item { display: flex; align-items: center; gap: 10px; background: #333; padding: 5px; border-radius: 4px; font-size: 0.8rem; }
-
-/* Help Modal Specific Styles */
-    #help-modal-overlay {
-        display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.6); z-index: 9999; backdrop-filter: blur(2px);
-    }
-    #help-modal-window {
+    .modal-window-common {
         position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
         background: #1e1e1e; width: 600px; max-width: 95%; max-height: 85vh; overflow-y: auto;
         border-radius: 12px; padding: 0; box-shadow: 0 15px 40px rgba(0,0,0,0.9);
         border: 1px solid #444; display: flex; flex-direction: column;
     }
-    #help-modal-window .modal-header {
+    .modal-header {
         padding: 15px 20px; background: #252525; border-bottom: 1px solid #333;
         position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between;
+        font-weight: bold; font-size: 1.1rem; user-select: none;
     }
-    .help-content { padding: 20px; font-size: 0.95rem; line-height: 1.6; color: #ddd; }
-    .help-content section { margin-bottom: 25px; border-bottom: 1px solid #333; padding-bottom: 20px; }
-    .help-content section:last-child { border-bottom: none; margin-bottom: 0; }
-    .help-content h3 { margin-top: 0; margin-bottom: 10px; color: #fff; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; }
-    .help-content ul { padding-left: 20px; margin: 10px 0; }
-    .help-content li { margin-bottom: 5px; }
+    .modal-content { padding: 20px; font-size: 0.95rem; line-height: 1.6; color: #ddd; overflow-y: auto; }
+    .btn-close { background:transparent; border:none; color:#888; font-size:1.5rem; cursor:pointer;}
+    .btn-close:hover { color:#fff; }
+
+    /* Settings Form */
+    .form-group { margin-bottom: 15px; background: #2a2a2a; padding: 15px; border-radius: 6px; }
+    .form-label { display: block; margin-bottom: 8px; color: #aaa; font-size: 0.85rem; }
+    .btn-row { display: flex; gap: 10px; margin-top: 20px; padding: 0 20px 20px 20px;}
+    .btn-primary { background: var(--accent-blue); color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; flex: 1; }
+    .btn-cancel { background: #444; color: #ddd; border: none; padding: 10px; border-radius: 4px; cursor: pointer; flex: 1; }
+    input[type="number"], input[type="text"], select { background: #333; border: 1px solid #555; color: #fff; padding: 6px; border-radius: 4px; width: 100%; box-sizing: border-box; }
+    input[type="color"] { background: none; border: none; width: 30px; height: 30px; cursor: pointer; }
+    .color-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .color-item { display: flex; align-items: center; gap: 10px; background: #333; padding: 5px; border-radius: 4px; font-size: 0.8rem; }
+    .loc-list-item { display: flex; justify-content: space-between; align-items: center; background: #333; padding: 8px; margin-bottom: 5px; border-radius: 4px; font-size: 0.9rem;}
+
+    /* Detail Modal Specific */
+    .detail-section { margin-bottom: 20px; }
+    .detail-pref-header { background: #333; padding: 5px 10px; font-weight: bold; border-left: 4px solid var(--accent-blue); margin-top: 10px; margin-bottom: 5px; }
+    .detail-area-row { display: flex; flex-wrap: wrap; gap: 5px; padding: 5px 10px; }
+    .detail-point-badge { 
+        display: inline-flex; align-items: center; gap: 5px; background: #252525; 
+        padding: 3px 8px; border-radius: 4px; font-size: 0.85rem; border: 1px solid #333; 
+    }
+    .point-shindo { font-weight: bold; width: 20px; text-align: center; border-radius: 2px; color: #000; text-shadow: 0 0 1px rgba(255,255,255,0.5); }
     
-    /* Scrollbar customized for modal */
-    #help-modal-window::-webkit-scrollbar { width: 8px; }
-    #help-modal-window::-webkit-scrollbar-track { background: #1e1e1e; }
-    #help-modal-window::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
-    #help-modal-window::-webkit-scrollbar-thumb:hover { background: #555; }
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #1e1e1e; }
+    ::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #555; }
 
 </style>
 </head>
@@ -298,7 +277,7 @@
             <option value="">📍 地点...</option>
         </select>
         <button id="btn-settings" class="icon-btn">⚙️</button>
-<button id="btn-help" class="icon-btn" title="ヘルプ">❓</button>
+        <button id="btn-help" class="icon-btn" title="ヘルプ">❓</button>
     </div>
 </header>
 
@@ -319,7 +298,7 @@
 
 <!-- Map Area -->
 <main>
-    <!-- Map Tool Panel (Floating) -->
+    <!-- Map Tool Panel -->
     <div id="map-tool-container">
         <div id="tool-toggle-btn">🛠️ 表示・ツール</div>
         <div id="tool-panel-content">
@@ -365,7 +344,7 @@
     </div>
 
     <!-- Info Panel -->
-    <div id="latest-info-panel">
+    <div id="latest-info-panel" title="クリックして詳細を表示">
         <div class="panel-row">
             <span style="color:#aaa; font-size:0.75rem;">発生時刻</span>
             <span id="p-time" class="mag-depth">--/-- --:--</span>
@@ -379,6 +358,7 @@
             <div id="p-shindo-box" class="intensity-box" style="background:#444;">-</div>
             <div id="p-shindo-text" style="font-size:1.2rem; font-weight:bold;">-</div>
         </div>
+        <div class="click-hint">👆 詳細</div>
     </div>
 
     <div id="eew-overlay">
@@ -412,64 +392,144 @@
 </div>
 
 <!-- Modal Settings -->
-<div id="modal-overlay">
-<div id="modal-window">
-<div class="modal-header" id="modal-header-drag">
-    <span>設定</span>
-    <button class="btn-close" id="modal-close">×</button>
-</div>
+<div id="modal-overlay" class="modal-overlay-common">
+    <div id="modal-window" class="modal-window-common" style="width:500px;">
+        <div class="modal-header" id="modal-header-drag">
+            <span>⚙️ 設定</span>
+            <button class="btn-close" id="modal-close">×</button>
+        </div>
+        <div class="modal-content">
+            <div class="form-group">
+                <label class="form-label" style="font-weight:bold; color:#2196F3;">💾 バックアップ</label>
+                <div style="display:flex; gap:10px;">
+                    <button class="icon-btn" onclick="exportConfig()" style="flex:1; justify-content:center;">📤 保存</button>
+                    <button class="icon-btn" onclick="document.getElementById('import-file').click()" style="flex:1; justify-content:center;">📥 読込</button>
+                    <input type="file" id="import-file" style="display:none" onchange="importConfig(this)">
+                </div>
+            </div>
 
-<div class="form-group">
-    <label class="form-label" style="font-weight:bold; color:#2196F3;">💾 バックアップ</label>
-    <div style="display:flex; gap:10px;">
-        <button class="icon-btn" onclick="exportConfig()" style="flex:1; justify-content:center;">📤 保存</button>
-        <button class="icon-btn" onclick="document.getElementById('import-file').click()" style="flex:1; justify-content:center;">📥 読込</button>
-        <input type="file" id="import-file" style="display:none" onchange="importConfig(this)">
+            <div class="form-group">
+                <label class="form-label" style="font-weight:bold; color:#2196F3;">📍 マイロケーション</label>
+                <div id="settings-loc-list" style="margin-bottom:10px;"></div>
+                <div style="display:grid; grid-template-columns: 2fr 1.5fr 1.5fr 1fr; gap:5px; align-items:end;">
+                    <div><label class="form-label">名称</label><input type="text" id="new-loc-name" placeholder="自宅"></div>
+                    <div><label class="form-label">緯度</label><input type="number" id="new-loc-lat" step="0.0001" placeholder="35.xxxx"></div>
+                    <div><label class="form-label">経度</label><input type="number" id="new-loc-lon" step="0.0001" placeholder="139.xxxx"></div>
+                    <button class="icon-btn" onclick="addLocation()" style="justify-content:center;">＋</button>
+                </div>
+                <div style="display:flex; gap:5px; margin-top:5px;">
+                    <button class="icon-btn" onclick="startMapPick()" style="flex:1; justify-content:center; background:#283593;">🗺️ 地図指定</button>
+                    <button class="icon-btn" onclick="getCurrentLocationForInput()" style="flex:1; justify-content:center;">📡 GPS取得</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">通知する最小震度（予測）</label>
+                <select id="input-alert-threshold">
+                    <option value="10">震度1以上</option>
+                    <option value="30" selected>震度3以上</option>
+                    <option value="40">震度4以上</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">震度別カラー</label>
+                <div class="color-grid" id="color-settings-grid"></div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">デモ実行</label>
+                <div style="display:flex; gap:10px;">
+                    <button class="icon-btn" onclick="demoEEW()" style="flex:1; justify-content:center; background:#b71c1c;">⚠️ EEWデモ</button>
+                    <button class="icon-btn" onclick="demoTsunami()" style="flex:1; justify-content:center; background:#006064;">🌊 津波デモ</button>
+                </div>
+            </div>
+        </div>
+        <div class="btn-row">
+            <button class="btn-cancel" id="btn-cancel-settings">キャンセル</button>
+            <button class="btn-primary" id="btn-save-settings">保存</button>
+        </div>
     </div>
 </div>
 
-<div class="form-group">
-    <label class="form-label" style="font-weight:bold; color:#2196F3;">📍 マイロケーション</label>
-    <div id="settings-loc-list" style="margin-bottom:10px;"></div>
-    <div style="display:grid; grid-template-columns: 2fr 1.5fr 1.5fr 1fr; gap:5px; align-items:end;">
-        <div><label class="form-label">名称</label><input type="text" id="new-loc-name" placeholder="自宅"></div>
-        <div><label class="form-label">緯度</label><input type="number" id="new-loc-lat" step="0.0001" placeholder="35.xxxx"></div>
-        <div><label class="form-label">経度</label><input type="number" id="new-loc-lon" step="0.0001" placeholder="139.xxxx"></div>
-        <button class="icon-btn" onclick="addLocation()" style="justify-content:center;">＋</button>
-    </div>
-    <div style="display:flex; gap:5px; margin-top:5px;">
-        <button class="icon-btn" onclick="startMapPick()" style="flex:1; justify-content:center; background:#283593;">🗺️ 地図指定</button>
-        <button class="icon-btn" onclick="getCurrentLocationForInput()" style="flex:1; justify-content:center;">📡 GPS取得</button>
-    </div>
-</div>
-
-<div class="form-group">
-    <label class="form-label">通知する最小震度（予測）</label>
-    <select id="input-alert-threshold">
-        <option value="10">震度1以上</option>
-        <option value="30" selected>震度3以上</option>
-        <option value="40">震度4以上</option>
-    </select>
-</div>
-
-<div class="form-group">
-    <label class="form-label">震度別カラー</label>
-    <div class="color-grid" id="color-settings-grid"></div>
-</div>
-
-<div class="form-group">
-    <label class="form-label">デモ実行</label>
-    <div style="display:flex; gap:10px;">
-        <button class="icon-btn" onclick="demoEEW()" style="flex:1; justify-content:center; background:#b71c1c;">⚠️ EEWデモ</button>
-        <button class="icon-btn" onclick="demoTsunami()" style="flex:1; justify-content:center; background:#006064;">🌊 津波デモ</button>
+<!-- Quake Detail Modal -->
+<div id="detail-modal-overlay" class="modal-overlay-common">
+    <div id="detail-modal-window" class="modal-window-common">
+        <div class="modal-header">
+            <span id="detail-title">各地の震度</span>
+            <button class="btn-close" id="detail-modal-close">×</button>
+        </div>
+        <div class="modal-content" id="detail-content">
+            <!-- Content Injected via JS -->
+            データを選択してください。
+        </div>
     </div>
 </div>
 
-<div class="btn-row">
-    <button class="btn-cancel" id="btn-cancel-settings">キャンセル</button>
-    <button class="btn-primary" id="btn-save-settings">保存</button>
-</div>
-</div>
+<!-- Help Modal -->
+<div id="help-modal-overlay" class="modal-overlay-common">
+    <div id="help-modal-window" class="modal-window-common">
+        <div class="modal-header">
+            <span>📖 J-Quake ヘルプ</span>
+            <button class="btn-close" id="help-modal-close">×</button>
+        </div>
+        <div class="modal-content">
+            <section style="margin-bottom: 20px;">
+                <h3 style="margin-top:0; color:#fff;">📌 このアプリについて</h3>
+                <p>P2P地震情報のAPIを利用し、リアルタイムで地震情報・津波情報・緊急地震速報を表示するWebアプリケーションです。</p>
+            </section>
+            <hr style="border-color:#333; margin:20px 0;">
+
+            <section style="margin-bottom: 20px;">
+                <h3 style="color:#fff;">🗺️ 地図の見方</h3>
+                <ul>
+                    <li><span style="color:#2196F3; font-weight:bold;">青い波紋 (P波)</span>: 初期微動。カタカタ揺れます。</li>
+                    <li><span style="color:#f44336; font-weight:bold;">赤い波紋 (S波)</span>: 主要動。ユサユサ大きく揺れます。</li>
+                    <li><strong>丸いマーカー</strong>: 震源地を表します。円の大きさはマグニチュード、色は震度に対応します。</li>
+                    <li><strong>四角い数値アイコン</strong>: 各観測点の震度を表示しています。（旧：小さな点）</li>
+                </ul>
+            </section>
+            <hr style="border-color:#333; margin:20px 0;">
+
+            <section style="margin-bottom: 20px;">
+                <h3 style="color:#fff;">🛠️ ツールバーの機能</h3>
+                <p>地図左下の「🛠️ 表示・ツール」から以下の機能が使えます。</p>
+                <ul>
+                    <li><strong>🎯 新着追尾</strong>: 新しい地震が発生した際、自動的にその場所に地図を移動します。</li>
+                    <li><strong>🔇 音声</strong>: 地震発生時に情報を読み上げます（ブラウザの音声機能を使用）。</li>
+                    <li><strong>📍 観測点</strong>: 各地の震度観測点の表示/非表示を切り替えます。</li>
+                    <li><strong>🌊 潮位観測</strong>: 日本各地の潮位観測所を表示します。クリックで気象庁の潮位グラフへ飛びます。</li>
+                    <li><strong>📷 保存</strong>: 現在の画面を画像としてダウンロードします。</li>
+                </ul>
+            </section>
+            <hr style="border-color:#333; margin:20px 0;">
+
+            <section style="margin-bottom: 20px;">
+                <h3 style="color:#fff;">⚙️ 設定・詳細表示</h3>
+                <p>右上の歯車アイコン、または情報パネルから機能にアクセスできます。</p>
+                <ul>
+                    <li><strong>詳細パネル</strong>: 左上の地震情報パネルをクリックすると、各地の震度一覧リストを表示します。</li>
+                    <li><strong>マイロケーション</strong>: 自宅や職場を登録しておくと、リストからすぐに地図移動できます。</li>
+                    <li><strong>パーソナル予報</strong>: 緊急地震速報受信時、登録地点への到達時間と予測震度を表示します。</li>
+                    <li><strong>バックアップ</strong>: 設定内容をファイルに保存・復元できます。</li>
+                </ul>
+            </section>
+            <hr style="border-color:#333; margin:20px 0;">
+
+            <section style="margin-bottom: 20px;">
+                <h3 style="color:#fff;">⚠️ データ・免責事項</h3>
+                <p>
+                    本アプリの地震情報は<a href="https://www.p2pquake.net/" target="_blank" style="color:#2196F3;">P2P地震情報</a>のAPI、地図データは国土地理院・OpenStreetMap等のオープンデータを使用しています。<br>
+                    情報の正確性には万全を期していますが、本アプリの利用により生じた損害について開発者は責任を負いません。命に関わる判断はテレビ・ラジオ等の公式情報に従ってください。
+                </p>
+            </section>
+            
+            <section>
+                <h3 style="color:#fff;">ℹ️ 最終更新日</h3>
+                <p> 2025年12月9日 </p>
+            </section>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -519,6 +579,7 @@ let socket = null;
 let alertTimerInterval = null;
 let isToolLocked = false;
 let isTideVisible = false;
+let currentQuakeId = null; // Currently selected quake ID
 
 // Sidebar State
 let isSidebarPinned = false; 
@@ -527,9 +588,8 @@ let isSidebarVisible = false;
 let pWaveLayer, sWaveLayer, currentWaveTarget, pointsLayerGroup, tsunamiLayerGroup, tideLayerGroup, geoJsonData;
 let userLocationMarkers = [];
 
-// ▼ Raw Tide Data (Full Restoration) ▼
-const TIDE_STATIONS_RAW = `
-1	枝幸	港湾局	北海道 枝幸郡 枝幸町 幸町	44°56′	142°35′
+// ▼ Raw Tide Data ▼
+const TIDE_STATIONS_RAW = `1	枝幸	港湾局	北海道 枝幸郡 枝幸町 幸町	44°56′	142°35′
 2	沓形	港湾局	北海道 利尻郡 利尻町 沓形	45°11′	141°8′
 3	稚内	気象庁	北海道 稚内市 新港町	45°24′	141°41′
 4	留萌	港湾局	北海道 留萌市 大町１丁目	43°57′	141°38′
@@ -716,8 +776,7 @@ const TIDE_STATIONS_RAW = `
 185	南大東	気象庁	沖縄県 島尻郡 南大東村 北	25°52′	131°14′
 186	平良	港湾局	沖縄県 宮古島市 平良西里	24°49′	125°17′
 187	石垣	気象庁	沖縄県 石垣市 八島町２丁目	24°20′	124°10′
-188	与那国	気象庁	沖縄県 八重山郡 与那国町 久部良	24°27′	122°57′
-`;
+188	与那国	気象庁	沖縄県 八重山郡 与那国町 久部良	24°27′	122°57′`;
 
 // SVG Icons
 function getTideSvg(type) {
@@ -759,19 +818,19 @@ window.onload = async () => {
     document.getElementById("btn-tide-toggle").onclick = toggleTide;
     document.getElementById("filter-min-shindo").onchange = rebuildList;
     document.getElementById("header-loc-select").onchange = (e) => { if(e.target.value !== "") jumpToLocation(e.target.value); };
-// Help Modal Bindings
-    document.getElementById("btn-help").onclick = () => {
-        document.getElementById("help-modal-overlay").style.display = "block";
-    };
-    document.getElementById("help-modal-close").onclick = () => {
-        document.getElementById("help-modal-overlay").style.display = "none";
-    };
-    // Overlay click to close
-    document.getElementById("help-modal-overlay").onclick = (e) => {
-        if(e.target.id === "help-modal-overlay") {
-            document.getElementById("help-modal-overlay").style.display = "none";
-        }
-    };
+    
+    // Help Modal Bindings
+    document.getElementById("btn-help").onclick = () => { document.getElementById("help-modal-overlay").style.display = "block"; };
+    document.getElementById("help-modal-close").onclick = () => { document.getElementById("help-modal-overlay").style.display = "none"; };
+    
+    // Detail Modal Bindings
+    document.getElementById("detail-modal-close").onclick = () => { document.getElementById("detail-modal-overlay").style.display = "none"; };
+    document.getElementById("latest-info-panel").onclick = openDetailModal;
+
+    // Common Modal Overlay Close
+    document.querySelectorAll('.modal-overlay-common').forEach(el => {
+        el.addEventListener('click', (e) => { if(e.target === el) el.style.display = "none"; });
+    });
 
     ['jma','jcg','gsi','port','riv','pref'].forEach(k => { document.getElementById(`leg-${k}`).innerHTML = getTideSvg(k); });
 
@@ -808,9 +867,7 @@ function toggleSidebar() {
     
     if (isSidebarVisible) {
         sidebar.classList.add('visible');
-        if(isSidebarPinned) {
-            container.classList.add('pinned');
-        }
+        if(isSidebarPinned) container.classList.add('pinned');
     } else {
         sidebar.classList.remove('visible');
         container.classList.remove('pinned');
@@ -830,9 +887,6 @@ function toggleSidebarPin() {
         btn.classList.remove("active");
         btn.innerHTML = "📌 ピン留め";
         container.classList.remove("pinned");
-        // ピン留め解除時は「閉じる」のではなく「オーバーレイ表示」に切り替わるが、
-        // ユーザーが「隠れてほしい」と感じる場合、手動で閉じてもらうか、
-        // あるいは地図クリックで閉じる機能を提供する。
     }
     setTimeout(() => map.invalidateSize(), 300);
 }
@@ -847,21 +901,17 @@ function flyToCurrentLocation() {
             const lat = pos.coords.latitude;
             const lon = pos.coords.longitude;
             map.flyTo([lat, lon], 12);
-            // 現在地マーカー
             L.circleMarker([lat, lon], { radius: 8, color: '#2196F3', fillColor: '#2196F3', fillOpacity: 0.3 })
              .addTo(map).bindPopup("現在地").openPopup();
              L.circleMarker([lat, lon], { radius: 3, color: '#fff', fillColor: '#2196F3', fillOpacity: 1 }).addTo(map);
              btn.style.background = "#fff";
         },
-        (err) => {
-            alert("現在地を取得できませんでした。\n権限を確認してください。");
-            btn.style.background = "#fff";
-        },
+        (err) => { alert("現在地を取得できませんでした。"); btn.style.background = "#fff"; },
         { timeout: 10000 }
     );
 }
 
-// --- Other Logic (Existing) ---
+// --- Main App Logic ---
 async function loadExternalStations() {
     const statusDiv = document.getElementById("station-status");
     try {
@@ -904,10 +954,7 @@ function initMap() {
             document.getElementById("map").classList.remove("crosshair-cursor");
             document.getElementById("modal-overlay").style.display = "block"; 
         } else {
-            // サイドバーがピン留めされておらず、かつ表示されている場合、地図クリックで閉じる
-            if(!isSidebarPinned && isSidebarVisible) {
-                toggleSidebar();
-            }
+            if(!isSidebarPinned && isSidebarVisible) toggleSidebar();
         }
     });
 }
@@ -1004,6 +1051,7 @@ function createMarker(data) {
 }
 
 function selectQuake(id, source) {
+    currentQuakeId = id; // Update global selection
     const data = quakeData.find(q=>q.id===id); if(!data) return;
     document.querySelectorAll('.quake-item').forEach(el => el.classList.remove('active'));
     document.getElementById(`list-${id}`)?.classList.add('active');
@@ -1019,10 +1067,7 @@ function selectQuake(id, source) {
     renderObservationPoints(data);
     startWaveAnimation(data);
 
-    // モバイルでリスト選択時はメニューを閉じる
-    if(source === 'list' && !isSidebarPinned && isSidebarVisible) {
-        toggleSidebar();
-    }
+    if(source === 'list' && !isSidebarPinned && isSidebarVisible) toggleSidebar();
 }
 
 function updatePanel(d){ 
@@ -1036,6 +1081,7 @@ function updatePanel(d){
     document.getElementById("p-shindo-text").innerText = s.fullText;
 }
 
+// Updated Render Function for Shindo Icons on Map
 function renderObservationPoints(d){
     pointsLayerGroup.clearLayers();
     if(!isPointsVisible||!d.points)return;
@@ -1046,10 +1092,64 @@ function renderObservationPoints(d){
              if(key) coord = STATION_LOCATIONS[key];
         }
         if(coord) {
-            L.circleMarker([coord.lat, coord.lon], { radius: 4, color: '#fff', weight: 1, fillColor: formatShindo(p.scale).color, fillOpacity: 1 })
-            .bindTooltip(`${p.addr} : 震度${formatShindo(p.scale).text}`).addTo(pointsLayerGroup);
+            const s = formatShindo(p.scale);
+            // Use divIcon to show number
+            const myIcon = L.divIcon({
+                className: '', // Clear default class to remove square box background
+                html: `<div class="map-shindo-icon" style="background:${s.color}; width:20px; height:20px;">${s.text}</div>`,
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            });
+
+            L.marker([coord.lat, coord.lon], { icon: myIcon, zIndexOffset: p.scale * 100 }) // Higher intensity on top
+            .bindTooltip(`${p.addr} : 震度${s.text}`).addTo(pointsLayerGroup);
         }
     });
+}
+
+// Detail Modal Logic
+function openDetailModal() {
+    if(!currentQuakeId) return;
+    const data = quakeData.find(q => q.id === currentQuakeId);
+    if(!data || !data.points) return;
+
+    const contentDiv = document.getElementById('detail-content');
+    document.getElementById('detail-title').innerText = `${data.earthquake.hypocenter.name} (最大震度${formatShindo(data.earthquake.maxScale).text})`;
+    
+    // Group by Prefecture
+    const pointsByPref = {};
+    data.points.forEach(p => {
+        if(!pointsByPref[p.pref]) pointsByPref[p.pref] = [];
+        pointsByPref[p.pref].push(p);
+    });
+
+    let html = "";
+    // Sort Prefectures by max intensity within them
+    const sortedPrefs = Object.keys(pointsByPref).sort((a,b) => {
+        const maxA = Math.max(...pointsByPref[a].map(p=>p.scale));
+        const maxB = Math.max(...pointsByPref[b].map(p=>p.scale));
+        return maxB - maxA;
+    });
+
+    sortedPrefs.forEach(pref => {
+        // Sort points in pref by intensity
+        pointsByPref[pref].sort((a,b) => b.scale - a.scale);
+
+        html += `<div class="detail-section">`;
+        html += `<div class="detail-pref-header">${pref}</div>`;
+        html += `<div class="detail-area-row">`;
+        pointsByPref[pref].forEach(p => {
+            const s = formatShindo(p.scale);
+            html += `<div class="detail-point-badge">
+                <span class="point-shindo" style="background:${s.color}">${s.text}</span>
+                <span>${p.addr}</span>
+            </div>`;
+        });
+        html += `</div></div>`;
+    });
+
+    contentDiv.innerHTML = html;
+    document.getElementById('detail-modal-overlay').style.display = "block";
 }
 
 // Utils
@@ -1210,108 +1310,29 @@ function jumpToLocation(i){ const l=config.savedLocations[i]; if(l) map.flyTo([l
 function startMapPick() { document.getElementById("modal-overlay").style.display = "none"; isPickingLocation = true; document.getElementById("map").classList.add("crosshair-cursor"); alert("地図上の地点をクリックしてください。"); }
 function demoTsunami(){ if(!geoJsonData) { alert("地図データ読込中..."); return; } handleTsunami({ code: 552, areas: [{name: "千葉県", grade: "MajorWarning"}, {name: "東京都", grade: "Warning"},{name: "北海道", grade: "Watch"},{name: "沖縄県", grade: "Watch"}]}); document.getElementById("modal-overlay").style.display="none"; }
 function demoEEW() {
-    // モーダルを閉じる
     document.getElementById("modal-overlay").style.display = "none";
-    
-    // 現在時刻を取得
     const now = new Date();
     const timeStr = `${now.getFullYear()}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getDate().toString().padStart(2,'0')} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
-
-    // 擬似的な緊急地震速報データを作成
-    // (例: 紀伊半島沖でM7.8の地震が発生したと仮定)
     const mockData = {
-        code: 556, // 緊急地震速報(予報)コード
-        cancelled: false,
-        earthquake: {
-            originTime: timeStr,
-            time: timeStr,
-            hypocenter: {
-                name: "紀伊半島沖（訓練）",
-                latitude: 33.0,
-                longitude: 136.0, 
-                depth: 10,
-                magnitude: 7.8
-            },
-            maxScale: 60 // 最大震度6強相当
-        },
+        code: 556, cancelled: false,
+        earthquake: { originTime: timeStr, time: timeStr, hypocenter: { name: "紀伊半島沖（訓練）", latitude: 33.0, longitude: 136.0, depth: 10, magnitude: 7.8 }, maxScale: 60 },
         issue: { type: "Focus" } 
     };
-
-    // 通常のEEW処理ルーチンに流す
-    handleEEW(mockData);
-    
-    // 地図上の波紋アニメーションも開始
-    startWaveAnimation(mockData);
-
-    // マイロケーションが登録されていない場合の案内
-    if (config.savedLocations.length === 0) {
-        alert("マイロケーションが登録されていないため、カウントダウンは表示されず、右上の速報表示のみ行われます。\n「設定」から地点を登録すると、カウントダウンの動作も確認できます。");
-    }
+    handleEEW(mockData); startWaveAnimation(mockData);
+    if (config.savedLocations.length === 0) alert("マイロケーション未登録のため、カウントダウンは表示されません。");
 }
-function initDraggableModal(){ const m=document.getElementById("modal-window"), h=document.getElementById("modal-header-drag"); let d=false,sx,sy,il,it; h.addEventListener("mousedown",e=>{d=true;sx=e.clientX;sy=e.clientY;const r=m.getBoundingClientRect();il=r.left;it=r.top;m.style.left=il+"px";m.style.top=it+"px";m.style.transform="none";}); window.addEventListener("mousemove",e=>{if(d){m.style.left=(il+e.clientX-sx)+"px";m.style.top=(it+e.clientY-sy)+"px";}}); window.addEventListener("mouseup",()=>d=false); }
+function initDraggableModal(){
+    const draggables = document.querySelectorAll('.modal-window-common');
+    draggables.forEach(m => {
+        const h = m.querySelector('.modal-header');
+        if(!h) return;
+        let d=false,sx,sy,il,it;
+        h.addEventListener("mousedown",e=>{d=true;sx=e.clientX;sy=e.clientY;const r=m.getBoundingClientRect();il=r.left;it=r.top;m.style.left=il+"px";m.style.top=it+"px";m.style.transform="none";});
+        window.addEventListener("mousemove",e=>{if(d){m.style.left=(il+e.clientX-sx)+"px";m.style.top=(it+e.clientY-sy)+"px";}});
+        window.addEventListener("mouseup",()=>d=false);
+    });
+}
 function initResizer(){ const g=document.getElementById('gutter'), c=document.getElementById('app-container'); let r=false; g.onmousedown=e=>{r=true;e.preventDefault();}; window.onmousemove=e=>{if(r){let w=Math.max(200,Math.min(600,e.clientX));c.style.gridTemplateColumns=`${w}px 6px 1fr`;map.invalidateSize();}}; window.onmouseup=()=>r=false; }
 </script>
-
-<!-- Help Modal -->
-<div id="help-modal-overlay">
-    <div id="help-modal-window">
-        <div class="modal-header">
-            <span>📖 J-Quake ヘルプ</span>
-            <button class="btn-close" id="help-modal-close">×</button>
-        </div>
-        <div class="help-content">
-            <section>
-                <h3>📌 このアプリについて</h3>
-                <p>P2P地震情報のAPIを利用し、リアルタイムで地震情報・津波情報・緊急地震速報を表示するWebアプリケーションです。</p>
-            </section>
-
-            <section>
-                <h3>🗺️ 地図の見方</h3>
-                <ul>
-                    <li><span style="color:#2196F3; font-weight:bold;">青い波紋 (P波)</span>: 初期微動。カタカタ揺れます。</li>
-                    <li><span style="color:#f44336; font-weight:bold;">赤い波紋 (S波)</span>: 主要動。ユサユサ大きく揺れます。</li>
-                    <li><strong>丸いマーカー</strong>: 震源地を表します。円の大きさはマグニチュード、色は震度に対応します。</li>
-                    <li><strong>小さな点</strong>: 各地の震度観測点です。</li>
-                </ul>
-            </section>
-
-            <section>
-                <h3>🛠️ ツールバーの機能</h3>
-                <p>地図左下の「🛠️ 表示・ツール」から以下の機能が使えます。</p>
-                <ul>
-                    <li><strong>🎯 新着追尾</strong>: 新しい地震が発生した際、自動的にその場所に地図を移動します。</li>
-                    <li><strong>🔇 音声</strong>: 地震発生時に情報を読み上げます（ブラウザの音声機能を使用）。</li>
-                    <li><strong>📍 観測点</strong>: 各地の震度観測点の表示/非表示を切り替えます。</li>
-                    <li><strong>🌊 潮位観測</strong>: 日本各地の潮位観測所を表示します。クリックで気象庁の潮位グラフへ飛びます。</li>
-                    <li><strong>📷 保存</strong>: 現在の画面を画像としてダウンロードします。</li>
-                </ul>
-            </section>
-
-            <section>
-                <h3>⚙️ 設定・マイロケーション</h3>
-                <p>右上の歯車アイコンから設定を行えます。</p>
-                <ul>
-                    <li><strong>マイロケーション</strong>: 自宅や職場を登録しておくと、リストからすぐに地図移動できます。</li>
-                    <li><strong>パーソナル予報</strong>: 緊急地震速報受信時、登録地点への到達時間と予測震度を表示します。</li>
-                    <li><strong>バックアップ</strong>: 設定内容をファイルに保存・復元できます。</li>
-                </ul>
-            </section>
-
-            <section>
-                <h3>⚠️ データ・免責事項</h3>
-                <p>
-                    本アプリの地震情報は<a href="https://www.p2pquake.net/" target="_blank" style="color:#2196F3;">P2P地震情報</a>のAPI、地図データは国土地理院・OpenStreetMap等のオープンデータを使用しています。<br>
-                    情報の正確性には万全を期していますが、本アプリの利用により生じた損害について開発者は責任を負いません。命に関わる判断はテレビ・ラジオ等の公式情報に従ってください。
-                </p>
-            </section>
-            
-            <section>
-                <h3>ℹ️ 最終更新日</h3>
-                <p> 2025年12月9日 </p>
-            </section>
-        </div>
-    </div>
-</div>
-
 </body>
 </html>
