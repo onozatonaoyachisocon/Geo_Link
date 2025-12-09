@@ -262,35 +262,87 @@
     ::-webkit-scrollbar-thumb:hover { background: #555; }
 
 /* =========================================
-       モバイル用レイアウト修正 (PCには影響しません)
+       モバイル用 2段組みヘッダー (修正版)
        ========================================= */
-    @media screen and (max-width: 900px) {
-        /* アプリ全体の高さをスマホの実画面に合わせる */
+    @media screen and (max-width: 600px) {
+        
+        /* 1. アプリ全体のレイアウト設定：ヘッダーの高さを「自動(auto)」にする */
         #app-container {
-            height: 100dvh;
-            grid-template-rows: auto 1fr; /* ヘッダー高さを可変に */
+            grid-template-rows: auto 1fr !important;
         }
 
-        /* ヘッダー：ステータスバーの重なり回避 */
+        /* 2. ヘッダー自体の設定：高さを自動にし、グリッドレイアウトを適用 */
         header {
-            padding-top: env(safe-area-inset-top);
-            height: auto;
-            min-height: 50px;
+            height: auto !important;
+            padding: 8px 10px; /* 上下に少し余白を追加 */
+            
+            /* グリッドレイアウト定義 */
+            display: grid;
+            /* 列: [メニュー] [タイトル] [余白] [設定] [ヘルプ] */
+            grid-template-columns: auto auto 1fr auto auto;
+            /* 行: [1段目] [2段目] */
+            grid-template-rows: auto auto;
+            align-items: center;
+            gap: 5px 10px; /* 要素間の隙間 */
         }
 
-        /* 左下のツールボタン：ホームバーの重なり回避 */
-        #map-tool-container {
-            bottom: calc(25px + env(safe-area-inset-bottom));
+        /* 既存の左右グループ化タグを無効化 */
+        .header-left, .header-right {
+            display: contents;
         }
 
-        /* GPSボタンの位置調整 */
-        #btn-gps-main {
-            bottom: calc(100px + env(safe-area-inset-bottom));
+        /* --- 1段目の配置 --- */
+
+        /* メニューボタン (左上) */
+        #btn-menu-toggle {
+            grid-row: 1;
+            grid-column: 1;
         }
 
-        /* 凡例の位置調整 */
-        #tide-legend {
-            bottom: calc(30px + env(safe-area-inset-bottom));
+        /* タイトル J-Quake (左上・メニューの隣) */
+        h1 {
+            grid-row: 1;
+            grid-column: 2;
+            margin: 0;
+            font-size: 1.2rem;
+            white-space: nowrap;
+        }
+
+        /* 設定ボタン (右上) */
+        #btn-settings {
+            grid-row: 1;
+            grid-column: 4;
+        }
+
+        /* ヘルプボタン (右上・設定の隣) */
+        #btn-help {
+            grid-row: 1;
+            grid-column: 5;
+        }
+
+        /* --- 2段目の配置 --- */
+
+        /* 時間 (左下) */
+        #clock {
+            grid-row: 2;
+            grid-column: 1 / 4; /* 左側のスペースを広く使う */
+            margin-top: 5px;
+            font-size: 1.0rem;
+            color: #ccc;
+        }
+
+        /* 登録地点プルダウン (右下) */
+        #header-loc-select {
+            grid-row: 2;
+            grid-column: 4 / 6; /* 右側のスペースを使う */
+            margin-top: 5px;
+            width: 100%;
+            min-width: 100px;
+        }
+
+        /* 不要な要素を非表示 */
+        #station-status, #conn-status {
+            display: none !important;
         }
     }
 
@@ -307,7 +359,7 @@
     </div>
     <div class="header-right">
         <select id="header-loc-select" title="登録地点へジャンプ" style="max-width:120px; font-size:0.8rem;">
-            <option value="">📍 地点...</option>
+            <option value="">📍 登録地点</option>
         </select>
         <button id="btn-settings" class="icon-btn">⚙️</button>
         <button id="btn-help" class="icon-btn" title="ヘルプ">❓</button>
@@ -365,7 +417,7 @@
     </div>
 
     <!-- GPS Button -->
-    <button id="btn-gps-main" title="現在地へ移動">◎</button>
+    <button id="btn-gps-main" title="現在地へ移動">🎯</button>
 
     <!-- Tsunami Panel -->
     <div id="tsunami-panel">
