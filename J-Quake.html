@@ -1,0 +1,1317 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>J-Quake</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌊</text></svg>">
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- html2canvas -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Roboto+Mono:wght@500&display=swap" rel="stylesheet">
+
+<style>
+    :root {
+        --bg-color: #121212; --panel-bg: #1e1e1e; --text-main: #e0e0e0;
+        --accent-blue: #2196F3;
+        --sidebar-width: 320px;
+        --tsunami-major: #aa00aa;
+        --tsunami-warn: #ff2800;
+        --tsunami-adv: #f2e700;
+    }
+    body, html { margin: 0; padding: 0; height: 100%; font-family: 'Noto Sans JP', sans-serif; background-color: var(--bg-color); color: var(--text-main); overflow: hidden; }
+
+    /* Layout */
+    #app-container {
+        display: grid;
+        grid-template-columns: 0px 0px 1fr; /* デフォルトはオーバーレイモード */
+        grid-template-rows: 50px 1fr;
+        height: 100vh; width: 100vw;
+        transition: grid-template-columns 0.3s ease;
+    }
+    /* ピン留めモード時のレイアウト */
+    #app-container.pinned {
+        grid-template-columns: var(--sidebar-width) 6px 1fr;
+    }
+
+    /* Header */
+    header {
+        grid-column: 1 / 4; background-color: #000; border-bottom: 1px solid #333;
+        display: flex; align-items: center; justify-content: space-between; padding: 0 10px; z-index: 20;
+    }
+    .header-left { display: flex; align-items: center; gap: 10px; }
+    .header-right { display: flex; align-items: center; gap: 8px; }
+    
+    .status-dot { height: 10px; width: 10px; background-color: #bbb; border-radius: 50%; display: inline-block; transition: 0.3s; flex-shrink: 0;}
+    .status-connected { background-color: #00e676; box-shadow: 0 0 5px #00e676; }
+    .status-error { background-color: #f44336; box-shadow: 0 0 5px #f44336; }
+    #clock { font-family: 'Roboto Mono', monospace; font-size: 1.0rem; white-space: nowrap; }
+    #station-status { font-size: 0.7rem; color: #888; margin-left: 5px; display:none; }
+
+    /* Buttons */
+    button.icon-btn {
+        background: #333; border: 1px solid #555; color: #aaa; padding: 6px 10px;
+        cursor: pointer; border-radius: 4px; font-size: 0.85rem; display: flex; align-items: center; gap: 5px;
+        transition: 0.2s; white-space: nowrap; justify-content: center;
+    }
+    button.icon-btn:hover { background: #444; color: #fff; }
+    button.icon-btn.active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
+
+    /* Menu Toggle Button */
+    #btn-menu-toggle {
+        background: transparent; border: none; color: #fff; font-size: 1.5rem; cursor: pointer; padding: 5px;
+    }
+
+    /* Sidebar */
+    aside {
+        grid-row: 2 / 3; grid-column: 1 / 2; background-color: var(--panel-bg);
+        overflow-y: auto; display: flex; flex-direction: column;
+        border-right: 1px solid #333;
+        
+        /* オーバーレイ(非ピン留め)モードの挙動 */
+        position: absolute; top: 50px; left: 0; bottom: 0; width: var(--sidebar-width);
+        transform: translateX(-100%); transition: transform 0.3s ease; z-index: 3000;
+    }
+    
+    /* サイドバーが表示状態（オーバーレイ） */
+    aside.visible {
+        transform: translateX(0);
+        box-shadow: 5px 0 15px rgba(0,0,0,0.5);
+    }
+    /* ピン留め時はGrid内に収まるためTransform不要 */
+    #app-container.pinned aside {
+        position: relative; top: auto; left: auto; bottom: auto;
+        transform: none; z-index: 1; border-right: none;
+    }
+
+    /* Sidebar Header (Pin) */
+    .sidebar-header {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 8px 10px; background: #252525; border-bottom: 1px solid #333;
+    }
+    #btn-pin-sidebar {
+        background: transparent; border: 1px solid #555; color: #888; border-radius: 4px; cursor: pointer; padding: 2px 8px; font-size: 0.8rem;
+    }
+    #btn-pin-sidebar.active { color: var(--accent-blue); border-color: var(--accent-blue); background: rgba(33, 150, 243, 0.1); }
+
+    details.quake-group { border-bottom: 1px solid #333; }
+    details.quake-group summary {
+        background-color: #252525; padding: 8px 10px; font-size: 0.85rem; font-weight: bold; color: #aaa;
+        cursor: pointer; user-select: none; outline: none; display: flex; justify-content: space-between;
+    }
+    details.quake-group summary:hover { background-color: #333; color: #fff; }
+    details.quake-group[open] summary { border-bottom: 1px solid #333; color: var(--accent-blue); }
+
+    .quake-item {
+        padding: 10px; border-bottom: 1px solid #333; cursor: pointer; display: flex; gap: 10px; align-items: center;
+        border-left: 4px solid transparent; transition: background 0.2s; padding-left: 15px;
+    }
+    .quake-item:hover { background-color: #2a2a2a; }
+    .quake-item.active { background-color: #333; border-left-color: var(--accent-blue); }
+    
+    .intensity-box {
+        width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+        font-weight: bold; font-size: 1.0rem; border-radius: 4px; color: #000; flex-shrink: 0;
+        text-shadow: 0 0 2px rgba(255,255,255,0.5);
+    }
+    .quake-info { display: flex; flex-direction: column; font-size: 0.85rem; overflow: hidden; }
+    .quake-time { color: #888; font-size: 0.75rem; }
+    .quake-place { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: bold; }
+
+    /* Resizer (Only visible when pinned) */
+    #gutter {
+        grid-row: 2 / 3; grid-column: 2 / 3; background: #111; cursor: col-resize;
+        border-left: 1px solid #333; border-right: 1px solid #333; z-index: 100;
+        display: none; /* デフォルト非表示 */
+    }
+    #app-container.pinned #gutter { display: block; }
+
+    /* Map Area */
+    main { grid-column: 3 / 4; grid-row: 2 / 3; position: relative; background: #000; width: 100%; height: 100%; }
+    #map { width: 100%; height: 100%; z-index: 1; }
+    
+    .crosshair-cursor { cursor: crosshair !important; }
+
+    /* Panels on Map */
+    #latest-info-panel {
+        position: absolute; top: 10px; left: 10px; width: 240px; max-width: 60vw;
+        background: rgba(0, 0, 0, 0.85); border: 1px solid #444; border-radius: 8px;
+        padding: 10px; z-index: 1000; pointer-events: none; backdrop-filter: blur(5px);
+    }
+    .panel-row { display: flex; justify-content: space-between; align-items: baseline; }
+    .big-place { font-size: 1.2rem; font-weight: bold; margin: 5px 0; }
+    .mag-depth { font-family: 'Roboto Mono', monospace; color: #bbb; font-size: 0.85rem; }
+    .shindo-display { display: flex; align-items: center; gap: 10px; margin-top: 5px; background: #222; padding: 5px 10px; border-radius: 4px; }
+
+    /* Floating Tool Panel */
+    #map-tool-container {
+        position: absolute; bottom: 25px; left: 10px; z-index: 1200;
+        display: flex; flex-direction: column-reverse; align-items: flex-start;
+    }
+    #tool-toggle-btn {
+        background: rgba(30, 30, 30, 0.9); border: 1px solid #555; color: #fff;
+        padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold;
+        display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        transition: background 0.2s; font-size: 0.9rem;
+    }
+    #tool-toggle-btn.pinned { background: var(--accent-blue); border-color: var(--accent-blue); }
+    #tool-panel-content {
+        margin-bottom: 10px; background: rgba(30, 30, 30, 0.95); border: 1px solid #444;
+        border-radius: 8px; padding: 10px; width: 170px;
+        backdrop-filter: blur(5px); display: none; flex-direction: column; gap: 8px; 
+        box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+    }
+    
+    .tool-section-label { font-size: 0.7rem; color: #888; border-bottom: 1px solid #444; margin-bottom: 4px; padding-bottom: 2px;}
+    .tool-row { display: flex; flex-direction: column; gap: 4px; }
+    .tool-control { width: 100%; box-sizing: border-box; background: #222; border: 1px solid #444; color: #fff; padding: 4px; border-radius: 4px; font-size: 0.85rem; }
+    
+    /* GPS Button */
+    #btn-gps-main {
+        position: absolute; bottom: 100px; right: 10px; z-index: 1000;
+        width: 40px; height: 40px; background: #fff; color: #000;
+        border: 2px solid rgba(0,0,0,0.2); border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        font-size: 1.5rem; transition: background 0.2s;
+    }
+    #btn-gps-main:hover { background: #f0f0f0; }
+    #btn-gps-main:active { background: #ddd; }
+
+    /* Tsunami Panel */
+    #tsunami-panel {
+        display: none; position: absolute; top: 90px; left: 50%; transform: translateX(-50%); width: 350px; max-width: 90%;
+        background: rgba(0, 0, 50, 0.95); border: 2px solid var(--accent-blue); border-radius: 8px;
+        padding: 10px; z-index: 1500; color: #fff; text-align: center;
+        box-shadow: 0 0 20px rgba(0,0,0,0.8);
+    }
+    .tsunami-header { 
+        font-weight: bold; font-size: 1.1rem; border-bottom: 1px solid #444; 
+        padding-bottom: 5px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; 
+    }
+    .close-tsunami-btn { background: transparent; border: none; color: #aaa; font-size: 1.5rem; cursor: pointer; line-height: 1; padding: 0 5px; }
+
+    #eew-overlay {
+        position: absolute; top: 150px; right: 10px; width: 280px; max-width:80vw;
+        background: rgba(180, 0, 0, 0.9); color: #fff; padding: 10px;
+        border-radius: 8px; z-index: 2000; display: none; box-shadow: 0 0 20px rgba(255,0,0,0.5);
+        animation: flash 1s infinite alternate;
+    }
+    
+    #personal-alert {
+        display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        background: rgba(200, 0, 0, 0.95); color: #fff; padding: 20px; border-radius: 15px;
+        text-align: center; z-index: 3000; box-shadow: 0 0 50px rgba(255,0,0,0.8);
+        border: 2px solid #ff5252; min-width: 280px; max-width: 90vw;
+    }
+    #alert-countdown { font-size: 3.5rem; font-weight: bold; font-family: 'Roboto Mono', monospace; }
+    #alert-message { font-size: 1.1rem; margin-top: 5px; }
+    #alert-est-shindo { font-size: 1.8rem; font-weight: bold; margin-bottom: 10px; background: #fff; color:#d32f2f; display:inline-block; padding:5px 15px; border-radius:5px; }
+
+    #tide-legend {
+        display: none; position: absolute; bottom: 30px; right: 10px;
+        background: rgba(255, 255, 255, 0.9); color: #000;
+        padding: 5px; border-radius: 5px; border: 1px solid #999;
+        z-index: 1000; font-size: 0.75rem; box-shadow: 0 0 10px rgba(0,0,0,0.5); width: 140px;
+    }
+    .legend-item { display: flex; align-items: center; gap: 5px; margin-bottom: 2px; }
+    .legend-icon { width: 14px; height: 14px; display: inline-block; flex-shrink: 0; }
+    .leaflet-interactive { cursor: pointer; }
+
+    @keyframes flash { from { opacity: 1; } to { opacity: 0.8; } }
+
+    /* Modal */
+    #modal-overlay {
+        display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.5); z-index: 9999;
+    }
+    #modal-window {
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        background: #222; width: 500px; max-width: 95%; max-height: 90vh; overflow-y: auto;
+        border-radius: 8px; padding: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        border: 1px solid #444;
+    }
+    .modal-header { 
+        font-size: 1.1rem; font-weight: bold; margin-bottom: 10px; 
+        border-bottom: 1px solid #444; padding-bottom: 5px; display:flex; 
+        justify-content:space-between; cursor: move; user-select: none;
+    }
+    .form-group { margin-bottom: 10px; background: #2a2a2a; padding: 10px; border-radius: 5px; }
+    .form-label { display: block; margin-bottom: 5px; color: #aaa; font-size: 0.85rem; }
+    
+    .loc-list-item { display: flex; justify-content: space-between; align-items: center; background: #333; padding: 5px; margin-bottom: 5px; border-radius: 4px; font-size: 0.9rem;}
+    .btn-primary { background: var(--accent-blue); color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 10px; }
+    .btn-cancel { background: #444; color: #ddd; border: none; padding: 8px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 10px; }
+    .btn-close { background:transparent; border:none; color:#888; font-size:1.5rem; cursor:pointer;}
+    .btn-row { display: flex; gap: 10px; margin-top: 15px; }
+
+    input[type="number"], input[type="text"], select { background: #333; border: 1px solid #555; color: #fff; padding: 5px; border-radius: 4px; width: 100%; box-sizing: border-box; }
+    input[type="color"] { background: none; border: none; width: 30px; height: 30px; cursor: pointer; }
+    .color-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .color-item { display: flex; align-items: center; gap: 10px; background: #333; padding: 5px; border-radius: 4px; font-size: 0.8rem; }
+
+/* Help Modal Specific Styles */
+    #help-modal-overlay {
+        display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.6); z-index: 9999; backdrop-filter: blur(2px);
+    }
+    #help-modal-window {
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        background: #1e1e1e; width: 600px; max-width: 95%; max-height: 85vh; overflow-y: auto;
+        border-radius: 12px; padding: 0; box-shadow: 0 15px 40px rgba(0,0,0,0.9);
+        border: 1px solid #444; display: flex; flex-direction: column;
+    }
+    #help-modal-window .modal-header {
+        padding: 15px 20px; background: #252525; border-bottom: 1px solid #333;
+        position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between;
+    }
+    .help-content { padding: 20px; font-size: 0.95rem; line-height: 1.6; color: #ddd; }
+    .help-content section { margin-bottom: 25px; border-bottom: 1px solid #333; padding-bottom: 20px; }
+    .help-content section:last-child { border-bottom: none; margin-bottom: 0; }
+    .help-content h3 { margin-top: 0; margin-bottom: 10px; color: #fff; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; }
+    .help-content ul { padding-left: 20px; margin: 10px 0; }
+    .help-content li { margin-bottom: 5px; }
+    
+    /* Scrollbar customized for modal */
+    #help-modal-window::-webkit-scrollbar { width: 8px; }
+    #help-modal-window::-webkit-scrollbar-track { background: #1e1e1e; }
+    #help-modal-window::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
+    #help-modal-window::-webkit-scrollbar-thumb:hover { background: #555; }
+
+</style>
+</head>
+<body>
+<div id="app-container">
+<header>
+    <div class="header-left">
+        <button id="btn-menu-toggle" title="サイドバー表示切替">☰</button>
+        <h1><span id="conn-status" class="status-dot"></span> J-Quake</h1>
+        <div id="clock">00:00:00</div>
+        <div id="station-status"></div>
+    </div>
+    <div class="header-right">
+        <select id="header-loc-select" title="登録地点へジャンプ" style="max-width:120px; font-size:0.8rem;">
+            <option value="">📍 地点...</option>
+        </select>
+        <button id="btn-settings" class="icon-btn">⚙️</button>
+<button id="btn-help" class="icon-btn" title="ヘルプ">❓</button>
+    </div>
+</header>
+
+<!-- Sidebar -->
+<aside id="quake-list-area">
+    <div class="sidebar-header">
+        <span style="font-size:0.8rem; color:#aaa;">地震履歴</span>
+        <button id="btn-pin-sidebar" title="リストをピン留め（地図を分割）">📌 ピン留め</button>
+    </div>
+    <div id="list-container"></div>
+    <div style="display: flex; border-top: 1px solid #333; margin-top:auto;">
+        <button id="btn-load-more" style="flex:1; padding:12px; background:#222; border:none; color:#888; cursor:pointer;">さらに読み込む</button>
+    </div>
+</aside>
+
+<!-- Resizer -->
+<div id="gutter"></div>
+
+<!-- Map Area -->
+<main>
+    <!-- Map Tool Panel (Floating) -->
+    <div id="map-tool-container">
+        <div id="tool-toggle-btn">🛠️ 表示・ツール</div>
+        <div id="tool-panel-content">
+            <div class="tool-section-label">絞り込み</div>
+            <div class="tool-row">
+                <select id="filter-min-shindo" class="tool-control">
+                    <option value="0">全表示</option>
+                    <option value="30">震度3以上</option>
+                    <option value="40">震度4以上</option>
+                </select>
+            </div>
+
+            <div class="tool-section-label">マップ表示</div>
+            <div class="tool-row">
+                <button id="btn-points-toggle" class="icon-btn active" style="width:100%">📍 観測点</button>
+                <button id="btn-tide-toggle" class="icon-btn" style="width:100%">🌊 潮位観測</button>
+            </div>
+
+            <div class="tool-section-label">追尾</div>
+            <div class="tool-row">
+                <button id="btn-auto-zoom" class="icon-btn active" style="width:100%">🎯 新着追尾</button>
+                <button id="btn-list-zoom" class="icon-btn" style="width:100%">👆 クリック</button>
+            </div>
+
+            <div class="tool-section-label">その他</div>
+            <div class="tool-row">
+                <button id="btn-audio" class="icon-btn" style="width:100%">🔇 音声</button>
+                <button id="btn-screenshot" class="icon-btn" style="width:100%">📷 保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GPS Button -->
+    <button id="btn-gps-main" title="現在地へ移動">◎</button>
+
+    <!-- Tsunami Panel -->
+    <div id="tsunami-panel">
+        <div class="tsunami-header">
+            <span>🌊 津波情報</span>
+            <button class="close-tsunami-btn" onclick="clearTsunamiData()" title="情報を消去">×</button>
+        </div>
+        <div id="tsunami-content">現在、津波警報等は発表されていません。</div>
+    </div>
+
+    <!-- Info Panel -->
+    <div id="latest-info-panel">
+        <div class="panel-row">
+            <span style="color:#aaa; font-size:0.75rem;">発生時刻</span>
+            <span id="p-time" class="mag-depth">--/-- --:--</span>
+        </div>
+        <div id="p-place" class="big-place">データ待機中</div>
+        <div style="margin-top:2px; display:flex; flex-direction:column; gap:0px;">
+            <span id="p-mag" class="mag-depth">マグニチュード ---</span>
+            <span id="p-depth" class="mag-depth">震源の深さ ---</span>
+        </div>
+        <div class="shindo-display">
+            <div id="p-shindo-box" class="intensity-box" style="background:#444;">-</div>
+            <div id="p-shindo-text" style="font-size:1.2rem; font-weight:bold;">-</div>
+        </div>
+    </div>
+
+    <div id="eew-overlay">
+        <div style="font-weight:bold; font-size:1.1rem;">⚠️ 緊急地震速報</div>
+        <div id="eew-text" style="margin-top:5px; font-size:0.9rem;">詳細を受信中...</div>
+    </div>
+
+    <div id="personal-alert">
+        <div id="alert-location-name">現在地</div>
+        <div style="font-size:0.9rem; margin-bottom:5px;">予想震度</div>
+        <div id="alert-est-shindo">震度4</div>
+        <div style="font-size:0.9rem;">到達まで</div>
+        <div id="alert-countdown">0</div>
+        <div id="alert-message">揺れに備えてください</div>
+        <button onclick="stopAlert()" style="background:#fff; color:#000; border:none; padding:5px 10px; margin-top:10px; border-radius:4px; cursor:pointer;">閉じる</button>
+    </div>
+
+    <!-- 潮位凡例 -->
+    <div id="tide-legend">
+        <div style="font-weight:bold; margin-bottom:2px; border-bottom:1px solid #ccc; text-align:center;">凡例</div>
+        <div class="legend-item"><span class="legend-icon" id="leg-jma"></span> 気象庁</div>
+        <div class="legend-item"><span class="legend-icon" id="leg-jcg"></span> 海上保安庁</div>
+        <div class="legend-item"><span class="legend-icon" id="leg-gsi"></span> 国土地理院</div>
+        <div class="legend-item"><span class="legend-icon" id="leg-port"></span> 港湾局</div>
+        <div class="legend-item"><span class="legend-icon" id="leg-riv"></span> 水管理・国土</div>
+        <div class="legend-item"><span class="legend-icon" id="leg-pref"></span> 自治体等</div>
+    </div>
+
+    <div id="map"></div>
+</main>
+</div>
+
+<!-- Modal Settings -->
+<div id="modal-overlay">
+<div id="modal-window">
+<div class="modal-header" id="modal-header-drag">
+    <span>設定</span>
+    <button class="btn-close" id="modal-close">×</button>
+</div>
+
+<div class="form-group">
+    <label class="form-label" style="font-weight:bold; color:#2196F3;">💾 バックアップ</label>
+    <div style="display:flex; gap:10px;">
+        <button class="icon-btn" onclick="exportConfig()" style="flex:1; justify-content:center;">📤 保存</button>
+        <button class="icon-btn" onclick="document.getElementById('import-file').click()" style="flex:1; justify-content:center;">📥 読込</button>
+        <input type="file" id="import-file" style="display:none" onchange="importConfig(this)">
+    </div>
+</div>
+
+<div class="form-group">
+    <label class="form-label" style="font-weight:bold; color:#2196F3;">📍 マイロケーション</label>
+    <div id="settings-loc-list" style="margin-bottom:10px;"></div>
+    <div style="display:grid; grid-template-columns: 2fr 1.5fr 1.5fr 1fr; gap:5px; align-items:end;">
+        <div><label class="form-label">名称</label><input type="text" id="new-loc-name" placeholder="自宅"></div>
+        <div><label class="form-label">緯度</label><input type="number" id="new-loc-lat" step="0.0001" placeholder="35.xxxx"></div>
+        <div><label class="form-label">経度</label><input type="number" id="new-loc-lon" step="0.0001" placeholder="139.xxxx"></div>
+        <button class="icon-btn" onclick="addLocation()" style="justify-content:center;">＋</button>
+    </div>
+    <div style="display:flex; gap:5px; margin-top:5px;">
+        <button class="icon-btn" onclick="startMapPick()" style="flex:1; justify-content:center; background:#283593;">🗺️ 地図指定</button>
+        <button class="icon-btn" onclick="getCurrentLocationForInput()" style="flex:1; justify-content:center;">📡 GPS取得</button>
+    </div>
+</div>
+
+<div class="form-group">
+    <label class="form-label">通知する最小震度（予測）</label>
+    <select id="input-alert-threshold">
+        <option value="10">震度1以上</option>
+        <option value="30" selected>震度3以上</option>
+        <option value="40">震度4以上</option>
+    </select>
+</div>
+
+<div class="form-group">
+    <label class="form-label">震度別カラー</label>
+    <div class="color-grid" id="color-settings-grid"></div>
+</div>
+
+<div class="form-group">
+    <label class="form-label">デモ実行</label>
+    <div style="display:flex; gap:10px;">
+        <button class="icon-btn" onclick="demoEEW()" style="flex:1; justify-content:center; background:#b71c1c;">⚠️ EEWデモ</button>
+        <button class="icon-btn" onclick="demoTsunami()" style="flex:1; justify-content:center; background:#006064;">🌊 津波デモ</button>
+    </div>
+</div>
+
+<div class="btn-row">
+    <button class="btn-cancel" id="btn-cancel-settings">キャンセル</button>
+    <button class="btn-primary" id="btn-save-settings">保存</button>
+</div>
+</div>
+</div>
+
+<script>
+// --- Configuration & Default Settings ---
+const DEFAULT_CONFIG = {
+    version: 5,
+    markerBaseSize: 5,
+    colors: {
+        10: "#4caf50", 20: "#8bc34a", 30: "#ffeb3b", 40: "#ffc107",
+        45: "#ff9800", 50: "#ff5722", 55: "#e91e63", 60: "#d32f2f", 70: "#b71c1c"
+    },
+    savedLocations: [{ name: "東京駅", lat: 35.6812, lon: 139.7671 }],
+    alertThreshold: 30,
+    sWaveSpeed: 4.0
+};
+
+let config;
+try {
+    const stored = localStorage.getItem("jq_config_v5");
+    config = stored ? JSON.parse(stored) : JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+} catch (e) { config = JSON.parse(JSON.stringify(DEFAULT_CONFIG)); }
+let configBackup = null;
+
+// --- Global Variables ---
+const WS_URL = "wss://api.p2pquake.net/v2/ws";
+const HISTORY_API = "https://api.p2pquake.net/v2/history?codes=551";
+const JAPAN_GEOJSON_URL = "https://raw.githubusercontent.com/dataofjapan/land/master/japan.geojson";
+
+const STATION_LOCATIONS = { 
+    "北海道札幌市中央区": {lat: 43.062, lon: 141.354}, 
+    "東京都千代田区": {lat: 35.694, lon: 139.754}, 
+    "愛知県名古屋市中区": {lat: 35.180, lon: 136.906},
+    "大阪府大阪市中央区": {lat: 34.693, lon: 135.502},
+    "福岡県福岡市博多区": {lat: 33.606, lon: 130.418}
+};
+
+let map;
+let markers = {};
+let quakeData = [];
+let fetchOffset = 0;
+let isAudioOn = false;
+let isAutoZoom = true;
+let isListClickZoom = false;
+let isPointsVisible = true;
+let isPickingLocation = false; 
+let socket = null;
+let alertTimerInterval = null;
+let isToolLocked = false;
+let isTideVisible = false;
+
+// Sidebar State
+let isSidebarPinned = false; 
+let isSidebarVisible = false; 
+
+let pWaveLayer, sWaveLayer, currentWaveTarget, pointsLayerGroup, tsunamiLayerGroup, tideLayerGroup, geoJsonData;
+let userLocationMarkers = [];
+
+// ▼ Raw Tide Data (Full Restoration) ▼
+const TIDE_STATIONS_RAW = `
+1	枝幸	港湾局	北海道 枝幸郡 枝幸町 幸町	44°56′	142°35′
+2	沓形	港湾局	北海道 利尻郡 利尻町 沓形	45°11′	141°8′
+3	稚内	気象庁	北海道 稚内市 新港町	45°24′	141°41′
+4	留萌	港湾局	北海道 留萌市 大町１丁目	43°57′	141°38′
+5	石狩新港	港湾局	北海道 石狩市 新港東４丁目	43°13′	141°18′
+6	岩内	港湾局	北海道 岩内郡 岩内町 御崎	42°59′	140°30′
+7	忍路	国土地理院	北海道 小樽市 忍路１丁目	43°13′	140°52′
+8	小樽	気象庁	北海道 小樽市 築港	43°11′	141°1′
+9	紋別	港湾局	北海道 紋別市 弁天町	44°21′	143°22′
+10	網走	気象庁	北海道 網走市 港町	44°1′	144°17′
+11	根室	港湾局	北海道 根室市 海岸町２丁目	43°21′	145°35′
+12	花咲	気象庁	北海道 根室市 花咲港	43°17′	145°34′
+13	霧多布	港湾局	北海道 厚岸郡 浜中町 霧多布	43°5′	145°7′
+14	釧路	気象庁	北海道 釧路市 港町	42°59′	144°22′
+15	十勝	港湾局	北海道 広尾郡 広尾町 会所前	42°18′	143°19′
+16	苫小牧東	港湾局	北海道 勇払郡 厚真町 浜厚真	42°36′	141°49′
+17	苫小牧西	港湾局	北海道 苫小牧市 汐見町１丁目	42°38′	141°37′
+18	室蘭	港湾局	北海道 室蘭市 祝津町１丁目	42°21′	140°57′
+19	白老	港湾局	北海道 白老郡 白老町 石山	42°31′	141°19′
+20	浦河	港湾局	北海道 浦河郡 浦河町 大通１丁目	42°10′	142°46′
+21	森	港湾局	北海道 茅部郡 森町 港町	42°7′	140°36′
+22	函館	気象庁	北海道 函館市 海岸町	41°47′	140°43′
+23	瀬棚	港湾局	北海道 久遠郡 せたな町 瀬棚区 本町	42°27′	139°51′
+24	奥尻	国土地理院	北海道 奥尻郡 奥尻町 松江	42°5′	139°29′
+25	奥尻港	港湾局	北海道 奥尻郡 奥尻町 奥尻	42°10′	139°31′
+26	江差	港湾局	北海道 檜山郡 江差町 中歌町	41°52′	140°8′
+27	青森	港湾局	青森県 青森市 港町	40°50′	140°46′
+28	浅虫	国土地理院	青森県 青森市 浅虫	40°54′	140°52′
+29	八戸港	港湾局	青森県 八戸市 鮫町	40°32′	141°33′
+30	下北	気象庁	青森県 むつ市 関根	41°22′	141°14′
+31	深浦	気象庁	青森県 西津軽郡 深浦町 深浦	40°39′	139°56′
+32	竜飛	海上保安庁	青森県 東津軽郡 外ヶ浜町 三厩梨ノ木間	41°15′	140°23′
+33	むつ小川原	港湾局	青森県 上北郡 六ヶ所村 鷹架	40°56′	141°23′
+34	男鹿	国土地理院	秋田県 男鹿市 戸賀塩浜	39°57′	139°42′
+35	秋田	港湾局	秋田県 秋田市 土崎西１丁目	39°45′	140°4′
+36	宮古	気象庁	岩手県 宮古市 日立浜町	39°39′	141°59′
+37	大船渡	気象庁	岩手県 大船渡市 赤崎町	39°1′	141°45′
+38	釜石	海上保安庁	岩手県 釜石市 魚河岸町	39°16′	141°53′
+39	久慈	港湾局	岩手県 久慈市 長内町	40°12′	141°48′
+40	石巻	港湾局	宮城県 石巻市 西浜町地先	38°24′	141°16′
+41	仙台新港	港湾局	宮城県 仙台市 宮城野区 港３丁目	38°16′	141°0′
+42	鮎川	気象庁	宮城県 石巻市 鮎川浜	38°18′	141°30′
+43	鼠ヶ関	国土地理院	山形県 鶴岡市 鼠ヶ関	38°34′	139°33′
+44	飛島	国土地理院	山形県 酒田市 飛島	39°11′	139°33′
+45	酒田	港湾局	山形県 酒田市 宮野浦	38°55′	139°49′
+46	相馬	国土地理院	福島県 相馬市 原釜	37°50′	140°58′
+47	小名浜	気象庁	福島県 いわき市 小名浜	36°56′	140°54′
+48	鹿島	港湾局	茨城県 神栖市 居切	35°56′	140°42′
+49	東京	気象庁	東京都 中央区 晴海５丁目	35°39′	139°46′
+50	岡田	気象庁	東京都 大島町 岡田	34°47′	139°23′
+51	三宅島（坪田）	気象庁	東京都 三宅村 坪田船戸	34°3′	139°33′
+52	父島	気象庁	東京都 小笠原村 父島東町	27°6′	142°12′
+53	神津島	海上保安庁	東京都 神津島村 神津島港	34°13′	139°8′
+54	三宅島（阿古）	海上保安庁	東京都 三宅村 阿古	34°4′	139°29′
+55	八丈島（神湊）	海上保安庁	東京都 八丈町 三根	33°8′	139°48′
+56	勝浦	国土地理院	千葉県 勝浦市 興津	35°8′	140°15′
+57	布良	気象庁	千葉県 館山市 布良	34°55′	139°50′
+58	千葉	海上保安庁	千葉県 市原市 五井	35°34′	140°3′
+59	銚子漁港	千葉県	千葉県 銚子市 川口町２丁目	35°45′	140°52′
+60	京浜港	港湾局	神奈川県 横浜市 神奈川区 山内町	35°28′	139°38′
+61	油壺	国土地理院	神奈川県 三浦市 三崎町	35°10′	139°37′
+62	小田原	気象庁	神奈川県 小田原市 早川地先	35°14′	139°9′
+63	横浜	海上保安庁	神奈川県 横浜市 中区 新港町１丁目	35°27′	139°39′
+64	横須賀	海上保安庁	神奈川県 横須賀市 西逸見町	35°17′	139°39′
+65	伊東	国土地理院	静岡県 伊東市 富戸	34°54′	139°8′
+66	田子	国土地理院	静岡県 賀茂郡 西伊豆町 田子	34°48′	138°46′
+67	焼津	国土地理院	静岡県 焼津市 中港６丁目	34°52′	138°20′
+68	下田	港湾局	静岡県 下田市 柿崎弁天島地先	34°41′	138°58′
+69	石廊崎	気象庁	静岡県 賀茂郡 南伊豆町 手石	34°38′	138°53′
+70	内浦	気象庁	静岡県 沼津市 内浦長浜網代	35°1′	138°53′
+71	清水港	気象庁	静岡県 静岡市 清水区 三保	35°1′	138°31′
+72	御前崎	気象庁	静岡県 御前崎市 港	34°37′	138°13′
+73	舞阪	気象庁	静岡県 浜松市 中央区 舞阪町	34°41′	137°37′
+74	衣浦	愛知県	愛知県 半田市 11号地	34°53′	136°57′
+75	鬼崎	国土地理院	愛知県 常滑市 港町２丁目	34°54′	136°49′
+76	三河	港湾局	愛知県 豊橋市 神野ふ頭	34°44′	137°19′
+77	名古屋	気象庁	愛知県 名古屋市 港区 港町	35°5′	136°53′
+78	赤羽根	気象庁	愛知県 田原市 池尻町	34°36′	137°11′
+79	四日市港	四日市港管理組合	三重県 四日市市 千歳町	34°58′	136°38′
+80	鳥羽	気象庁	三重県 鳥羽市 堅神町	34°29′	136°49′
+81	尾鷲	気象庁	三重県 尾鷲市 天満浦	34°5′	136°12′
+82	熊野	気象庁	三重県 熊野市 遊木町	33°56′	136°10′
+83	柏崎	国土地理院	新潟県 柏崎市 鯨波	37°21′	138°31′
+84	小木	国土地理院	新潟県 佐渡市 小木町	37°49′	138°17′
+85	新潟東港	港湾局	新潟県 新潟市 北区 太郎代	37°59′	139°13′
+86	佐渡	気象庁	新潟県 佐渡市 鷲崎	38°19′	138°31′
+87	上越市直江津（臨時）	気象庁	新潟県 上越市 直江津	37°11′	138°15′
+88	粟島	海上保安庁	新潟県 岩船郡 粟島浦村 内浦	38°28′	139°15′
+89	新潟西港	港湾局	新潟県 新潟市 中央区 入船町	37°56′	139°4′
+90	生地	水管理・国土保全局	富山県 黒部市 生地	36°53′	137°25′
+91	新湊	港湾局	富山県 射水市 堀岡新明神	36°47′	137°7′
+92	富山	気象庁	富山県 富山市 草島	36°46′	137°13′
+93	伏木富山	港湾局	富山県 高岡市 伏木錦町	36°48′	137°4′
+94	輪島港（臨時）	港湾局	石川県 輪島市 河井町	37°24′	136°54′
+95	能登	気象庁	石川県 珠洲市 長橋町	37°30′	137°9′
+96	珠洲市飯田（臨時）	気象庁	石川県 珠洲市 飯田町	37°26′	137°16′
+97	七尾	港湾局	石川県 七尾市 府中町	37°3′	136°58′
+98	金沢	港湾局	石川県 金沢市 大野町４丁目	36°37′	136°36′
+99	三国	国土地理院	福井県 坂井市 三国町	36°15′	136°9′
+100	敦賀	港湾局	福井県 敦賀市 川崎町地先	35°40′	136°4′
+101	舞鶴	気象庁	京都府 舞鶴市 浜	35°29′	135°23′
+102	淡輪	気象庁	大阪府 泉南郡 岬町 淡輪	34°20′	135°11′
+103	大阪	気象庁	大阪府 大阪市 港区 築港３丁目	34°39′	135°26′
+104	姫路（飾磨）	兵庫県	兵庫県 姫路市 飾磨区 須賀	34°47′	134°40′
+105	津居山	兵庫県	兵庫県 豊岡市 小島	35°39′	134°50′
+106	神戸	気象庁	兵庫県 神戸市 中央区 波止場町	34°41′	135°11′
+107	洲本	気象庁	兵庫県 洲本市 海岸通１丁目	34°21′	134°54′
+108	海南	国土地理院	和歌山県 海南市 冷水	34°9′	135°12′
+109	浦神	気象庁	和歌山県 東牟婁郡 那智勝浦町 浦神	33°34′	135°54′
+110	串本	気象庁	和歌山県 東牟婁郡 串本町 串本	33°29′	135°46′
+111	白浜	気象庁	和歌山県 西牟婁郡 白浜町 堅田	33°41′	135°23′
+112	御坊	気象庁	和歌山県 御坊市 名田町	33°51′	135°10′
+113	和歌山	気象庁	和歌山県 和歌山市 湊青岸	34°13′	135°9′
+114	三蟠	水管理・国土保全局	岡山県 岡山市 中区 新築港	34°36′	133°59′
+115	乙島	水管理・国土保全局	岡山県 倉敷市 玉島 乙島	34°30′	133°41′
+116	宇野	気象庁	岡山県 玉野市 宇野１丁目	34°29′	133°57′
+117	広島	海上保安庁	広島県 広島市 南区 宇品海岸２丁目	34°21′	132°28′
+118	呉	海上保安庁	広島県 呉市 宝町	34°14′	132°33′
+119	浜田	気象庁	島根県 浜田市 大辻町	34°54′	132°4′
+120	西郷	気象庁	島根県 隠岐郡 隠岐の島町 港町	36°12′	133°20′
+121	田後	国土地理院	鳥取県 岩美郡 岩美町 田後	35°36′	134°19′
+122	境	気象庁	鳥取県 境港市 境港	35°33′	133°15′
+123	小松島	気象庁	徳島県 小松島市 小松島町	34°1′	134°35′
+124	阿波由岐	気象庁	徳島県 海部郡 美波町 西由岐	33°46′	134°36′
+125	与島	港湾局	香川県 坂出市 与島町	34°23′	133°49′
+126	青木	港湾局	香川県 丸亀市 広島町	34°22′	133°41′
+127	多度津	港湾局	香川県 仲多度郡 多度津町 東浜	34°17′	133°45′
+128	高松	気象庁	香川県 高松市 北浜町	34°21′	134°3′
+129	来島航路	港湾局	愛媛県 今治市 馬島	34°7′	132°59′
+130	松山	気象庁	愛媛県 松山市 海岸通	33°52′	132°43′
+131	宇和島	気象庁	愛媛県 宇和島市 住吉３丁目	33°14′	132°33′
+132	久礼	国土地理院	高知県 高岡郡 中土佐町 久礼	33°20′	133°15′
+133	室戸岬	気象庁	高知県 室戸市 室戸岬町	33°16′	134°10′
+134	高知	気象庁	高知県 高知市 浦戸	33°30′	133°34′
+135	土佐清水	気象庁	高知県 土佐清水市 旭町３丁目	32°47′	132°58′
+136	長府	港湾局	山口県 下関市 長府町	34°1′	131°0′
+137	須佐	国土地理院	山口県 萩市 瓦浴	34°38′	131°36′
+138	田ノ首	港湾局	山口県 下関市 彦島田の首町１丁目	33°55′	130°55′
+139	大山の鼻	港湾局	山口県 下関市 彦島塩浜町４丁目	33°55′	130°54′
+140	南風泊	港湾局	山口県 下関市 彦島西山町３丁目	33°57′	130°53′
+141	宇部	港湾局	山口県 宇部市 沖宇部	33°56′	131°15′
+142	徳山	海上保安庁	山口県 周南市 那智町	34°2′	131°48′
+143	弟子待	港湾局	山口県 下関市 彦島弟子待町２丁目	33°56′	130°56′
+144	苅田	港湾局	福岡県 京都郡 苅田町 港町	33°48′	131°0′
+145	日明	港湾局	福岡県 北九州市 小倉北区 西港町	33°55′	130°53′
+146	青浜	港湾局	福岡県 北九州市 門司区 白野江	33°57′	131°1′
+147	門司	港湾局	福岡県 北九州市 門司区 西海岸通１丁目	33°57′	130°57′
+148	砂津	港湾局	福岡県 北九州市 小倉北区 浅野３丁目	33°54′	130°53′
+149	博多	海上保安庁	福岡県 福岡市 東区 東浜２丁目	33°37′	130°24′
+150	佐伯	気象庁	大分県 佐伯市 鶴見	32°57′	131°58′
+151	大分	海上保安庁	大分県 大分市 三佐	33°16′	131°41′
+152	別府	港湾局	大分県 別府市 南石垣	33°18′	131°30′
+153	皇后	港湾局	長崎県 長崎市 小瀬戸町	32°43′	129°50′
+154	口之津	気象庁	長崎県 南島原市 口之津町	32°36′	130°12′
+155	長崎	気象庁	長崎県 長崎市 松が枝町	32°44′	129°52′
+156	福江	気象庁	長崎県 五島市 東浜町	32°42′	128°51′
+157	対馬比田勝	気象庁	長崎県 対馬市 上対馬町	34°39′	129°29′
+158	佐世保	海上保安庁	長崎県 佐世保市 干尽町	33°9′	129°43′
+159	厳原	海上保安庁	長崎県 対馬市 厳原町	34°12′	129°18′
+160	平戸瀬戸	港湾局	長崎県 平戸市 田平町	33°22′	129°35′
+161	郷ノ浦	港湾局	長崎県 壱岐市 郷ノ浦町	33°45′	129°41′
+162	唐津	港湾局	佐賀県 唐津市 二夕子	33°28′	129°58′
+163	仮屋	国土地理院	佐賀県 東松浦郡 玄海町 仮屋	33°28′	129°51′
+164	大浦	気象庁	佐賀県 藤津郡 太良町 大浦	32°59′	130°13′
+165	八代	港湾局	熊本県 八代市 港町	32°31′	130°34′
+166	熊本	港湾局	熊本県 熊本市 西区 沖新町	32°45′	130°34′
+167	本渡瀬戸	港湾局	熊本県 天草市 大門	32°26′	130°13′
+168	苓北	気象庁	熊本県 天草郡 苓北町 都呂々	32°28′	130°2′
+169	宮崎	港湾局	宮崎県 宮崎市 港１丁目	31°54′	131°27′
+170	細島	国土地理院	宮崎県 日向市 細島町	32°26′	131°40′
+171	油津	気象庁	宮崎県 日南市 大節	31°35′	131°25′
+172	阿久根	国土地理院	鹿児島県 阿久根市 波留	32°1′	130°11′
+173	鹿児島	気象庁	鹿児島県 鹿児島市 本港新町	31°36′	130°34′
+174	枕崎	気象庁	鹿児島県 枕崎市 松之尾町	31°16′	130°18′
+175	種子島	気象庁	鹿児島県 熊毛郡 中種子町 坂井	30°28′	130°58′
+176	奄美	気象庁	鹿児島県 奄美市 名瀬小湊	28°19′	129°32′
+177	大泊	海上保安庁	鹿児島県 肝属郡 南大隅町 佐多馬籠	31°1′	130°41′
+178	西之表	海上保安庁	鹿児島県 西之表市 西之表	30°44′	131°0′
+179	中之島	海上保安庁	鹿児島県 鹿児島郡 十島村 中之島	29°51′	129°51′
+180	名瀬	海上保安庁	鹿児島県 奄美市 名瀬長浜町	28°24′	129°30′
+181	志布志	港湾局	鹿児島県 志布志市 志布志町	31°29′	131°7′
+182	沖縄	国土地理院	沖縄県 南城市 知念	26°11′	127°49′
+183	那覇	気象庁	沖縄県 那覇市 通堂町	26°13′	127°40′
+184	中城湾港	港湾局	沖縄県 沖縄市 海邦	26°20′	127°50′
+185	南大東	気象庁	沖縄県 島尻郡 南大東村 北	25°52′	131°14′
+186	平良	港湾局	沖縄県 宮古島市 平良西里	24°49′	125°17′
+187	石垣	気象庁	沖縄県 石垣市 八島町２丁目	24°20′	124°10′
+188	与那国	気象庁	沖縄県 八重山郡 与那国町 久部良	24°27′	122°57′
+`;
+
+// SVG Icons
+function getTideSvg(type) {
+    const s = 'stroke="black" stroke-width="2"';
+    if(type=='jma') return `<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" fill="#ffff00" ${s}/></svg>`;
+    if(type=='jcg') return `<svg viewBox="0 0 20 20"><polygon points="2,2 18,2 10,18" fill="#00ffff" ${s}/></svg>`;
+    if(type=='gsi') return `<svg viewBox="0 0 20 20"><rect x="3" y="3" width="14" height="14" fill="#00ff00" ${s}/></svg>`;
+    if(type=='port') return `<svg viewBox="0 0 20 20"><polygon points="10,2 18,10 10,18 2,10" fill="#ff0000" ${s}/></svg>`;
+    if(type=='riv') return `<svg viewBox="0 0 20 20"><polygon points="10,2 18,18 2,18" fill="#d3d3d3" ${s}/></svg>`;
+    return `<svg viewBox="0 0 20 20"><polygon points="10,1 12,7 19,7 13,11 15,18 10,14 5,18 7,11 1,7 8,7" fill="#0000ff" ${s}/></svg>`;
+}
+
+// --- Initialization ---
+window.onload = async () => {
+    initMap();
+    initResizer();
+    await loadExternalStations();
+    connectWebSocket();
+    fetchHistory(0);
+    loadGeoJSON();
+    setInterval(() => { document.getElementById("clock").textContent = new Date().toLocaleTimeString('ja-JP'); }, 1000);
+
+    // Sidebar & GPS Bindings
+    document.getElementById("btn-menu-toggle").onclick = toggleSidebar;
+    document.getElementById("btn-pin-sidebar").onclick = toggleSidebarPin;
+    document.getElementById("btn-gps-main").onclick = flyToCurrentLocation;
+
+    // Existing Bindings
+    document.getElementById("btn-audio").onclick = toggleAudio;
+    document.getElementById("btn-auto-zoom").onclick = toggleAutoZoom;
+    document.getElementById("btn-list-zoom").onclick = toggleListClickZoom;
+    document.getElementById("btn-points-toggle").onclick = togglePoints;
+    document.getElementById("btn-load-more").onclick = () => { fetchOffset += 20; fetchHistory(fetchOffset); };
+    document.getElementById("btn-settings").onclick = openSettings;
+    document.getElementById("modal-close").onclick = cancelSettings;
+    document.getElementById("btn-cancel-settings").onclick = cancelSettings;
+    document.getElementById("btn-save-settings").onclick = saveSettings;
+    document.getElementById("btn-screenshot").onclick = takeScreenshot;
+    document.getElementById("btn-tide-toggle").onclick = toggleTide;
+    document.getElementById("filter-min-shindo").onchange = rebuildList;
+    document.getElementById("header-loc-select").onchange = (e) => { if(e.target.value !== "") jumpToLocation(e.target.value); };
+// Help Modal Bindings
+    document.getElementById("btn-help").onclick = () => {
+        document.getElementById("help-modal-overlay").style.display = "block";
+    };
+    document.getElementById("help-modal-close").onclick = () => {
+        document.getElementById("help-modal-overlay").style.display = "none";
+    };
+    // Overlay click to close
+    document.getElementById("help-modal-overlay").onclick = (e) => {
+        if(e.target.id === "help-modal-overlay") {
+            document.getElementById("help-modal-overlay").style.display = "none";
+        }
+    };
+
+    ['jma','jcg','gsi','port','riv','pref'].forEach(k => { document.getElementById(`leg-${k}`).innerHTML = getTideSvg(k); });
+
+    initDraggableModal();
+    animationLoop();
+    updateUserMarkersAndDropdown();
+    
+    // Tool Panel Hover
+    const toolContainer = document.getElementById("map-tool-container");
+    const toolBtn = document.getElementById("tool-toggle-btn");
+    const toolPanel = document.getElementById("tool-panel-content");
+    
+    toolContainer.addEventListener('mouseenter', () => { if(!isToolLocked) toolPanel.style.display = 'flex'; });
+    toolContainer.addEventListener('mouseleave', () => { if(!isToolLocked) toolPanel.style.display = 'none'; });
+    toolBtn.addEventListener('click', () => {
+        isToolLocked = !isToolLocked;
+        if(isToolLocked) {
+            toolBtn.classList.add('pinned');
+            toolBtn.innerHTML = "📌 ツール (固定)";
+            toolPanel.style.display = 'flex';
+        } else {
+            toolBtn.classList.remove('pinned');
+            toolBtn.innerHTML = "🛠️ 表示・ツール";
+            if(!toolContainer.matches(':hover')) toolPanel.style.display = 'none';
+        }
+    });
+};
+
+// --- Sidebar Logic ---
+function toggleSidebar() {
+    isSidebarVisible = !isSidebarVisible;
+    const sidebar = document.getElementById("quake-list-area");
+    const container = document.getElementById("app-container");
+    
+    if (isSidebarVisible) {
+        sidebar.classList.add('visible');
+        if(isSidebarPinned) {
+            container.classList.add('pinned');
+        }
+    } else {
+        sidebar.classList.remove('visible');
+        container.classList.remove('pinned');
+    }
+}
+
+function toggleSidebarPin() {
+    isSidebarPinned = !isSidebarPinned;
+    const btn = document.getElementById("btn-pin-sidebar");
+    const container = document.getElementById("app-container");
+    
+    if (isSidebarPinned) {
+        btn.classList.add("active");
+        btn.innerHTML = "📌 ピン留め中";
+        if (isSidebarVisible) container.classList.add("pinned");
+    } else {
+        btn.classList.remove("active");
+        btn.innerHTML = "📌 ピン留め";
+        container.classList.remove("pinned");
+        // ピン留め解除時は「閉じる」のではなく「オーバーレイ表示」に切り替わるが、
+        // ユーザーが「隠れてほしい」と感じる場合、手動で閉じてもらうか、
+        // あるいは地図クリックで閉じる機能を提供する。
+    }
+    setTimeout(() => map.invalidateSize(), 300);
+}
+
+// --- GPS Logic ---
+function flyToCurrentLocation() {
+    if (!navigator.geolocation) { alert("お使いの端末はGPSに対応していません。"); return; }
+    const btn = document.getElementById("btn-gps-main");
+    btn.style.background = "#e3f2fd";
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+            map.flyTo([lat, lon], 12);
+            // 現在地マーカー
+            L.circleMarker([lat, lon], { radius: 8, color: '#2196F3', fillColor: '#2196F3', fillOpacity: 0.3 })
+             .addTo(map).bindPopup("現在地").openPopup();
+             L.circleMarker([lat, lon], { radius: 3, color: '#fff', fillColor: '#2196F3', fillOpacity: 1 }).addTo(map);
+             btn.style.background = "#fff";
+        },
+        (err) => {
+            alert("現在地を取得できませんでした。\n権限を確認してください。");
+            btn.style.background = "#fff";
+        },
+        { timeout: 10000 }
+    );
+}
+
+// --- Other Logic (Existing) ---
+async function loadExternalStations() {
+    const statusDiv = document.getElementById("station-status");
+    try {
+        const response = await fetch("https://raw.githubusercontent.com/iku55/jma_int_stations/main/stations.json");
+        if (!response.ok) throw new Error("err");
+        const data = await response.json();
+        data.forEach(item => { if (item.name && item.lat) STATION_LOCATIONS[item.name] = { lat: parseFloat(item.lat), lon: parseFloat(item.lon) }; });
+        statusDiv.textContent = `観測点: ${Object.keys(STATION_LOCATIONS).length}`;
+    } catch (e) { statusDiv.textContent = "Data Error"; }
+}
+
+function initMap() {
+    const cartoDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; CARTO', maxZoom: 19 });
+    const gsiStd = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', { attribution: '&copy; 国土地理院', maxZoom: 18 });
+    const gsiPale = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', { attribution: '&copy; 国土地理院', maxZoom: 18 });
+    const gsiPhoto = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg', { attribution: '&copy; 国土地理院', maxZoom: 18 });
+    
+    map = L.map('map', { zoomControl: false, preferCanvas: true, layers: [cartoDark] }).setView([36.5, 138], 5);
+    
+    L.control.layers({
+        "ダーク (英字)": cartoDark,
+        "標準 (日本語)": gsiStd,
+        "淡色 (日本語)": gsiPale,
+        "航空写真": gsiPhoto
+    }, null, { position: 'topright' }).addTo(map);
+
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+    tsunamiLayerGroup = L.layerGroup().addTo(map);
+    tideLayerGroup = L.layerGroup().addTo(map);
+    pWaveLayer = L.circle([0,0], { radius: 0, color: '#2196F3', weight: 1, fill: false, opacity: 0 }).addTo(map);
+    sWaveLayer = L.circle([0,0], { radius: 0, color: '#f44336', weight: 2, fill: false, opacity: 0 }).addTo(map);
+    pointsLayerGroup = L.layerGroup().addTo(map);
+
+    map.on('click', (e) => {
+        if(isPickingLocation) {
+            document.getElementById("new-loc-lat").value = e.latlng.lat.toFixed(4);
+            document.getElementById("new-loc-lon").value = e.latlng.lng.toFixed(4);
+            isPickingLocation = false;
+            document.getElementById("map").classList.remove("crosshair-cursor");
+            document.getElementById("modal-overlay").style.display = "block"; 
+        } else {
+            // サイドバーがピン留めされておらず、かつ表示されている場合、地図クリックで閉じる
+            if(!isSidebarPinned && isSidebarVisible) {
+                toggleSidebar();
+            }
+        }
+    });
+}
+
+function connectWebSocket() {
+    if(socket) socket.close();
+    socket = new WebSocket(WS_URL);
+    socket.onopen = () => document.getElementById("conn-status").className = "status-dot status-connected";
+    socket.onmessage = (e) => {
+        try {
+            const data = JSON.parse(e.data);
+            if(data.code===551) {
+                if(!quakeData.find(q=>q.id===data.id)) {
+                    quakeData.unshift(data);
+                    if(quakeData.length > 200) quakeData.pop();
+                    rebuildList();
+                    const minShindo = parseInt(document.getElementById("filter-min-shindo").value) || 0;
+                    if(data.earthquake.maxScale >= minShindo) {
+                        selectQuake(data.id, 'auto');
+                        speak(`震度${formatShindo(data.earthquake.maxScale).text}、${data.earthquake.hypocenter.name}`);
+                    }
+                }
+            }
+            if(data.code===554||data.code===556) handleEEW(data);
+            if(data.code===552) handleTsunami(data);
+        } catch(err){}
+    };
+    socket.onclose = () => { document.getElementById("conn-status").className = "status-dot status-error"; setTimeout(connectWebSocket, 5000); };
+}
+
+async function fetchHistory(offset) {
+    const btn = document.getElementById("btn-load-more"); btn.textContent = "読み込み中...";
+    try {
+        const res = await fetch(`${HISTORY_API}&limit=20&offset=${offset}`);
+        const newDetail = await res.json();
+        const cleanNew = newDetail.filter(item => !quakeData.find(q => q.id === item.id));
+        if(cleanNew.length > 0) {
+            quakeData = quakeData.concat(cleanNew).sort((a,b) => new Date(b.earthquake.time) - new Date(a.earthquake.time));
+            rebuildList();
+            if(offset===0 && cleanNew.length > 0) selectQuake(cleanNew[0].id, 'auto');
+        }
+        btn.textContent = "さらに読み込む";
+    } catch(e) { btn.textContent = "取得失敗"; }
+}
+
+function rebuildList() {
+    const container = document.getElementById("list-container"); container.innerHTML = "";
+    const minShindo = parseInt(document.getElementById("filter-min-shindo").value) || 0;
+    const visibleData = quakeData.filter(d => d.code === 551 && d.earthquake.maxScale >= minShindo);
+    
+    // 日付ごとのグループ化
+    const groups = {}; const dates = [];
+    visibleData.forEach(d => {
+        const dateStr = d.earthquake.time.split(' ')[0];
+        if(!groups[dateStr]) { groups[dateStr] = []; dates.push(dateStr); }
+        groups[dateStr].push(d);
+    });
+
+    const visibleIds = visibleData.map(d => d.id);
+    Object.keys(markers).forEach(id => { if(!visibleIds.includes(id)) { map.removeLayer(markers[id]); delete markers[id]; } });
+
+    dates.forEach((date, idx) => {
+        const details = document.createElement("details"); details.className = "quake-group";
+        if(idx === 0) details.open = true;
+        const summary = document.createElement("summary");
+        summary.innerHTML = `<span>📅 ${date}</span> <span>${groups[date].length}件</span>`;
+        details.appendChild(summary);
+        groups[date].forEach(data => {
+            details.appendChild(createQuakeItem(data));
+            createMarker(data);
+        });
+        container.appendChild(details);
+    });
+}
+
+function createQuakeItem(data) {
+    const q = data.earthquake; const s = formatShindo(q.maxScale);
+    const item = document.createElement("div"); item.className = "quake-item"; item.id = `list-${data.id}`;
+    item.innerHTML = `<div class="intensity-box" style="background:${s.color};">${s.text}</div><div class="quake-info"><span class="quake-place">${q.hypocenter.name}</span><span class="quake-time">${q.time.split(' ')[1]}</span></div>`;
+    item.onclick = () => selectQuake(data.id, 'list');
+    return item;
+}
+
+function createMarker(data) {
+    if (data.earthquake.hypocenter.latitude != -200 && !markers[data.id]) {
+        const s = formatShindo(data.earthquake.maxScale);
+        const m = L.circleMarker([data.earthquake.hypocenter.latitude, data.earthquake.hypocenter.longitude], {
+            radius: config.markerBaseSize + (Math.sqrt(data.earthquake.maxScale-10)*1.5), 
+            color: '#fff', weight: 1, fillColor: s.color, fillOpacity: 0.8
+        }).addTo(map);
+        m.on('click', () => selectQuake(data.id, 'map'));
+        markers[data.id] = m;
+    }
+}
+
+function selectQuake(id, source) {
+    const data = quakeData.find(q=>q.id===id); if(!data) return;
+    document.querySelectorAll('.quake-item').forEach(el => el.classList.remove('active'));
+    document.getElementById(`list-${id}`)?.classList.add('active');
+    
+    updatePanel(data);
+    if(markers[id]) {
+        Object.values(markers).forEach(m => m.setStyle({weight:1, color:'#fff'}));
+        markers[id].setStyle({weight:3, color:'#00ffff'}).bringToFront();
+        if((source==='auto' && isAutoZoom) || ((source==='list' || source==='map') && isListClickZoom)) {
+            map.flyTo(markers[id].getLatLng(), 7);
+        }
+    }
+    renderObservationPoints(data);
+    startWaveAnimation(data);
+
+    // モバイルでリスト選択時はメニューを閉じる
+    if(source === 'list' && !isSidebarPinned && isSidebarVisible) {
+        toggleSidebar();
+    }
+}
+
+function updatePanel(d){ 
+    const q = d.earthquake; const s = formatShindo(q.maxScale);
+    document.getElementById("p-time").innerText = q.time.substring(0, 16);
+    document.getElementById("p-place").innerText = q.hypocenter.name;
+    document.getElementById("p-mag").innerText = "M " + ((q.hypocenter.magnitude!=-1)?q.hypocenter.magnitude:"-"); 
+    document.getElementById("p-depth").innerText = "深さ " + ((q.hypocenter.depth!=-1)?q.hypocenter.depth+"km":"-");
+    document.getElementById("p-shindo-box").innerText = s.text; 
+    document.getElementById("p-shindo-box").style.background = s.color; 
+    document.getElementById("p-shindo-text").innerText = s.fullText;
+}
+
+function renderObservationPoints(d){
+    pointsLayerGroup.clearLayers();
+    if(!isPointsVisible||!d.points)return;
+    d.points.forEach(p=>{
+        let coord = STATION_LOCATIONS[p.addr];
+        if(!coord) {
+             const key = Object.keys(STATION_LOCATIONS).find(k => p.addr.includes(k) || k.includes(p.addr));
+             if(key) coord = STATION_LOCATIONS[key];
+        }
+        if(coord) {
+            L.circleMarker([coord.lat, coord.lon], { radius: 4, color: '#fff', weight: 1, fillColor: formatShindo(p.scale).color, fillOpacity: 1 })
+            .bindTooltip(`${p.addr} : 震度${formatShindo(p.scale).text}`).addTo(pointsLayerGroup);
+        }
+    });
+}
+
+// Utils
+function getTimestampFilename(p, e) { const n=new Date(); return `${p}_${n.toISOString().slice(0,10).replace(/-/g,"")}${n.getHours()}${n.getMinutes()}.${e}`; }
+async function takeScreenshot() {
+    const btn=document.getElementById("btn-screenshot"); btn.innerHTML="⏳";
+    try {
+        const c = await html2canvas(document.getElementById("app-container"), {useCORS:true, allowTaint:false});
+        const l = document.createElement('a'); l.download = getTimestampFilename("J-Quake","png"); l.href = c.toDataURL(); l.click();
+    } catch(e){}
+    btn.innerHTML="📷 保存";
+}
+
+function exportConfig() {
+    const dl = document.createElement('a'); dl.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(config));
+    dl.download = getTimestampFilename("config", "json"); dl.click();
+}
+function importConfig(input) {
+    const f=input.files[0]; if(!f) return;
+    const r=new FileReader(); r.onload=e=>{ try{ config=JSON.parse(e.target.result); saveSettings(); location.reload(); }catch(x){alert("Error");}};
+    r.readAsText(f);
+}
+
+function handleTsunami(data){
+    tsunamiLayerGroup.clearLayers();
+    const p=document.getElementById("tsunami-panel");
+    if(data.cancelled||!data.areas||!data.areas.length){ p.style.display="none"; return;}
+    p.style.display="block";
+    let maxGrade = 0; const grades={MajorWarning:3, Warning:2, Watch:1, Unknown:0};
+    data.areas.forEach(a=>{ if(grades[a.grade]>maxGrade) maxGrade=grades[a.grade]; });
+    const msgs = {3:"大津波警報", 2:"津波警報", 1:"津波注意報"};
+    document.getElementById("tsunami-content").innerHTML = `<span style="font-size:1.3rem; font-weight:bold; color:${maxGrade==3?'#aa00aa':maxGrade==2?'#ff2800':'#f2e700'}">${msgs[maxGrade]||"不明"}</span> が発表されています。`;
+    if(geoJsonData){
+         L.geoJSON(geoJsonData, {
+            style: f => {
+                const name = f.properties.nam_ja || "";
+                const area = data.areas.find(a => name.includes(a.name));
+                if(area) {
+                    const c = area.grade=="MajorWarning"?"#aa00aa":area.grade=="Warning"?"#ff2800":"#f2e700";
+                    return {color:c, weight:2, opacity:1, fillOpacity:0.5, fillColor:c};
+                }
+                return {opacity:0, fillOpacity:0};
+            }
+        }).addTo(tsunamiLayerGroup);
+    }
+}
+function clearTsunamiData() { tsunamiLayerGroup.clearLayers(); document.getElementById("tsunami-panel").style.display = "none"; }
+async function loadGeoJSON() { try{const r=await fetch(JAPAN_GEOJSON_URL); geoJsonData=await r.json();}catch(e){} }
+
+function handleEEW(data){ showEEWOverlay(data); if(data.code===556 && !data.cancelled) checkPersonalAlert(data); }
+function checkPersonalAlert(data){
+    const eq=data.earthquake; if(!eq) return;
+    let maxScale=-1, targetLoc=null, targetDist=0;
+    config.savedLocations.forEach(loc=>{
+        const d=getDistance(loc.lat,loc.lon,eq.hypocenter.latitude,eq.hypocenter.longitude);
+        const s=predictIntensity(eq.magnitude, d, parseInt(eq.hypocenter.depth));
+        if(s>maxScale){ maxScale=s; targetLoc=loc; targetDist=d;}
+    });
+    if(targetLoc && maxScale>=config.alertThreshold) triggerPersonalAlert(Date.now()+(targetDist/config.sWaveSpeed)*1000, maxScale, targetLoc.name);
+}
+function triggerPersonalAlert(arrTime, scale, name){
+    document.getElementById("personal-alert").style.display="block";
+    document.getElementById("alert-location-name").textContent = name;
+    document.getElementById("alert-est-shindo").textContent = "予測 "+formatShindo(scale).fullText;
+    speak(`緊急地震速報。${name}、予測震度${formatShindo(scale).text}`);
+    if(alertTimerInterval) clearInterval(alertTimerInterval);
+    alertTimerInterval=setInterval(()=>{
+        const left=(arrTime-Date.now())/1000;
+        document.getElementById("alert-countdown").textContent = left<=0?"到達":left.toFixed(1);
+        if(left<-60) stopAlert();
+    },100);
+}
+function showEEWOverlay(data){
+    const el=document.getElementById("eew-overlay"); el.style.display="block";
+    if(data.cancelled){el.innerText="キャンセル"; setTimeout(()=>el.style.display="none",3000); return;}
+    document.getElementById("eew-text").innerText = data.earthquake ? `${data.earthquake.hypocenter.name} M${data.earthquake.magnitude} 最大${formatShindo(data.earthquake.maxScale).text}` : "詳細解析中";
+    setTimeout(()=>el.style.display="none", 60000);
+}
+function stopAlert(){ document.getElementById("personal-alert").style.display="none"; clearInterval(alertTimerInterval); }
+
+function getDistance(lat1,lon1,lat2,lon2){ const R=6371; const dLat=(lat2-lat1)*Math.PI/180; const dLon=(lon2-lon1)*Math.PI/180; const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2; return R*2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); }
+function predictIntensity(m,d,depth){ if(m<1)return 0; const x=Math.max(Math.sqrt(d**2+depth**2),3); const pgv=Math.pow(10,0.58*m-Math.log10(x)-0.002*x-0.6)*2.0; let i=2.68+1.94*Math.log10(pgv); return i<2.5?20:i<3.5?30:i<4.5?40:i<5.0?45:i<5.5?50:i<6.0?55:60; }
+function formatShindo(s){ const c=config.colors; const t={10:"1",20:"2",30:"3",40:"4",45:"5-",50:"5+",55:"6-",60:"6+",70:"7"}; const f={10:"震度1",20:"震度2",30:"震度3",40:"震度4",45:"5弱",50:"5強",55:"6弱",60:"6強",70:"震度7"}; return {color:c[s]||"#777", text:t[s]||"?", fullText:f[s]||"不明"}; }
+
+function startWaveAnimation(d){ const t=new Date(d.earthquake.time).getTime(); if((Date.now()-t)/1000>300){currentWaveTarget=null; return;} currentWaveTarget={lat:d.earthquake.hypocenter.latitude, lng:d.earthquake.hypocenter.longitude, time:t}; }
+function animationLoop(){
+    if(currentWaveTarget){
+        const e=(Date.now()-currentWaveTarget.time)/1000;
+        if(e>0){pWaveLayer.setLatLng([currentWaveTarget.lat,currentWaveTarget.lng]).setRadius(e*6.5*1000).setStyle({opacity:1}); sWaveLayer.setLatLng([currentWaveTarget.lat,currentWaveTarget.lng]).setRadius(e*config.sWaveSpeed*1000).setStyle({opacity:1});}
+    }
+    requestAnimationFrame(animationLoop);
+}
+
+function toggleAudio(){ isAudioOn=!isAudioOn; updateBtn("btn-audio", isAudioOn, "🔊 音声", "🔇 音声"); }
+function toggleAutoZoom(){ isAutoZoom=!isAutoZoom; updateBtn("btn-auto-zoom", isAutoZoom, "🎯 新着追尾", "🎯 新着追尾"); }
+function toggleListClickZoom(){ isListClickZoom=!isListClickZoom; updateBtn("btn-list-zoom", isListClickZoom, "👆 クリック", "👆 クリック"); }
+function togglePoints(){ isPointsVisible=!isPointsVisible; updateBtn("btn-points-toggle", isPointsVisible, "📍 観測点", "📍 観測点"); if(document.querySelector('.quake-item.active')) selectQuake(document.querySelector('.quake-item.active').id.replace('list-',''),'none'); }
+function updateBtn(id, state, onTxt, offTxt){ const b=document.getElementById(id); b.classList.toggle("active", state); b.innerText=state?onTxt:offTxt; }
+function speak(t){ if(isAudioOn){ const u=new SpeechSynthesisUtterance(t); u.lang="ja-JP"; window.speechSynthesis.speak(u); } }
+
+function toggleTide() {
+    isTideVisible = !isTideVisible;
+    updateBtn("btn-tide-toggle", isTideVisible, "🌊 潮位観測", "🌊 潮位観測");
+    const legend = document.getElementById("tide-legend");
+    if (isTideVisible) { legend.style.display = "block"; renderTideStations(); } else { legend.style.display = "none"; tideLayerGroup.clearLayers(); }
+}
+function dmsToDecimal(s) { const m=s.match(/(\d+)°(\d+)′/); return m ? parseFloat(m[1])+(parseFloat(m[2])/60) : null; }
+function renderTideStations() {
+    tideLayerGroup.clearLayers();
+    TIDE_STATIONS_RAW.trim().split('\n').forEach(line => {
+        const c = line.split(/\t/); if (c.length < 6) return;
+        const lat = dmsToDecimal(c[4]), lon = dmsToDecimal(c[5]); if (!lat) return;
+        let type = 'pref'; 
+        if (c[2].includes("気象庁")) type = 'jma'; else if (c[2].includes("海上保安庁")) type = 'jcg'; else if (c[2].includes("地理院")) type = 'gsi'; else if (c[2].includes("港湾局")) type = 'port'; else if (c[2].includes("水管理")) type = 'riv';
+        L.marker([lat, lon], { icon: L.divIcon({ className:'', html:getTideSvg(type), iconSize:[16,16] }) })
+         .bindTooltip(`${c[1]}`,{direction:'top',offset:[0,-10]}).addTo(tideLayerGroup).on('click',()=>window.open(`https://www.jma.go.jp/bosai/map.html#12/${lat}/${lon}/&contents=tidelevel`,'_blank'));
+    });
+}
+
+function openSettings(){
+    configBackup=JSON.parse(JSON.stringify(config));
+    document.getElementById("modal-overlay").style.display="block";
+    renderSavedLocationsSettings();
+    const g=document.getElementById("color-settings-grid"); g.innerHTML="";
+    const L={10:"1",20:"2",30:"3",40:"4",45:"5-",50:"5+",55:"6-",60:"6+",70:"7"};
+    Object.keys(config.colors).forEach(k=>{
+        const d=document.createElement("div"); d.className="color-item";
+        d.innerHTML=`<span style="font-weight:bold;width:30px;">${L[k]}</span><input type="color" value="${config.colors[k]}" oninput="config.colors[${k}]=this.value;rebuildList()">`;
+        g.appendChild(d);
+    });
+}
+function renderSavedLocationsSettings(){
+    const list=document.getElementById("settings-loc-list"); list.innerHTML="";
+    config.savedLocations.forEach((l,i)=>{
+        const d=document.createElement("div"); d.className="loc-list-item";
+        d.innerHTML=`<span>${l.name}</span><button style="background:#d32f2f;color:#fff;border:none;border-radius:2px;cursor:pointer;padding:2px 5px;" onclick="removeLocation(${i})">削除</button>`;
+        list.appendChild(d);
+    });
+}
+function addLocation(){
+    const n=document.getElementById("new-loc-name").value; const la=parseFloat(document.getElementById("new-loc-lat").value); const lo=parseFloat(document.getElementById("new-loc-lon").value);
+    if(n&&!isNaN(la)&&!isNaN(lo)){ config.savedLocations.push({name:n,lat:la,lon:lo}); renderSavedLocationsSettings(); document.getElementById("new-loc-name").value=""; }
+}
+function removeLocation(i){ config.savedLocations.splice(i,1); renderSavedLocationsSettings(); }
+function getCurrentLocationForInput(){ navigator.geolocation.getCurrentPosition(p=>{ document.getElementById("new-loc-lat").value=p.coords.latitude.toFixed(4); document.getElementById("new-loc-lon").value=p.coords.longitude.toFixed(4); }); }
+function saveSettings(){ localStorage.setItem("jq_config_v5", JSON.stringify(config)); configBackup=null; document.getElementById("modal-overlay").style.display="none"; updateUserMarkersAndDropdown(); }
+function cancelSettings(){ if(configBackup){config=configBackup; rebuildList(); updateUserMarkersAndDropdown();} document.getElementById("modal-overlay").style.display="none"; }
+function updateUserMarkersAndDropdown(){
+    userLocationMarkers.forEach(m=>map.removeLayer(m)); userLocationMarkers=[];
+    const sel=document.getElementById("header-loc-select"); sel.innerHTML='<option value="">📍 地点...</option>';
+    config.savedLocations.forEach((l,i)=>{
+        const o=document.createElement("option"); o.value=i; o.textContent=l.name; sel.appendChild(o);
+        const m=L.marker([l.lat,l.lon],{icon:L.divIcon({className:'user-icon',html:'<div style="background:#2196F3;width:12px;height:12px;border-radius:50%;border:2px solid white;"></div>',iconSize:[16,16]})}).addTo(map).bindTooltip(l.name);
+        userLocationMarkers.push(m);
+    });
+}
+function jumpToLocation(i){ const l=config.savedLocations[i]; if(l) map.flyTo([l.lat,l.lon],9); }
+function startMapPick() { document.getElementById("modal-overlay").style.display = "none"; isPickingLocation = true; document.getElementById("map").classList.add("crosshair-cursor"); alert("地図上の地点をクリックしてください。"); }
+function demoTsunami(){ if(!geoJsonData) { alert("地図データ読込中..."); return; } handleTsunami({ code: 552, areas: [{name: "千葉県", grade: "MajorWarning"}, {name: "東京都", grade: "Warning"},{name: "北海道", grade: "Watch"},{name: "沖縄県", grade: "Watch"}]}); document.getElementById("modal-overlay").style.display="none"; }
+function demoEEW() {
+    // モーダルを閉じる
+    document.getElementById("modal-overlay").style.display = "none";
+    
+    // 現在時刻を取得
+    const now = new Date();
+    const timeStr = `${now.getFullYear()}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getDate().toString().padStart(2,'0')} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+
+    // 擬似的な緊急地震速報データを作成
+    // (例: 紀伊半島沖でM7.8の地震が発生したと仮定)
+    const mockData = {
+        code: 556, // 緊急地震速報(予報)コード
+        cancelled: false,
+        earthquake: {
+            originTime: timeStr,
+            time: timeStr,
+            hypocenter: {
+                name: "紀伊半島沖（訓練）",
+                latitude: 33.0,
+                longitude: 136.0, 
+                depth: 10,
+                magnitude: 7.8
+            },
+            maxScale: 60 // 最大震度6強相当
+        },
+        issue: { type: "Focus" } 
+    };
+
+    // 通常のEEW処理ルーチンに流す
+    handleEEW(mockData);
+    
+    // 地図上の波紋アニメーションも開始
+    startWaveAnimation(mockData);
+
+    // マイロケーションが登録されていない場合の案内
+    if (config.savedLocations.length === 0) {
+        alert("マイロケーションが登録されていないため、カウントダウンは表示されず、右上の速報表示のみ行われます。\n「設定」から地点を登録すると、カウントダウンの動作も確認できます。");
+    }
+}
+function initDraggableModal(){ const m=document.getElementById("modal-window"), h=document.getElementById("modal-header-drag"); let d=false,sx,sy,il,it; h.addEventListener("mousedown",e=>{d=true;sx=e.clientX;sy=e.clientY;const r=m.getBoundingClientRect();il=r.left;it=r.top;m.style.left=il+"px";m.style.top=it+"px";m.style.transform="none";}); window.addEventListener("mousemove",e=>{if(d){m.style.left=(il+e.clientX-sx)+"px";m.style.top=(it+e.clientY-sy)+"px";}}); window.addEventListener("mouseup",()=>d=false); }
+function initResizer(){ const g=document.getElementById('gutter'), c=document.getElementById('app-container'); let r=false; g.onmousedown=e=>{r=true;e.preventDefault();}; window.onmousemove=e=>{if(r){let w=Math.max(200,Math.min(600,e.clientX));c.style.gridTemplateColumns=`${w}px 6px 1fr`;map.invalidateSize();}}; window.onmouseup=()=>r=false; }
+</script>
+
+<!-- Help Modal -->
+<div id="help-modal-overlay">
+    <div id="help-modal-window">
+        <div class="modal-header">
+            <span>📖 J-Quake ヘルプ</span>
+            <button class="btn-close" id="help-modal-close">×</button>
+        </div>
+        <div class="help-content">
+            <section>
+                <h3>📌 このアプリについて</h3>
+                <p>P2P地震情報のAPIを利用し、リアルタイムで地震情報・津波情報・緊急地震速報を表示するWebアプリケーションです。</p>
+            </section>
+
+            <section>
+                <h3>🗺️ 地図の見方</h3>
+                <ul>
+                    <li><span style="color:#2196F3; font-weight:bold;">青い波紋 (P波)</span>: 初期微動。カタカタ揺れます。</li>
+                    <li><span style="color:#f44336; font-weight:bold;">赤い波紋 (S波)</span>: 主要動。ユサユサ大きく揺れます。</li>
+                    <li><strong>丸いマーカー</strong>: 震源地を表します。円の大きさはマグニチュード、色は震度に対応します。</li>
+                    <li><strong>小さな点</strong>: 各地の震度観測点です。</li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>🛠️ ツールバーの機能</h3>
+                <p>地図左下の「🛠️ 表示・ツール」から以下の機能が使えます。</p>
+                <ul>
+                    <li><strong>🎯 新着追尾</strong>: 新しい地震が発生した際、自動的にその場所に地図を移動します。</li>
+                    <li><strong>🔇 音声</strong>: 地震発生時に情報を読み上げます（ブラウザの音声機能を使用）。</li>
+                    <li><strong>📍 観測点</strong>: 各地の震度観測点の表示/非表示を切り替えます。</li>
+                    <li><strong>🌊 潮位観測</strong>: 日本各地の潮位観測所を表示します。クリックで気象庁の潮位グラフへ飛びます。</li>
+                    <li><strong>📷 保存</strong>: 現在の画面を画像としてダウンロードします。</li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>⚙️ 設定・マイロケーション</h3>
+                <p>右上の歯車アイコンから設定を行えます。</p>
+                <ul>
+                    <li><strong>マイロケーション</strong>: 自宅や職場を登録しておくと、リストからすぐに地図移動できます。</li>
+                    <li><strong>パーソナル予報</strong>: 緊急地震速報受信時、登録地点への到達時間と予測震度を表示します。</li>
+                    <li><strong>バックアップ</strong>: 設定内容をファイルに保存・復元できます。</li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>⚠️ データ・免責事項</h3>
+                <p>
+                    本アプリの地震情報は<a href="https://www.p2pquake.net/" target="_blank" style="color:#2196F3;">P2P地震情報</a>のAPI、地図データは国土地理院・OpenStreetMap等のオープンデータを使用しています。<br>
+                    情報の正確性には万全を期していますが、本アプリの利用により生じた損害について開発者は責任を負いません。命に関わる判断はテレビ・ラジオ等の公式情報に従ってください。
+                </p>
+            </section>
+            
+            <section>
+                <h3>ℹ️ 最終更新日</h3>
+                <p> 2025年12月9日 </p>
+            </section>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
