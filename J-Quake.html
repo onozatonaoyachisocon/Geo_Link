@@ -234,7 +234,6 @@
         background: rgba(0,0,0,0.5); z-index: 9999; backdrop-filter: blur(2px);
     }
     .modal-window-common {
-        /* position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); ← これを削除 */
         position: absolute; 
         top: 80px; /* 上からの位置を固定 */
         left: 50%; 
@@ -550,6 +549,13 @@
                             <span class="slider"></span>
                         </label>
                     </div>
+<div class="checkbox-row">
+                        <label for="st-click-zoom">👆 クリック時のズームをON</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="st-click-zoom">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
                     <div class="checkbox-row">
                         <label for="st-points">📍 観測点（数値）を表示</label>
                         <label class="toggle-switch">
@@ -563,6 +569,16 @@
                             <input type="checkbox" id="st-tide">
                             <span class="slider"></span>
                         </label>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <label class="form-label">起動時の地図スタイル</label>
+                        <select id="st-map-layer">
+                            <option value="dark">ダーク (英字)</option>
+                            <option value="std">標準 (日本語)</option>
+                            <option value="pale">淡色 (日本語)</option>
+                            <option value="photo">航空写真</option>
+                        </select>
                     </div>
                 </div>
 
@@ -683,10 +699,17 @@
             <hr style="border-color:#333; margin:20px 0;">
 
             <section style="margin-bottom: 20px;">
+                <h3 style="color:#fff;">⚠️ データ・免責事項</h3>
+                <p>本アプリの地震情報はP2P地震情報のAPI、地図データは国土地理院・OpenStreetMap等のオープンデータを使用しています。</p>
+                <p>情報の正確性には万全を期していますが、本アプリの利用により生じた損害について開発者は責任を負いません。命に関わる判断はテレビ・ラジオ等の公式情報に従ってください。</p>
+            </section>
+            <hr style="border-color:#333; margin:20px 0;">
+
+            <section style="margin-bottom: 20px;">
                 <h3 style="color:#fff;">⚙️ 設定・起動設定</h3>
                 <p>右上の歯車アイコンから設定画面を開けます。</p>
                 <ul>
-                    <li><strong>起動設定</strong>: 「全般・起動」タブで、アプリを開いた時の初期状態（サイドバー固定、音声ON/OFFなど）を設定できます。</li>
+                    <li><strong>起動設定</strong>: 「全般・起動」タブで、アプリを開いた時の初期状態（サイドバー固定、音声ON/OFF、地図レイヤーなど）を設定できます。</li>
                     <li><strong>マイロケーション</strong>: 自宅や職場を登録しておくと、リストからすぐに地図移動できます。</li>
                     <li><strong>バックアップ</strong>: 設定内容をファイルに保存・復元できます。</li>
                 </ul>
@@ -694,7 +717,7 @@
             
             <section>
                 <h3 style="color:#fff;">ℹ️ 最終更新日</h3>
-                <p> 2025年12月9日</p>
+                <p> 2025年12月10日</p>
             </section>
         </div>
     </div>
@@ -703,7 +726,7 @@
 <script>
 // --- Configuration & Default Settings ---
 const DEFAULT_CONFIG = {
-    version: 6,
+    version: 7, // Increment for map layer logic
     markerBaseSize: 5,
     colors: {
         10: "#4caf50", 20: "#8bc34a", 30: "#ffeb3b", 40: "#ffc107",
@@ -713,11 +736,15 @@ const DEFAULT_CONFIG = {
     alertThreshold: 30,
     sWaveSpeed: 4.0,
     startup: {
-        sidebarPinned: false,
+        sidebarPinned: true,
         audioOn: false,
         autoZoom: true,
+clickZoom: true,
         showPoints: true,
-        showTide: false
+        showTide: true,
+        // ★ここを書き換えます
+        // 画面幅が600px以下(スマホ)なら "pale"(淡色)、それ以外は "dark" になります
+        mapLayer: (window.innerWidth <= 600) ? "pale" : "dark" 
     }
 };
 
@@ -1053,7 +1080,11 @@ function applyStartupSettings() {
     // Auto Zoom
     isAutoZoom = s.autoZoom;
     updateBtn("btn-auto-zoom", isAutoZoom, "🎯 新着追尾", "🎯 新着追尾");
-
+    // ↓↓↓ ここに追加 ↓↓↓
+    // Click Zoom
+    isListClickZoom = s.clickZoom;
+    updateBtn("btn-list-zoom", isListClickZoom, "👆 クリック", "👆 クリック");
+    // ↑↑↑ ここまで ↑↑↑
     // Points
     isPointsVisible = s.showPoints;
     updateBtn("btn-points-toggle", isPointsVisible, "📍 観測点", "📍 観測点");
@@ -1142,12 +1173,24 @@ async function loadExternalStations() {
 }
 
 function initMap() {
+    // Define layers first
     const cartoDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; CARTO', maxZoom: 19 });
     const gsiStd = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', { attribution: '&copy; 国土地理院', maxZoom: 18 });
     const gsiPale = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', { attribution: '&copy; 国土地理院', maxZoom: 18 });
     const gsiPhoto = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg', { attribution: '&copy; 国土地理院', maxZoom: 18 });
     
-    map = L.map('map', { zoomControl: false, preferCanvas: true, layers: [cartoDark] }).setView([36.5, 138], 5);
+    // Map string key to layer object
+    const layerMap = {
+        "dark": cartoDark,
+        "std": gsiStd,
+        "pale": gsiPale,
+        "photo": gsiPhoto
+    };
+
+    // Determine initial layer based on config
+    const initialLayer = layerMap[config.startup.mapLayer] || cartoDark;
+
+    map = L.map('map', { zoomControl: false, preferCanvas: true, layers: [initialLayer] }).setView([36.5, 138], 5);
     
     L.control.layers({
         "ダーク (英字)": cartoDark,
@@ -1381,15 +1424,10 @@ async function takeScreenshot() {
     btn.innerHTML="📷 保存";
 }
 
-// ★ここが今回のメイン修正箇所です（設定バックアップ）
 function exportConfig() {
     const dl = document.createElement('a'); 
     dl.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(config));
-    
-    // ファイル名を「J-Quake_設定_年月日_時間.json」に変更
-    // もし「地震情報_...」という名前で設定を保存したい場合は prefix を "地震情報" に変えてください
     dl.download = getTimestampFilename("J-Quake_設定", "json"); 
-    
     dl.click();
 }
 function importConfig(input) {
@@ -1521,8 +1559,12 @@ function openSettings(){
     document.getElementById("st-pin").checked = config.startup.sidebarPinned;
     document.getElementById("st-audio").checked = config.startup.audioOn;
     document.getElementById("st-auto-zoom").checked = config.startup.autoZoom;
+    document.getElementById("st-click-zoom").checked = config.startup.clickZoom; // ← これを追加
     document.getElementById("st-points").checked = config.startup.showPoints;
     document.getElementById("st-tide").checked = config.startup.showTide;
+    
+    // Populate Map Layer
+    document.getElementById("st-map-layer").value = config.startup.mapLayer || "dark";
     
     // Populate Threshold
     document.getElementById("input-alert-threshold").value = config.alertThreshold;
@@ -1556,8 +1598,10 @@ function saveSettings(){
     config.startup.sidebarPinned = document.getElementById("st-pin").checked;
     config.startup.audioOn = document.getElementById("st-audio").checked;
     config.startup.autoZoom = document.getElementById("st-auto-zoom").checked;
+config.startup.clickZoom = document.getElementById("st-click-zoom").checked; // ← これを追加
     config.startup.showPoints = document.getElementById("st-points").checked;
     config.startup.showTide = document.getElementById("st-tide").checked;
+    config.startup.mapLayer = document.getElementById("st-map-layer").value; // Save Map Layer
     
     config.alertThreshold = parseInt(document.getElementById("input-alert-threshold").value);
 
