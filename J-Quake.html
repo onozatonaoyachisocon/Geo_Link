@@ -25,16 +25,31 @@
     }
     body, html { margin: 0; padding: 0; height: 100%; font-family: 'Noto Sans JP', sans-serif; background-color: var(--bg-color); color: var(--text-main); overflow: hidden; }
 
-    /* Layout */
+    /* Layout (修正版) */
     #app-container {
         display: grid;
-        grid-template-columns: 0px 0px 1fr;
-        grid-template-rows: 50px 1fr;
+        /* 通常時（ピン留めなし）：サイドバー領域は 0px */
+        grid-template-columns: 0px 0px 1fr; 
+        grid-template-rows: 50px 1fr; /* スマホ用CSSで上書きされるのでPC用 */
         height: 100vh; width: 100vw;
+        /* リサイズ中は transition を無効化するため、JSでクラス制御できるようにする */
         transition: grid-template-columns 0.3s ease;
     }
+    
+    /* ピン留め時：変数の幅を使用 */
     #app-container.pinned {
         grid-template-columns: var(--sidebar-width) 6px 1fr;
+    }
+    
+    /* リサイズ操作中はアニメーション（ぬるっと動く挙動）をオフにするクラス */
+    #app-container.resizing {
+        transition: none !important;
+        user-select: none; /* ドラッグ中の文字選択防止 */
+        pointer-events: none; /* マウスイベントの干渉防止 */
+    }
+    /* ただし、リサイズ中も境界線自体は操作できるようにする */
+    #app-container.resizing #gutter {
+        pointer-events: auto;
     }
 
     /* Header */
@@ -119,7 +134,7 @@
     #map { width: 100%; height: 100%; z-index: 1; }
     .crosshair-cursor { cursor: crosshair !important; }
 
-    /* Map Icons (Updated) */
+    /* Map Icons */
     .map-shindo-icon {
         display: flex; justify-content: center; align-items: center;
         border-radius: 4px; color: #000; font-weight: bold;
@@ -132,7 +147,7 @@
         position: absolute; top: 10px; left: 10px; width: 240px; max-width: 60vw;
         background: rgba(0, 0, 0, 0.85); border: 1px solid #444; border-radius: 8px;
         padding: 10px; z-index: 1000; backdrop-filter: blur(5px);
-        cursor: pointer; transition: background 0.2s; /* Clickable style */
+        cursor: pointer; transition: background 0.2s;
     }
     #latest-info-panel:hover { background: rgba(30, 30, 30, 0.95); border-color: #666; }
     
@@ -202,8 +217,8 @@
     #alert-message { font-size: 1.1rem; margin-top: 5px; }
     #alert-est-shindo { font-size: 1.8rem; font-weight: bold; margin-bottom: 10px; background: #fff; color:#d32f2f; display:inline-block; padding:5px 15px; border-radius:5px; }
 
-    #tide-legend {
-        display: none; position: absolute; bottom: 30px; right: 10px;
+   #tide-legend {
+        display: none; position: absolute; bottom: 30px; right: 70px;
         background: rgba(255, 255, 255, 0.9); color: #000;
         padding: 5px; border-radius: 5px; border: 1px solid #999;
         z-index: 1000; font-size: 0.75rem; box-shadow: 0 0 10px rgba(0,0,0,0.5); width: 140px;
@@ -233,12 +248,80 @@
     .btn-close { background:transparent; border:none; color:#888; font-size:1.5rem; cursor:pointer;}
     .btn-close:hover { color:#fff; }
 
+    /* Tabs in Settings */
+    .tab-header { display: flex; border-bottom: 1px solid #444; margin-bottom: 15px; background: #1a1a1a; position: sticky; top: 0;}
+    .tab-btn { 
+        background: none; border: none; color: #888; padding: 12px 15px; 
+        cursor: pointer; border-bottom: 3px solid transparent; font-size: 0.9rem; transition: 0.3s; flex: 1;
+    }
+    .tab-btn:hover { color: #ddd; background: #252525; }
+    .tab-btn.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); font-weight: bold; background: #222; }
+    .tab-content { display: none; animation: fadeIn 0.3s; }
+    .tab-content.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    /* Checkbox list (修正版) */
+    .checkbox-row { 
+        display: flex; 
+        align-items: center; 
+        justify-content: space-between; 
+        padding: 12px 5px; /* タップしやすいよう少し広げる */
+        border-bottom: 1px solid #333; 
+    }
+    
+    /* 左側のテキストラベルの設定 */
+    .checkbox-row > label:first-child { 
+        cursor: pointer; 
+        flex: 1;              /* 余白を埋める */
+        display: flex;        /* アイコンとテキストを並べる */
+        align-items: center;  /* 垂直方向中央揃え */
+        gap: 10px;            /* アイコンと文字の間隔 */
+        font-weight: 500;
+    }
+
+    /* 右側のスイッチの設定 */
+    .toggle-switch { 
+        position: relative; 
+        display: inline-block; 
+        width: 44px;      /* 固定幅 */
+        height: 24px; 
+        flex-shrink: 0;   /* 親要素が狭くても縮まない */
+        flex-grow: 0;     /* 親要素が広くても伸びない（重要） */
+        margin-left: 10px;
+    }
+    
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    
+    .slider { 
+        position: absolute; 
+        cursor: pointer; 
+        top: 0; left: 0; right: 0; bottom: 0; 
+        background-color: #555; 
+        transition: .4s; 
+        border-radius: 24px; 
+    }
+    
+    .slider:before { 
+        position: absolute; 
+        content: ""; 
+        height: 18px; 
+        width: 18px; 
+        left: 3px; 
+        bottom: 3px; 
+        background-color: white; 
+        transition: .4s; 
+        border-radius: 50%; 
+    }
+    
+    input:checked + .slider { background-color: var(--accent-blue); }
+    input:checked + .slider:before { transform: translateX(20px); }
+
     /* Settings Form */
     .form-group { margin-bottom: 15px; background: #2a2a2a; padding: 15px; border-radius: 6px; }
     .form-label { display: block; margin-bottom: 8px; color: #aaa; font-size: 0.85rem; }
-    .btn-row { display: flex; gap: 10px; margin-top: 20px; padding: 0 20px 20px 20px;}
-    .btn-primary { background: var(--accent-blue); color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; flex: 1; }
-    .btn-cancel { background: #444; color: #ddd; border: none; padding: 10px; border-radius: 4px; cursor: pointer; flex: 1; }
+    .btn-row { display: flex; gap: 10px; margin-top: 20px; padding: 0 20px 20px 20px; border-top: 1px solid #333; background: #1e1e1e; }
+    .btn-primary { background: var(--accent-blue); color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; flex: 1; margin-top: 10px;}
+    .btn-cancel { background: #444; color: #ddd; border: none; padding: 10px; border-radius: 4px; cursor: pointer; flex: 1; margin-top: 10px;}
     input[type="number"], input[type="text"], select { background: #333; border: 1px solid #555; color: #fff; padding: 6px; border-radius: 4px; width: 100%; box-sizing: border-box; }
     input[type="color"] { background: none; border: none; width: 30px; height: 30px; cursor: pointer; }
     .color-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
@@ -261,78 +344,32 @@
     ::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #555; }
 
-/* =========================================
-       モバイル用レイアウト修正 (ステータスバー対応版)
-       ========================================= */
+    /* Mobile */
     @media screen and (max-width: 600px) {
-        
-        /* 1. アプリ全体の高さ設定 */
-        #app-container {
-            /* ヘッダー高さを自動(auto)、地図エリアを残りの高さ(1fr)に */
-            grid-template-rows: auto 1fr !important;
-            /* スマホのアドレスバーによるガタつき防止 */
-            height: 100dvh; 
-        }
-
-        /* 2. ヘッダー設定：2段組み ＋ ステータスバー避け */
+        #app-container { grid-template-rows: auto 1fr !important; height: 100dvh; }
         header {
             height: auto !important;
             display: grid;
-            grid-template-columns: auto auto 1fr auto auto; /* [メニュー][J-Quake]...[設定][?] */
-            grid-template-rows: auto auto; /* 2段組み */
+            grid-template-columns: auto auto 1fr auto auto;
+            grid-template-rows: auto auto;
             align-items: center;
             gap: 5px 10px;
-            
-            /* 【重要】ステータスバー(ノッチ)の分だけ上に余白を空ける */
             padding-top: calc(10px + env(safe-area-inset-top)) !important;
             padding-bottom: 8px;
             padding-left: 10px;
             padding-right: 10px;
         }
-
-        /* 既存のグループ化を解除 */
-        .header-left, .header-right {
-            display: contents;
-        }
-
-        /* --- 配置定義 --- */
-
-        /* 1段目 */
+        .header-left, .header-right { display: contents; }
         #btn-menu-toggle { grid-row: 1; grid-column: 1; }
-        h1 { 
-            grid-row: 1; grid-column: 2; margin: 0; 
-            font-size: 1.2rem; white-space: nowrap; 
-        }
+        h1 { grid-row: 1; grid-column: 2; margin: 0; font-size: 1.2rem; white-space: nowrap; }
         #btn-settings    { grid-row: 1; grid-column: 4; }
         #btn-help        { grid-row: 1; grid-column: 5; }
-
-        /* 2段目 */
-        #clock {
-            grid-row: 2; grid-column: 1 / 4;
-            font-size: 1.0rem; color: #ccc; margin-top: 2px;
-        }
-        #header-loc-select {
-            grid-row: 2; grid-column: 4 / 6;
-            width: 100%; margin-top: 2px;
-        }
-
-        /* 不要な要素を非表示 */
+        #clock { grid-row: 2; grid-column: 1 / 4; font-size: 1.0rem; color: #ccc; margin-top: 2px; }
+        #header-loc-select { grid-row: 2; grid-column: 4 / 6; width: 100%; margin-top: 2px; }
         #station-status, #conn-status { display: none !important; }
-
-        /* 3. サイドバーの位置修正 (ヘッダーが伸びた分、位置ズレを防ぐ) */
-        aside {
-            /* 固定値(50px)を解除し、グリッドの2行目に自然に収める */
-            top: auto !important;
-            position: relative !important; 
-            height: 100% !important;
-            transform: translateX(-100%); /* 隠す動きは維持 */
-        }
-        /* サイドバーが出た時の挙動も上書き */
-        aside.visible {
-            transform: translateX(0) !important;
-        }
+        aside { top: auto !important; position: relative !important; height: 100% !important; transform: translateX(-100%); }
+        aside.visible { transform: translateX(0) !important; }
     }
-
 </style>
 </head>
 <body>
@@ -463,63 +500,127 @@
 </main>
 </div>
 
-<!-- Modal Settings -->
+<!-- Modal Settings (Tabbed) -->
 <div id="modal-overlay" class="modal-overlay-common">
     <div id="modal-window" class="modal-window-common" style="width:500px;">
         <div class="modal-header" id="modal-header-drag">
             <span>⚙️ 設定</span>
             <button class="btn-close" id="modal-close">×</button>
         </div>
-        <div class="modal-content">
-            <div class="form-group">
-                <label class="form-label" style="font-weight:bold; color:#2196F3;">💾 バックアップ</label>
-                <div style="display:flex; gap:10px;">
-                    <button class="icon-btn" onclick="exportConfig()" style="flex:1; justify-content:center;">📤 保存</button>
-                    <button class="icon-btn" onclick="document.getElementById('import-file').click()" style="flex:1; justify-content:center;">📥 読込</button>
-                    <input type="file" id="import-file" style="display:none" onchange="importConfig(this)">
+
+        <!-- Tab Headers -->
+        <div class="tab-header">
+            <button class="tab-btn active" onclick="switchTab('tab-general')">全般・起動</button>
+            <button class="tab-btn" onclick="switchTab('tab-loc')">地点登録</button>
+            <button class="tab-btn" onclick="switchTab('tab-color')">表示・色</button>
+            <button class="tab-btn" onclick="switchTab('tab-system')">システム</button>
+        </div>
+
+        <div class="modal-content" style="padding-top:0;">
+            
+           <!-- Tab 1: General & Startup -->
+            <div id="tab-general" class="tab-content active">
+                <div class="form-group" style="margin-top:15px;">
+                    <label class="form-label" style="font-weight:bold; color:#2196F3;">🚀 起動時の状態設定</label>
+                    <div style="font-size:0.8rem; color:#888; margin-bottom:10px;">アプリ起動時（再読み込み時）の初期状態を設定します。</div>
+                    
+                    <div class="checkbox-row">
+                        <label for="st-pin">📌 左パネルをピン留めする</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="st-pin">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="checkbox-row">
+                        <label for="st-audio">🔊 音声をONにする</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="st-audio">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="checkbox-row">
+                        <label for="st-auto-zoom">🎯 新着地震への追尾をON</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="st-auto-zoom">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="checkbox-row">
+                        <label for="st-points">📍 観測点（数値）を表示</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="st-points">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="checkbox-row">
+                        <label for="st-tide">🌊 潮位観測所を表示</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="st-tide">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">通知する最小震度（パーソナル予報）</label>
+                    <select id="input-alert-threshold">
+                        <option value="10">震度1以上</option>
+                        <option value="30" selected>震度3以上</option>
+                        <option value="40">震度4以上</option>
+                    </select>
                 </div>
             </div>
 
-            <div class="form-group">
-                <label class="form-label" style="font-weight:bold; color:#2196F3;">📍 マイロケーション</label>
-                <div id="settings-loc-list" style="margin-bottom:10px;"></div>
-                <div style="display:grid; grid-template-columns: 2fr 1.5fr 1.5fr 1fr; gap:5px; align-items:end;">
-                    <div><label class="form-label">名称</label><input type="text" id="new-loc-name" placeholder="自宅"></div>
-                    <div><label class="form-label">緯度</label><input type="number" id="new-loc-lat" step="0.0001" placeholder="35.xxxx"></div>
-                    <div><label class="form-label">経度</label><input type="number" id="new-loc-lon" step="0.0001" placeholder="139.xxxx"></div>
-                    <button class="icon-btn" onclick="addLocation()" style="justify-content:center;">＋</button>
-                </div>
-                <div style="display:flex; gap:5px; margin-top:5px;">
-                    <button class="icon-btn" onclick="startMapPick()" style="flex:1; justify-content:center; background:#283593;">🗺️ 地図指定</button>
-                    <button class="icon-btn" onclick="getCurrentLocationForInput()" style="flex:1; justify-content:center;">📡 GPS取得</button>
+            <!-- Tab 2: Locations -->
+            <div id="tab-loc" class="tab-content">
+                <div class="form-group" style="margin-top:15px;">
+                    <label class="form-label" style="font-weight:bold; color:#2196F3;">📍 マイロケーション</label>
+                    <div id="settings-loc-list" style="margin-bottom:10px;"></div>
+                    <div style="display:grid; grid-template-columns: 2fr 1.5fr 1.5fr 1fr; gap:5px; align-items:end;">
+                        <div><label class="form-label">名称</label><input type="text" id="new-loc-name" placeholder="自宅"></div>
+                        <div><label class="form-label">緯度</label><input type="number" id="new-loc-lat" step="0.0001" placeholder="35.xxxx"></div>
+                        <div><label class="form-label">経度</label><input type="number" id="new-loc-lon" step="0.0001" placeholder="139.xxxx"></div>
+                        <button class="icon-btn" onclick="addLocation()" style="justify-content:center;">＋</button>
+                    </div>
+                    <div style="display:flex; gap:5px; margin-top:5px;">
+                        <button class="icon-btn" onclick="startMapPick()" style="flex:1; justify-content:center; background:#283593;">🗺️ 地図指定</button>
+                        <button class="icon-btn" onclick="getCurrentLocationForInput()" style="flex:1; justify-content:center;">📡 GPS取得</button>
+                    </div>
                 </div>
             </div>
 
-            <div class="form-group">
-                <label class="form-label">通知する最小震度（予測）</label>
-                <select id="input-alert-threshold">
-                    <option value="10">震度1以上</option>
-                    <option value="30" selected>震度3以上</option>
-                    <option value="40">震度4以上</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label class="form-label">震度別カラー</label>
-                <div class="color-grid" id="color-settings-grid"></div>
-            </div>
-
-            <div class="form-group">
-                <label class="form-label">デモ実行</label>
-                <div style="display:flex; gap:10px;">
-                    <button class="icon-btn" onclick="demoEEW()" style="flex:1; justify-content:center; background:#b71c1c;">⚠️ EEWデモ</button>
-                    <button class="icon-btn" onclick="demoTsunami()" style="flex:1; justify-content:center; background:#006064;">🌊 津波デモ</button>
+            <!-- Tab 3: Colors -->
+            <div id="tab-color" class="tab-content">
+                <div class="form-group" style="margin-top:15px;">
+                    <label class="form-label">震度別カラー設定</label>
+                    <div class="color-grid" id="color-settings-grid"></div>
                 </div>
             </div>
+
+            <!-- Tab 4: System -->
+            <div id="tab-system" class="tab-content">
+                <div class="form-group" style="margin-top:15px;">
+                    <label class="form-label" style="font-weight:bold; color:#2196F3;">💾 設定のバックアップ</label>
+                    <div style="display:flex; gap:10px;">
+                        <button class="icon-btn" onclick="exportConfig()" style="flex:1; justify-content:center;">📤 保存</button>
+                        <button class="icon-btn" onclick="document.getElementById('import-file').click()" style="flex:1; justify-content:center;">📥 読込</button>
+                        <input type="file" id="import-file" style="display:none" onchange="importConfig(this)">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">デモ実行（テスト用）</label>
+                    <div style="display:flex; gap:10px;">
+                        <button class="icon-btn" onclick="demoEEW()" style="flex:1; justify-content:center; background:#b71c1c;">⚠️ EEWデモ</button>
+                        <button class="icon-btn" onclick="demoTsunami()" style="flex:1; justify-content:center; background:#006064;">🌊 津波デモ</button>
+                    </div>
+                </div>
+            </div>
+
         </div>
         <div class="btn-row">
             <button class="btn-cancel" id="btn-cancel-settings">キャンセル</button>
-            <button class="btn-primary" id="btn-save-settings">保存</button>
+            <button class="btn-primary" id="btn-save-settings">設定を保存</button>
         </div>
     </div>
 </div>
@@ -558,7 +659,7 @@
                     <li><span style="color:#2196F3; font-weight:bold;">青い波紋 (P波)</span>: 初期微動。カタカタ揺れます。</li>
                     <li><span style="color:#f44336; font-weight:bold;">赤い波紋 (S波)</span>: 主要動。ユサユサ大きく揺れます。</li>
                     <li><strong>丸いマーカー</strong>: 震源地を表します。円の大きさはマグニチュード、色は震度に対応します。</li>
-                    <li><strong>四角い数値アイコン</strong>: 各観測点の震度を表示しています。（旧：小さな点）</li>
+                    <li><strong>四角い数値アイコン</strong>: 各観測点の震度を表示しています。</li>
                 </ul>
             </section>
             <hr style="border-color:#333; margin:20px 0;">
@@ -577,28 +678,18 @@
             <hr style="border-color:#333; margin:20px 0;">
 
             <section style="margin-bottom: 20px;">
-                <h3 style="color:#fff;">⚙️ 設定・詳細表示</h3>
-                <p>右上の歯車アイコン、または情報パネルから機能にアクセスできます。</p>
+                <h3 style="color:#fff;">⚙️ 設定・起動設定</h3>
+                <p>右上の歯車アイコンから設定画面を開けます。</p>
                 <ul>
-                    <li><strong>詳細パネル</strong>: 左上の地震情報パネルをクリックすると、各地の震度一覧リストを表示します。</li>
+                    <li><strong>起動設定</strong>: 「全般・起動」タブで、アプリを開いた時の初期状態（サイドバー固定、音声ON/OFFなど）を設定できます。</li>
                     <li><strong>マイロケーション</strong>: 自宅や職場を登録しておくと、リストからすぐに地図移動できます。</li>
-                    <li><strong>パーソナル予報</strong>: 緊急地震速報受信時、登録地点への到達時間と予測震度を表示します。</li>
                     <li><strong>バックアップ</strong>: 設定内容をファイルに保存・復元できます。</li>
                 </ul>
-            </section>
-            <hr style="border-color:#333; margin:20px 0;">
-
-            <section style="margin-bottom: 20px;">
-                <h3 style="color:#fff;">⚠️ データ・免責事項</h3>
-                <p>
-                    本アプリの地震情報は<a href="https://www.p2pquake.net/" target="_blank" style="color:#2196F3;">P2P地震情報</a>のAPI、地図データは国土地理院・OpenStreetMap等のオープンデータを使用しています。<br>
-                    情報の正確性には万全を期していますが、本アプリの利用により生じた損害について開発者は責任を負いません。命に関わる判断はテレビ・ラジオ等の公式情報に従ってください。
-                </p>
             </section>
             
             <section>
                 <h3 style="color:#fff;">ℹ️ 最終更新日</h3>
-                <p> 2025年12月9日 </p>
+                <p> 2025年12月9日</p>
             </section>
         </div>
     </div>
@@ -607,7 +698,7 @@
 <script>
 // --- Configuration & Default Settings ---
 const DEFAULT_CONFIG = {
-    version: 5,
+    version: 6,
     markerBaseSize: 5,
     colors: {
         10: "#4caf50", 20: "#8bc34a", 30: "#ffeb3b", 40: "#ffc107",
@@ -615,13 +706,26 @@ const DEFAULT_CONFIG = {
     },
     savedLocations: [{ name: "東京駅", lat: 35.6812, lon: 139.7671 }],
     alertThreshold: 30,
-    sWaveSpeed: 4.0
+    sWaveSpeed: 4.0,
+    startup: {
+        sidebarPinned: false,
+        audioOn: false,
+        autoZoom: true,
+        showPoints: true,
+        showTide: false
+    }
 };
 
 let config;
 try {
-    const stored = localStorage.getItem("jq_config_v5");
-    config = stored ? JSON.parse(stored) : JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+    const stored = localStorage.getItem("jq_config_v6");
+    if (stored) {
+        const parsed = JSON.parse(stored);
+        // Merge with defaults to ensure new fields exist
+        config = { ...DEFAULT_CONFIG, ...parsed, startup: { ...DEFAULT_CONFIG.startup, ...(parsed.startup || {}) } };
+    } else {
+        config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+    }
 } catch (e) { config = JSON.parse(JSON.stringify(DEFAULT_CONFIG)); }
 let configBackup = null;
 
@@ -642,16 +746,18 @@ let map;
 let markers = {};
 let quakeData = [];
 let fetchOffset = 0;
+// Startup defaults will be overwritten by config in init
 let isAudioOn = false;
 let isAutoZoom = true;
 let isListClickZoom = false;
 let isPointsVisible = true;
+let isTideVisible = false;
+
 let isPickingLocation = false; 
 let socket = null;
 let alertTimerInterval = null;
 let isToolLocked = false;
-let isTideVisible = false;
-let currentQuakeId = null; // Currently selected quake ID
+let currentQuakeId = null; 
 
 // Sidebar State
 let isSidebarPinned = false; 
@@ -866,6 +972,7 @@ window.onload = async () => {
     initMap();
     initResizer();
     await loadExternalStations();
+    applyStartupSettings(); // Apply saved startup settings
     connectWebSocket();
     fetchHistory(0);
     loadGeoJSON();
@@ -930,6 +1037,40 @@ window.onload = async () => {
         }
     });
 };
+
+function applyStartupSettings() {
+    const s = config.startup;
+    
+    // Audio
+    isAudioOn = s.audioOn;
+    updateBtn("btn-audio", isAudioOn, "🔊 音声", "🔇 音声");
+
+    // Auto Zoom
+    isAutoZoom = s.autoZoom;
+    updateBtn("btn-auto-zoom", isAutoZoom, "🎯 新着追尾", "🎯 新着追尾");
+
+    // Points
+    isPointsVisible = s.showPoints;
+    updateBtn("btn-points-toggle", isPointsVisible, "📍 観測点", "📍 観測点");
+    if(isPointsVisible) renderObservationPoints(quakeData[0]); // Initial render attempt
+
+    // Tide
+    if(s.showTide) toggleTide(); // This sets variable and renders
+
+    // Sidebar Pin
+    if (s.sidebarPinned) {
+        isSidebarVisible = true;
+        isSidebarPinned = true;
+        document.getElementById("quake-list-area").classList.add('visible');
+        document.getElementById("app-container").classList.add('pinned');
+        
+        const btn = document.getElementById("btn-pin-sidebar");
+        btn.classList.add("active");
+        btn.innerHTML = "📌 ピン留め中";
+        
+        setTimeout(() => map.invalidateSize(), 300);
+    }
+}
 
 // --- Sidebar Logic ---
 function toggleSidebar() {
@@ -1156,7 +1297,7 @@ function updatePanel(d){
 // Updated Render Function for Shindo Icons on Map
 function renderObservationPoints(d){
     pointsLayerGroup.clearLayers();
-    if(!isPointsVisible||!d.points)return;
+    if(!isPointsVisible||!d || !d.points)return;
     d.points.forEach(p=>{
         let coord = STATION_LOCATIONS[p.addr];
         if(!coord) {
@@ -1341,9 +1482,39 @@ function renderTideStations() {
     });
 }
 
+function switchTab(tabId) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    
+    // Find button that calls this function with tabId (simple approach)
+    // Actually, event.target is safer but we passed tabId directly.
+    // Let's iterate buttons to match onclick content or use index.
+    // Simpler: Just rely on the passed ID for content, and logic for button class.
+    
+    document.getElementById(tabId).classList.add('active');
+    // Highlight the clicked button (Need reference, so let's just re-bind or use event)
+    const buttons = document.querySelectorAll('.tab-btn');
+    if(tabId === 'tab-general') buttons[0].classList.add('active');
+    if(tabId === 'tab-loc') buttons[1].classList.add('active');
+    if(tabId === 'tab-color') buttons[2].classList.add('active');
+    if(tabId === 'tab-system') buttons[3].classList.add('active');
+}
+
 function openSettings(){
     configBackup=JSON.parse(JSON.stringify(config));
     document.getElementById("modal-overlay").style.display="block";
+    switchTab('tab-general'); // Reset to first tab
+
+    // Populate Startup Checkboxes
+    document.getElementById("st-pin").checked = config.startup.sidebarPinned;
+    document.getElementById("st-audio").checked = config.startup.audioOn;
+    document.getElementById("st-auto-zoom").checked = config.startup.autoZoom;
+    document.getElementById("st-points").checked = config.startup.showPoints;
+    document.getElementById("st-tide").checked = config.startup.showTide;
+    
+    // Populate Threshold
+    document.getElementById("input-alert-threshold").value = config.alertThreshold;
+
     renderSavedLocationsSettings();
     const g=document.getElementById("color-settings-grid"); g.innerHTML="";
     const L={10:"1",20:"2",30:"3",40:"4",45:"5-",50:"5+",55:"6-",60:"6+",70:"7"};
@@ -1367,7 +1538,26 @@ function addLocation(){
 }
 function removeLocation(i){ config.savedLocations.splice(i,1); renderSavedLocationsSettings(); }
 function getCurrentLocationForInput(){ navigator.geolocation.getCurrentPosition(p=>{ document.getElementById("new-loc-lat").value=p.coords.latitude.toFixed(4); document.getElementById("new-loc-lon").value=p.coords.longitude.toFixed(4); }); }
-function saveSettings(){ localStorage.setItem("jq_config_v5", JSON.stringify(config)); configBackup=null; document.getElementById("modal-overlay").style.display="none"; updateUserMarkersAndDropdown(); }
+
+function saveSettings(){ 
+    // Save Startup Configs
+    config.startup.sidebarPinned = document.getElementById("st-pin").checked;
+    config.startup.audioOn = document.getElementById("st-audio").checked;
+    config.startup.autoZoom = document.getElementById("st-auto-zoom").checked;
+    config.startup.showPoints = document.getElementById("st-points").checked;
+    config.startup.showTide = document.getElementById("st-tide").checked;
+    
+    config.alertThreshold = parseInt(document.getElementById("input-alert-threshold").value);
+
+    localStorage.setItem("jq_config_v6", JSON.stringify(config)); 
+    configBackup=null; 
+    document.getElementById("modal-overlay").style.display="none"; 
+    updateUserMarkersAndDropdown(); 
+    
+    // Apply changes immediately where possible
+    applyStartupSettings();
+}
+
 function cancelSettings(){ if(configBackup){config=configBackup; rebuildList(); updateUserMarkersAndDropdown();} document.getElementById("modal-overlay").style.display="none"; }
 function updateUserMarkersAndDropdown(){
     userLocationMarkers.forEach(m=>map.removeLayer(m)); userLocationMarkers=[];
@@ -1404,7 +1594,41 @@ function initDraggableModal(){
         window.addEventListener("mouseup",()=>d=false);
     });
 }
-function initResizer(){ const g=document.getElementById('gutter'), c=document.getElementById('app-container'); let r=false; g.onmousedown=e=>{r=true;e.preventDefault();}; window.onmousemove=e=>{if(r){let w=Math.max(200,Math.min(600,e.clientX));c.style.gridTemplateColumns=`${w}px 6px 1fr`;map.invalidateSize();}}; window.onmouseup=()=>r=false; }
+// リサイズ機能の修正版
+function initResizer(){
+    const gutter = document.getElementById('gutter');
+    const container = document.getElementById('app-container');
+    let isResizing = false;
+
+    gutter.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        e.preventDefault();
+        // ドラッグ中はアニメーションを無効化して追従性を良くする
+        container.classList.add('resizing');
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+        
+        // 最小200px ～ 最大600px の範囲で制限
+        let newWidth = Math.max(200, Math.min(600, e.clientX));
+        
+        // CSS変数を更新する（これにより #app-container.pinned の幅が変わる）
+        document.documentElement.style.setProperty('--sidebar-width', `${newWidth}px`);
+        
+        // 地図のサイズが変わるので再描画を通知
+        map.invalidateSize();
+    });
+
+    window.addEventListener('mouseup', () => {
+        if (isResizing) {
+            isResizing = false;
+            container.classList.remove('resizing');
+            // ドラッグ終了後に地図を最終調整
+            setTimeout(() => map.invalidateSize(), 0);
+        }
+    });
+}
 </script>
 </body>
 </html>
