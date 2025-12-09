@@ -262,87 +262,74 @@
     ::-webkit-scrollbar-thumb:hover { background: #555; }
 
 /* =========================================
-       モバイル用 2段組みヘッダー (修正版)
+       モバイル用レイアウト修正 (ステータスバー対応版)
        ========================================= */
     @media screen and (max-width: 600px) {
         
-        /* 1. アプリ全体のレイアウト設定：ヘッダーの高さを「自動(auto)」にする */
+        /* 1. アプリ全体の高さ設定 */
         #app-container {
+            /* ヘッダー高さを自動(auto)、地図エリアを残りの高さ(1fr)に */
             grid-template-rows: auto 1fr !important;
+            /* スマホのアドレスバーによるガタつき防止 */
+            height: 100dvh; 
         }
 
-        /* 2. ヘッダー自体の設定：高さを自動にし、グリッドレイアウトを適用 */
+        /* 2. ヘッダー設定：2段組み ＋ ステータスバー避け */
         header {
             height: auto !important;
-            padding: 8px 10px; /* 上下に少し余白を追加 */
-            
-            /* グリッドレイアウト定義 */
             display: grid;
-            /* 列: [メニュー] [タイトル] [余白] [設定] [ヘルプ] */
-            grid-template-columns: auto auto 1fr auto auto;
-            /* 行: [1段目] [2段目] */
-            grid-template-rows: auto auto;
+            grid-template-columns: auto auto 1fr auto auto; /* [メニュー][J-Quake]...[設定][?] */
+            grid-template-rows: auto auto; /* 2段組み */
             align-items: center;
-            gap: 5px 10px; /* 要素間の隙間 */
+            gap: 5px 10px;
+            
+            /* 【重要】ステータスバー(ノッチ)の分だけ上に余白を空ける */
+            padding-top: calc(10px + env(safe-area-inset-top)) !important;
+            padding-bottom: 8px;
+            padding-left: 10px;
+            padding-right: 10px;
         }
 
-        /* 既存の左右グループ化タグを無効化 */
+        /* 既存のグループ化を解除 */
         .header-left, .header-right {
             display: contents;
         }
 
-        /* --- 1段目の配置 --- */
+        /* --- 配置定義 --- */
 
-        /* メニューボタン (左上) */
-        #btn-menu-toggle {
-            grid-row: 1;
-            grid-column: 1;
+        /* 1段目 */
+        #btn-menu-toggle { grid-row: 1; grid-column: 1; }
+        h1 { 
+            grid-row: 1; grid-column: 2; margin: 0; 
+            font-size: 1.2rem; white-space: nowrap; 
         }
+        #btn-settings    { grid-row: 1; grid-column: 4; }
+        #btn-help        { grid-row: 1; grid-column: 5; }
 
-        /* タイトル J-Quake (左上・メニューの隣) */
-        h1 {
-            grid-row: 1;
-            grid-column: 2;
-            margin: 0;
-            font-size: 1.2rem;
-            white-space: nowrap;
-        }
-
-        /* 設定ボタン (右上) */
-        #btn-settings {
-            grid-row: 1;
-            grid-column: 4;
-        }
-
-        /* ヘルプボタン (右上・設定の隣) */
-        #btn-help {
-            grid-row: 1;
-            grid-column: 5;
-        }
-
-        /* --- 2段目の配置 --- */
-
-        /* 時間 (左下) */
+        /* 2段目 */
         #clock {
-            grid-row: 2;
-            grid-column: 1 / 4; /* 左側のスペースを広く使う */
-            margin-top: 5px;
-            font-size: 1.0rem;
-            color: #ccc;
+            grid-row: 2; grid-column: 1 / 4;
+            font-size: 1.0rem; color: #ccc; margin-top: 2px;
         }
-
-        /* 登録地点プルダウン (右下) */
         #header-loc-select {
-            grid-row: 2;
-            grid-column: 4 / 6; /* 右側のスペースを使う */
-            margin-top: 5px;
-            width: 100%;
-            min-width: 100px;
+            grid-row: 2; grid-column: 4 / 6;
+            width: 100%; margin-top: 2px;
         }
 
         /* 不要な要素を非表示 */
-        #station-status, #conn-status {
-            display: none !important;
+        #station-status, #conn-status { display: none !important; }
+
+        /* 3. サイドバーの位置修正 (ヘッダーが伸びた分、位置ズレを防ぐ) */
+        aside {
+            /* 固定値(50px)を解除し、グリッドの2行目に自然に収める */
+            top: auto !important;
+            position: relative !important; 
+            height: 100% !important;
+            transform: translateX(-100%); /* 隠す動きは維持 */
+        }
+        /* サイドバーが出た時の挙動も上書き */
+        aside.visible {
+            transform: translateX(0) !important;
         }
     }
 
