@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>J-Quake Pro</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌊</text></svg>">
 <!-- Leaflet -->
@@ -260,6 +260,39 @@
     ::-webkit-scrollbar-track { background: #1e1e1e; }
     ::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+/* =========================================
+       モバイル用レイアウト修正 (PCには影響しません)
+       ========================================= */
+    @media screen and (max-width: 900px) {
+        /* アプリ全体の高さをスマホの実画面に合わせる */
+        #app-container {
+            height: 100dvh;
+            grid-template-rows: auto 1fr; /* ヘッダー高さを可変に */
+        }
+
+        /* ヘッダー：ステータスバーの重なり回避 */
+        header {
+            padding-top: env(safe-area-inset-top);
+            height: auto;
+            min-height: 50px;
+        }
+
+        /* 左下のツールボタン：ホームバーの重なり回避 */
+        #map-tool-container {
+            bottom: calc(25px + env(safe-area-inset-bottom));
+        }
+
+        /* GPSボタンの位置調整 */
+        #btn-gps-main {
+            bottom: calc(100px + env(safe-area-inset-bottom));
+        }
+
+        /* 凡例の位置調整 */
+        #tide-legend {
+            bottom: calc(30px + env(safe-area-inset-bottom));
+        }
+    }
 
 </style>
 </head>
