@@ -1,805 +1,2322 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>J-Quake Pro</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌊</text></svg>">
-<!-- Leaflet -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<!-- html2canvas -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>J-Quake Pro</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌊</text></svg>">
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- html2canvas -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
-<!-- Google Fonts -->
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Roboto+Mono:wght@500&display=swap" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Roboto+Mono:wght@500&display=swap"
+        rel="stylesheet">
 
-<style>
-    :root {
-        --bg-color: #121212; --panel-bg: #1e1e1e; --text-main: #e0e0e0;
-        --accent-blue: #2196F3;
-        --sidebar-width: 320px;
-        --tsunami-major: #aa00aa;
-        --tsunami-warn: #ff2800;
-        --tsunami-adv: #f2e700;
-    }
-    body, html { margin: 0; padding: 0; height: 100%; font-family: 'Noto Sans JP', sans-serif; background-color: var(--bg-color); color: var(--text-main); overflow: hidden; }
-
-    /* Layout (修正版) */
-    #app-container {
-        display: grid;
-        /* 通常時（ピン留めなし）：サイドバー領域は 0px */
-        grid-template-columns: 0px 0px 1fr; 
-        grid-template-rows: 50px 1fr; /* スマホ用CSSで上書きされるのでPC用 */
-        height: 100vh; width: 100vw;
-        /* リサイズ中は transition を無効化するため、JSでクラス制御できるようにする */
-        transition: grid-template-columns 0.3s ease;
-    }
-    
-    /* ピン留め時：変数の幅を使用 */
-    #app-container.pinned {
-        grid-template-columns: var(--sidebar-width) 6px 1fr;
-    }
-    
-    /* リサイズ操作中はアニメーション（ぬるっと動く挙動）をオフにするクラス */
-    #app-container.resizing {
-        transition: none !important;
-        user-select: none; /* ドラッグ中の文字選択防止 */
-        pointer-events: none; /* マウスイベントの干渉防止 */
-    }
-    /* ただし、リサイズ中も境界線自体は操作できるようにする */
-    #app-container.resizing #gutter {
-        pointer-events: auto;
-    }
-
-    /* Header */
-    header {
-        grid-column: 1 / 4; background-color: #000; border-bottom: 1px solid #333;
-        display: flex; align-items: center; justify-content: space-between; padding: 0 10px; z-index: 20;
-    }
-    .header-left { display: flex; align-items: center; gap: 10px; }
-    .header-right { display: flex; align-items: center; gap: 8px; }
-    
-    .status-dot { height: 10px; width: 10px; background-color: #bbb; border-radius: 50%; display: inline-block; transition: 0.3s; flex-shrink: 0;}
-    .status-connected { background-color: #00e676; box-shadow: 0 0 5px #00e676; }
-    .status-error { background-color: #f44336; box-shadow: 0 0 5px #f44336; }
-    #clock { font-family: 'Roboto Mono', monospace; font-size: 1.0rem; white-space: nowrap; }
-    #station-status { font-size: 0.7rem; color: #888; margin-left: 5px; display:none; }
-
-    /* Buttons */
-    button.icon-btn {
-        background: #333; border: 1px solid #555; color: #aaa; padding: 6px 10px;
-        cursor: pointer; border-radius: 4px; font-size: 0.85rem; display: flex; align-items: center; gap: 5px;
-        transition: 0.2s; white-space: nowrap; justify-content: center;
-    }
-    button.icon-btn:hover { background: #444; color: #fff; }
-    button.icon-btn.active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
-
-    /* Menu Toggle Button */
-    #btn-menu-toggle {
-        background: transparent; border: none; color: #fff; font-size: 1.5rem; cursor: pointer; padding: 5px;
-    }
-
-    /* Sidebar */
-    aside {
-        grid-row: 2 / 3; grid-column: 1 / 2; background-color: var(--panel-bg);
-        overflow-y: auto; display: flex; flex-direction: column;
-        border-right: 1px solid #333;
-        position: absolute; top: 50px; left: 0; bottom: 0; width: var(--sidebar-width);
-        transform: translateX(-100%); transition: transform 0.3s ease; z-index: 3000;
-    }
-    aside.visible { transform: translateX(0); box-shadow: 5px 0 15px rgba(0,0,0,0.5); }
-    #app-container.pinned aside { position: relative; top: auto; left: auto; bottom: auto; transform: none; z-index: 1; border-right: none; }
-
-    .sidebar-header {
-        display: flex; justify-content: space-between; align-items: center;
-        padding: 8px 10px; background: #252525; border-bottom: 1px solid #333;
-    }
-    #btn-pin-sidebar {
-        background: transparent; border: 1px solid #555; color: #888; border-radius: 4px; cursor: pointer; padding: 2px 8px; font-size: 0.8rem;
-    }
-    #btn-pin-sidebar.active { color: var(--accent-blue); border-color: var(--accent-blue); background: rgba(33, 150, 243, 0.1); }
-
-    details.quake-group { border-bottom: 1px solid #333; }
-    details.quake-group summary {
-        background-color: #252525; padding: 8px 10px; font-size: 0.85rem; font-weight: bold; color: #aaa;
-        cursor: pointer; user-select: none; outline: none; display: flex; justify-content: space-between;
-    }
-    details.quake-group summary:hover { background-color: #333; color: #fff; }
-    details.quake-group[open] summary { border-bottom: 1px solid #333; color: var(--accent-blue); }
-
-    .quake-item {
-        padding: 10px; border-bottom: 1px solid #333; cursor: pointer; display: flex; gap: 10px; align-items: center;
-        border-left: 4px solid transparent; transition: background 0.2s; padding-left: 15px;
-    }
-    .quake-item:hover { background-color: #2a2a2a; }
-    .quake-item.active { background-color: #333; border-left-color: var(--accent-blue); }
-    
-    .intensity-box {
-        width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
-        font-weight: bold; font-size: 1.0rem; border-radius: 4px; color: #000; flex-shrink: 0;
-        text-shadow: 0 0 2px rgba(255,255,255,0.5);
-    }
-    .quake-info { display: flex; flex-direction: column; font-size: 0.85rem; overflow: hidden; }
-    .quake-time { color: #888; font-size: 0.75rem; }
-    .quake-place { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: bold; }
-
-    #gutter {
-        grid-row: 2 / 3; grid-column: 2 / 3; background: #111; cursor: col-resize;
-        border-left: 1px solid #333; border-right: 1px solid #333; z-index: 100; display: none;
-    }
-    #app-container.pinned #gutter { display: block; }
-
-    main { grid-column: 3 / 4; grid-row: 2 / 3; position: relative; background: #000; width: 100%; height: 100%; }
-    #map { width: 100%; height: 100%; z-index: 1; }
-    .crosshair-cursor { cursor: crosshair !important; }
-
-    /* Map Icons */
-    .map-shindo-icon {
-        display: flex; justify-content: center; align-items: center;
-        border-radius: 4px; color: #000; font-weight: bold;
-        font-size: 11px; box-shadow: 0 0 3px rgba(0,0,0,0.5);
-        border: 1px solid rgba(255,255,255,0.8);
-    }
-
-    /* Panels on Map */
-    #latest-info-panel {
-        position: absolute; top: 10px; left: 10px; width: 240px; max-width: 60vw;
-        background: rgba(0, 0, 0, 0.85); border: 1px solid #444; border-radius: 8px;
-        padding: 10px; z-index: 1000; backdrop-filter: blur(5px);
-        cursor: pointer; transition: background 0.2s;
-    }
-    #latest-info-panel:hover { background: rgba(30, 30, 30, 0.95); border-color: #666; }
-    
-    .panel-row { display: flex; justify-content: space-between; align-items: baseline; }
-    .big-place { font-size: 1.2rem; font-weight: bold; margin: 5px 0; }
-    .mag-depth { font-family: 'Roboto Mono', monospace; color: #bbb; font-size: 0.85rem; }
-    .shindo-display { display: flex; align-items: center; gap: 10px; margin-top: 5px; background: #222; padding: 5px 10px; border-radius: 4px; }
-    .click-hint { font-size: 0.7rem; color: #888; text-align: right; margin-top: 4px; }
-
-    #map-tool-container {
-        position: absolute; bottom: 25px; left: 10px; z-index: 1200;
-        display: flex; flex-direction: column-reverse; align-items: flex-start;
-    }
-    #tool-toggle-btn {
-        background: rgba(30, 30, 30, 0.9); border: 1px solid #555; color: #fff;
-        padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold;
-        display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-        transition: background 0.2s; font-size: 0.9rem;
-    }
-    #tool-toggle-btn.pinned { background: var(--accent-blue); border-color: var(--accent-blue); }
-    #tool-panel-content {
-        margin-bottom: 10px; background: rgba(30, 30, 30, 0.95); border: 1px solid #444;
-        border-radius: 8px; padding: 10px; width: 170px;
-        backdrop-filter: blur(5px); display: none; flex-direction: column; gap: 8px; 
-        box-shadow: 0 4px 15px rgba(0,0,0,0.6);
-    }
-    .tool-section-label { font-size: 0.7rem; color: #888; border-bottom: 1px solid #444; margin-bottom: 4px; padding-bottom: 2px;}
-    .tool-row { display: flex; flex-direction: column; gap: 4px; }
-    .tool-control { width: 100%; box-sizing: border-box; background: #222; border: 1px solid #444; color: #fff; padding: 4px; border-radius: 4px; font-size: 0.85rem; }
-    
-    #btn-gps-main {
-        position: absolute; bottom: 100px; right: 10px; z-index: 1000;
-        width: 40px; height: 40px; background: #fff; color: #000;
-        border: 2px solid rgba(0,0,0,0.2); border-radius: 50%;
-        display: flex; align-items: center; justify-content: center;
-        cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-        font-size: 1.5rem; transition: background 0.2s;
-    }
-    #btn-gps-main:hover { background: #f0f0f0; }
-
-    #tsunami-panel {
-        display: none; position: absolute; top: 90px; left: 50%; transform: translateX(-50%); width: 350px; max-width: 90%;
-        background: rgba(0, 0, 50, 0.95); border: 2px solid var(--accent-blue); border-radius: 8px;
-        padding: 10px; z-index: 1500; color: #fff; text-align: center;
-        box-shadow: 0 0 20px rgba(0,0,0,0.8);
-    }
-    .tsunami-header { 
-        font-weight: bold; font-size: 1.1rem; border-bottom: 1px solid #444; 
-        padding-bottom: 5px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; 
-    }
-    .close-tsunami-btn { background: transparent; border: none; color: #aaa; font-size: 1.5rem; cursor: pointer; line-height: 1; padding: 0 5px; }
-
-    #eew-overlay {
-        position: absolute; top: 150px; right: 10px; width: 280px; max-width:80vw;
-        background: rgba(180, 0, 0, 0.9); color: #fff; padding: 10px;
-        border-radius: 8px; z-index: 2000; display: none; box-shadow: 0 0 20px rgba(255,0,0,0.5);
-        animation: flash 1s infinite alternate;
-    }
-    
-    #personal-alert {
-        display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-        background: rgba(200, 0, 0, 0.95); color: #fff; padding: 20px; border-radius: 15px;
-        text-align: center; z-index: 3000; box-shadow: 0 0 50px rgba(255,0,0,0.8);
-        border: 2px solid #ff5252; min-width: 280px; max-width: 90vw;
-    }
-    #alert-countdown { font-size: 3.5rem; font-weight: bold; font-family: 'Roboto Mono', monospace; }
-    #alert-message { font-size: 1.1rem; margin-top: 5px; }
-    #alert-est-shindo { font-size: 1.8rem; font-weight: bold; margin-bottom: 10px; background: #fff; color:#d32f2f; display:inline-block; padding:5px 15px; border-radius:5px; }
-
-   #tide-legend {
-        display: none; position: absolute; bottom: 30px; right: 70px;
-        background: rgba(255, 255, 255, 0.9); color: #000;
-        padding: 5px; border-radius: 5px; border: 1px solid #999;
-        z-index: 1000; font-size: 0.75rem; box-shadow: 0 0 10px rgba(0,0,0,0.5); width: 140px;
-    }
-    .legend-item { display: flex; align-items: center; gap: 5px; margin-bottom: 2px; }
-    .legend-icon { width: 14px; height: 14px; display: inline-block; flex-shrink: 0; }
-    
-    @keyframes flash { from { opacity: 1; } to { opacity: 0.8; } }
-
-/* Modal Common */
-    .modal-overlay-common {
-        display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.5); z-index: 9999; backdrop-filter: blur(2px);
-    }
-    .modal-window-common {
-        position: absolute; 
-        top: 80px; /* 上からの位置を固定 */
-        left: 50%; 
-        transform: translateX(-50%); /* 横方向だけセンタリング */
-        
-        background: #1e1e1e; width: 600px; max-width: 95%; max-height: 85vh; overflow-y: auto;
-        border-radius: 12px; padding: 0; box-shadow: 0 15px 40px rgba(0,0,0,0.9);
-        border: 1px solid #444; display: flex; flex-direction: column;
-    }
-    .modal-header {
-        padding: 15px 20px; background: #252525; border-bottom: 1px solid #333;
-        position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between;
-        font-weight: bold; font-size: 1.1rem; user-select: none;
-    }
-    .modal-content { padding: 20px; font-size: 0.95rem; line-height: 1.6; color: #ddd; overflow-y: auto; }
-    .btn-close { background:transparent; border:none; color:#888; font-size:1.5rem; cursor:pointer;}
-    .btn-close:hover { color:#fff; }
-
-    /* Tabs in Settings */
-    .tab-header { display: flex; border-bottom: 1px solid #444; margin-bottom: 15px; background: #1a1a1a; position: sticky; top: 0;}
-    .tab-btn { 
-        background: none; border: none; color: #888; padding: 12px 15px; 
-        cursor: pointer; border-bottom: 3px solid transparent; font-size: 0.9rem; transition: 0.3s; flex: 1;
-    }
-    .tab-btn:hover { color: #ddd; background: #252525; }
-    .tab-btn.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); font-weight: bold; background: #222; }
-    .tab-content { display: none; animation: fadeIn 0.3s; }
-    .tab-content.active { display: block; }
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-    /* Checkbox list (修正版) */
-    .checkbox-row { 
-        display: flex; 
-        align-items: center; 
-        justify-content: space-between; 
-        padding: 12px 5px; /* タップしやすいよう少し広げる */
-        border-bottom: 1px solid #333; 
-    }
-    
-    /* 左側のテキストラベルの設定 */
-    .checkbox-row > label:first-child { 
-        cursor: pointer; 
-        flex: 1;              /* 余白を埋める */
-        display: flex;        /* アイコンとテキストを並べる */
-        align-items: center;  /* 垂直方向中央揃え */
-        gap: 10px;            /* アイコンと文字の間隔 */
-        font-weight: 500;
-    }
-
-    /* 右側のスイッチの設定 */
-    .toggle-switch { 
-        position: relative; 
-        display: inline-block; 
-        width: 44px;      /* 固定幅 */
-        height: 24px; 
-        flex-shrink: 0;   /* 親要素が狭くても縮まない */
-        flex-grow: 0;     /* 親要素が広くても伸びない（重要） */
-        margin-left: 10px;
-    }
-    
-    .toggle-switch input { opacity: 0; width: 0; height: 0; }
-    
-    .slider { 
-        position: absolute; 
-        cursor: pointer; 
-        top: 0; left: 0; right: 0; bottom: 0; 
-        background-color: #555; 
-        transition: .4s; 
-        border-radius: 24px; 
-    }
-    
-    .slider:before { 
-        position: absolute; 
-        content: ""; 
-        height: 18px; 
-        width: 18px; 
-        left: 3px; 
-        bottom: 3px; 
-        background-color: white; 
-        transition: .4s; 
-        border-radius: 50%; 
-    }
-    
-    input:checked + .slider { background-color: var(--accent-blue); }
-    input:checked + .slider:before { transform: translateX(20px); }
-
-    /* Settings Form */
-    .form-group { margin-bottom: 15px; background: #2a2a2a; padding: 15px; border-radius: 6px; }
-    .form-label { display: block; margin-bottom: 8px; color: #aaa; font-size: 0.85rem; }
-    .btn-row { display: flex; gap: 10px; margin-top: 20px; padding: 0 20px 20px 20px; border-top: 1px solid #333; background: #1e1e1e; }
-    .btn-primary { background: var(--accent-blue); color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; flex: 1; margin-top: 10px;}
-    .btn-cancel { background: #444; color: #ddd; border: none; padding: 10px; border-radius: 4px; cursor: pointer; flex: 1; margin-top: 10px;}
-    input[type="number"], input[type="text"], select { background: #333; border: 1px solid #555; color: #fff; padding: 6px; border-radius: 4px; width: 100%; box-sizing: border-box; }
-    input[type="color"] { background: none; border: none; width: 30px; height: 30px; cursor: pointer; }
-    .color-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-    .color-item { display: flex; align-items: center; gap: 10px; background: #333; padding: 5px; border-radius: 4px; font-size: 0.8rem; }
-    .loc-list-item { display: flex; justify-content: space-between; align-items: center; background: #333; padding: 8px; margin-bottom: 5px; border-radius: 4px; font-size: 0.9rem;}
-
-    /* Detail Modal Specific */
-    .detail-section { margin-bottom: 20px; }
-    .detail-pref-header { background: #333; padding: 5px 10px; font-weight: bold; border-left: 4px solid var(--accent-blue); margin-top: 10px; margin-bottom: 5px; }
-    .detail-area-row { display: flex; flex-wrap: wrap; gap: 5px; padding: 5px 10px; }
-    .detail-point-badge { 
-        display: inline-flex; align-items: center; gap: 5px; background: #252525; 
-        padding: 3px 8px; border-radius: 4px; font-size: 0.85rem; border: 1px solid #333; 
-    }
-    .point-shindo { font-weight: bold; width: 20px; text-align: center; border-radius: 2px; color: #000; text-shadow: 0 0 1px rgba(255,255,255,0.5); }
-    
-    /* Scrollbar */
-    ::-webkit-scrollbar { width: 8px; }
-    ::-webkit-scrollbar-track { background: #1e1e1e; }
-    ::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #555; }
-
-    /* Mobile */
-    @media screen and (max-width: 600px) {
-        #app-container { grid-template-rows: auto 1fr !important; height: 100dvh; }
-        header {
-            height: auto !important;
-            display: grid;
-            grid-template-columns: auto auto 1fr auto auto;
-            grid-template-rows: auto auto;
-            align-items: center;
-            gap: 5px 10px;
-            padding-top: calc(10px + env(safe-area-inset-top)) !important;
-            padding-bottom: 8px;
-            padding-left: 10px;
-            padding-right: 10px;
+    <style>
+        :root {
+            --bg-color: #121212;
+            --panel-bg: #1e1e1e;
+            --text-main: #e0e0e0;
+            --accent-blue: #2196F3;
+            --sidebar-width: 320px;
+            --tsunami-major: #aa00aa;
+            --tsunami-warn: #ff2800;
+            --tsunami-adv: #f2e700;
         }
-        .header-left, .header-right { display: contents; }
-        #btn-menu-toggle { grid-row: 1; grid-column: 1; }
-        h1 { grid-row: 1; grid-column: 2; margin: 0; font-size: 1.2rem; white-space: nowrap; }
-        #btn-settings    { grid-row: 1; grid-column: 4; }
-        #btn-help        { grid-row: 1; grid-column: 5; }
-        #clock { grid-row: 2; grid-column: 1 / 4; font-size: 1.0rem; color: #ccc; margin-top: 2px; }
-        #header-loc-select { grid-row: 2; grid-column: 4 / 6; width: 100%; margin-top: 2px; }
-        #station-status, #conn-status { display: none !important; }
-        aside { top: auto !important; position: relative !important; height: 100% !important; transform: translateX(-100%); }
-        aside.visible { transform: translateX(0) !important; }
-    }
-</style>
+
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            overflow: hidden;
+        }
+
+        /* Layout */
+        #app-container {
+            display: grid;
+            grid-template-columns: 0px 0px 1fr;
+            grid-template-rows: 50px 1fr;
+            height: 100vh;
+            width: 100vw;
+            transition: grid-template-columns 0.3s ease;
+        }
+
+        #app-container.pinned {
+            grid-template-columns: var(--sidebar-width) 6px 1fr;
+        }
+
+        #app-container.resizing {
+            transition: none !important;
+            user-select: none;
+            pointer-events: none;
+        }
+
+        #app-container.resizing #gutter {
+            pointer-events: auto;
+        }
+
+        /* Header */
+        header {
+            grid-column: 1 / 4;
+            background-color: #000;
+            border-bottom: 1px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 10px;
+            z-index: 20;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            height: 10px;
+            width: 10px;
+            background-color: #bbb;
+            border-radius: 50%;
+            display: inline-block;
+            transition: 0.3s;
+            flex-shrink: 0;
+        }
+
+        .status-connected {
+            background-color: #00e676;
+            box-shadow: 0 0 5px #00e676;
+        }
+
+        .status-error {
+            background-color: #f44336;
+            box-shadow: 0 0 5px #f44336;
+        }
+
+        #clock {
+            font-family: 'Roboto Mono', monospace;
+            font-size: 1.0rem;
+            white-space: nowrap;
+        }
+
+        #station-status {
+            font-size: 0.7rem;
+            color: #888;
+            margin-left: 5px;
+            display: none;
+        }
+
+        /* Buttons */
+        button.icon-btn {
+            background: #333;
+            border: 1px solid #555;
+            color: #aaa;
+            padding: 6px 10px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: 0.2s;
+            white-space: nowrap;
+            justify-content: center;
+        }
+
+        button.icon-btn:hover {
+            background: #444;
+            color: #fff;
+        }
+
+        button.icon-btn.active {
+            background: var(--accent-blue);
+            color: #fff;
+            border-color: var(--accent-blue);
+        }
+
+        /* Menu Toggle */
+        #btn-menu-toggle {
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        /* Sidebar */
+        aside {
+            grid-row: 2 / 3;
+            grid-column: 1 / 2;
+            background-color: var(--panel-bg);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #333;
+            position: absolute;
+            top: 50px;
+            left: 0;
+            bottom: 0;
+            width: var(--sidebar-width);
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+            z-index: 3000;
+        }
+
+        aside.visible {
+            transform: translateX(0);
+            box-shadow: 5px 0 15px rgba(0, 0, 0, 0.5);
+        }
+
+        #app-container.pinned aside {
+            position: relative;
+            top: auto;
+            left: auto;
+            bottom: auto;
+            transform: none;
+            z-index: 1;
+            border-right: none;
+        }
+
+        .sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            background: #252525;
+            border-bottom: 1px solid #333;
+        }
+
+        #btn-pin-sidebar {
+            background: transparent;
+            border: 1px solid #555;
+            color: #888;
+            border-radius: 4px;
+            cursor: pointer;
+            padding: 2px 8px;
+            font-size: 0.8rem;
+        }
+
+        #btn-pin-sidebar.active {
+            color: var(--accent-blue);
+            border-color: var(--accent-blue);
+            background: rgba(33, 150, 243, 0.1);
+        }
+
+        details.quake-group {
+            border-bottom: 1px solid #333;
+        }
+
+        details.quake-group summary {
+            background-color: #252525;
+            padding: 8px 10px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: #aaa;
+            cursor: pointer;
+            user-select: none;
+            outline: none;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        details.quake-group summary:hover {
+            background-color: #333;
+            color: #fff;
+        }
+
+        details.quake-group[open] summary {
+            border-bottom: 1px solid #333;
+            color: var(--accent-blue);
+        }
+
+        .quake-item {
+            padding: 10px;
+            border-bottom: 1px solid #333;
+            cursor: pointer;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            border-left: 4px solid transparent;
+            transition: background 0.2s;
+            padding-left: 15px;
+        }
+
+        .quake-item:hover {
+            background-color: #2a2a2a;
+        }
+
+        .quake-item.active {
+            background-color: #333;
+            border-left-color: var(--accent-blue);
+        }
+
+        .intensity-box {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.0rem;
+            border-radius: 4px;
+            color: #000;
+            flex-shrink: 0;
+            text-shadow: 0 0 2px rgba(255, 255, 255, 0.5);
+        }
+
+        .quake-info {
+            display: flex;
+            flex-direction: column;
+            font-size: 0.85rem;
+            overflow: hidden;
+        }
+
+        .quake-time {
+            color: #888;
+            font-size: 0.75rem;
+        }
+
+        .quake-place {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-weight: bold;
+        }
+
+        #gutter {
+            grid-row: 2 / 3;
+            grid-column: 2 / 3;
+            background: #111;
+            cursor: col-resize;
+            border-left: 1px solid #333;
+            border-right: 1px solid #333;
+            z-index: 100;
+            display: none;
+        }
+
+        #app-container.pinned #gutter {
+            display: block;
+        }
+
+        main {
+            grid-column: 3 / 4;
+            grid-row: 2 / 3;
+            position: relative;
+            background: #000;
+            width: 100%;
+            height: 100%;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .crosshair-cursor {
+            cursor: crosshair !important;
+        }
+
+        /* Map Icons */
+        .map-shindo-icon {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 4px;
+            color: #000;
+            font-weight: bold;
+            font-size: 11px;
+            box-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+        }
+
+        /* Panels on Map */
+        #latest-info-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 240px;
+            max-width: 60vw;
+            background: rgba(0, 0, 0, 0.85);
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 10px;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        #latest-info-panel:hover {
+            background: rgba(30, 30, 30, 0.95);
+            border-color: #666;
+        }
+
+        .panel-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+
+        .big-place {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+
+        .mag-depth {
+            font-family: 'Roboto Mono', monospace;
+            color: #bbb;
+            font-size: 0.85rem;
+        }
+
+        .shindo-display {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 5px;
+            background: #222;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+
+        .click-hint {
+            font-size: 0.7rem;
+            color: #888;
+            text-align: right;
+            margin-top: 4px;
+        }
+
+        #map-tool-container {
+            position: absolute;
+            bottom: 25px;
+            left: 10px;
+            z-index: 1200;
+            display: flex;
+            flex-direction: column-reverse;
+            align-items: flex-start;
+        }
+
+        #tool-toggle-btn {
+            background: rgba(30, 30, 30, 0.9);
+            border: 1px solid #555;
+            color: #fff;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            transition: background 0.2s;
+            font-size: 0.9rem;
+        }
+
+        #tool-toggle-btn.pinned {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+        }
+
+        #tool-panel-content {
+            margin-bottom: 10px;
+            background: rgba(30, 30, 30, 0.95);
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 10px;
+            width: 170px;
+            backdrop-filter: blur(5px);
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+        }
+
+        .tool-section-label {
+            font-size: 0.7rem;
+            color: #888;
+            border-bottom: 1px solid #444;
+            margin-bottom: 4px;
+            padding-bottom: 2px;
+        }
+
+        .tool-row {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .tool-control {
+            width: 100%;
+            box-sizing: border-box;
+            background: #222;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 4px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+
+        #btn-gps-main {
+            position: absolute;
+            bottom: 100px;
+            right: 10px;
+            z-index: 1000;
+            width: 40px;
+            height: 40px;
+            background: #fff;
+            color: #000;
+            border: 2px solid rgba(0, 0, 0, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            font-size: 1.5rem;
+            transition: background 0.2s;
+        }
+
+        #btn-gps-main:hover {
+            background: #f0f0f0;
+        }
+
+        #tsunami-panel {
+            display: none;
+            position: absolute;
+            top: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 350px;
+            max-width: 90%;
+            background: rgba(0, 0, 50, 0.95);
+            border: 2px solid var(--accent-blue);
+            border-radius: 8px;
+            padding: 10px;
+            z-index: 1500;
+            color: #fff;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+        }
+
+        .tsunami-header {
+            font-weight: bold;
+            font-size: 1.1rem;
+            border-bottom: 1px solid #444;
+            padding-bottom: 5px;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .close-tsunami-btn {
+            background: transparent;
+            border: none;
+            color: #aaa;
+            font-size: 1.5rem;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0 5px;
+        }
+
+        #eew-overlay {
+            position: absolute;
+            top: 60px;
+            right: 10px;
+            width: 280px;
+            max-width: 80vw;
+            background: rgba(180, 0, 0, 0.9);
+            color: #fff;
+            padding: 10px;
+            border-radius: 8px;
+            z-index: 2000;
+            display: none;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+            animation: flash 1s infinite alternate;
+        }
+
+        /* ▼▼▼ New Multi-Alert Container ▼▼▼ */
+        #alert-stack-container {
+            position: absolute;
+            top: 160px;
+            /* Below the EEW overlay */
+            right: 10px;
+            /* Align to right */
+            width: 240px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+            /* Let clicks pass through */
+        }
+
+        .mini-alert-box {
+            background: rgba(200, 0, 0, 0.95);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #ff8a80;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            pointer-events: auto;
+            /* Enable clicks on the box itself */
+            animation: flash 1s infinite alternate;
+            transition: opacity 0.3s;
+        }
+
+        .mini-alert-header {
+            font-size: 0.8rem;
+            opacity: 0.9;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+
+        .mini-alert-body {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .mini-est-shindo {
+            background: #fff;
+            color: #d32f2f;
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 1.1rem;
+        }
+
+        .mini-countdown {
+            font-family: 'Roboto Mono', monospace;
+            font-size: 1.4rem;
+            font-weight: bold;
+        }
+
+        .mini-sec-unit {
+            font-size: 0.8rem;
+            font-weight: normal;
+            margin-left: 2px;
+        }
+
+        .mini-alert-close {
+            background: transparent;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            font-size: 1.2rem;
+            line-height: 1;
+            padding: 0;
+            margin-left: 5px;
+        }
+
+        /* ▲▲▲ End New Alert CSS ▲▲▲ */
+
+        #tide-legend {
+            display: none;
+            position: absolute;
+            bottom: 30px;
+            right: 70px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #000;
+            padding: 5px;
+            border-radius: 5px;
+            border: 1px solid #999;
+            z-index: 1000;
+            font-size: 0.75rem;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            width: 140px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 2px;
+        }
+
+        .legend-icon {
+            width: 14px;
+            height: 14px;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+
+        @keyframes flash {
+            from {
+                opacity: 1;
+            }
+
+            to {
+                opacity: 0.8;
+            }
+        }
+
+        /* Modal Common */
+        .modal-overlay-common {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            backdrop-filter: blur(2px);
+        }
+
+        .modal-window-common {
+            position: absolute;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+
+            background: #1e1e1e;
+            width: 600px;
+            max-width: 95%;
+            max-height: 85vh;
+            overflow-y: auto;
+            border-radius: 12px;
+            padding: 0;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.9);
+            border: 1px solid #444;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            padding: 15px 20px;
+            background: #252525;
+            border-bottom: 1px solid #333;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-weight: bold;
+            font-size: 1.1rem;
+            user-select: none;
+        }
+
+        .modal-content {
+            padding: 20px;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: #ddd;
+            overflow-y: auto;
+        }
+
+        .btn-close {
+            background: transparent;
+            border: none;
+            color: #888;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .btn-close:hover {
+            color: #fff;
+        }
+
+        /* Tabs in Settings */
+        .tab-header {
+            display: flex;
+            border-bottom: 1px solid #444;
+            margin-bottom: 15px;
+            background: #1a1a1a;
+            position: sticky;
+            top: 0;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: #888;
+            padding: 12px 15px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            font-size: 0.9rem;
+            transition: 0.3s;
+            flex: 1;
+        }
+
+        .tab-btn:hover {
+            color: #ddd;
+            background: #252525;
+        }
+
+        .tab-btn.active {
+            color: var(--accent-blue);
+            border-bottom-color: var(--accent-blue);
+            font-weight: bold;
+            background: #222;
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* Checkbox list */
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 5px;
+            border-bottom: 1px solid #333;
+        }
+
+        .checkbox-row>label:first-child {
+            cursor: pointer;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 500;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+            flex-shrink: 0;
+            flex-grow: 0;
+            margin-left: 10px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #555;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: var(--accent-blue);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(20px);
+        }
+
+        /* Settings Form */
+        .form-group {
+            margin-bottom: 15px;
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 6px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #aaa;
+            font-size: 0.85rem;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            padding: 0 20px 20px 20px;
+            border-top: 1px solid #333;
+            background: #1e1e1e;
+        }
+
+        .btn-primary {
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            flex: 1;
+            margin-top: 10px;
+        }
+
+        .btn-cancel {
+            background: #444;
+            color: #ddd;
+            border: none;
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            flex: 1;
+            margin-top: 10px;
+        }
+
+        input[type="number"],
+        input[type="text"],
+        select {
+            background: #333;
+            border: 1px solid #555;
+            color: #fff;
+            padding: 6px;
+            border-radius: 4px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        input[type="color"] {
+            background: none;
+            border: none;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+        }
+
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .color-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #333;
+            padding: 5px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+
+        /* Modified Location List Item */
+        .loc-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #333;
+            padding: 8px;
+            margin-bottom: 5px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .loc-list-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            flex: 1;
+        }
+
+        .loc-checkbox {
+            accent-color: var(--accent-blue);
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        /* Detail Modal Specific */
+        .detail-section {
+            margin-bottom: 20px;
+        }
+
+        .detail-pref-header {
+            background: #333;
+            padding: 5px 10px;
+            font-weight: bold;
+            border-left: 4px solid var(--accent-blue);
+            margin-top: 10px;
+            margin-bottom: 5px;
+        }
+
+        .detail-area-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            padding: 5px 10px;
+        }
+
+        .detail-point-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: #252525;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            border: 1px solid #333;
+        }
+
+        .point-shindo {
+            font-weight: bold;
+            width: 20px;
+            text-align: center;
+            border-radius: 2px;
+            color: #000;
+            text-shadow: 0 0 1px rgba(255, 255, 255, 0.5);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #444;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* Mobile */
+        @media screen and (max-width: 600px) {
+            #app-container {
+                grid-template-rows: auto 1fr !important;
+                height: 100dvh;
+            }
+
+            header {
+                height: auto !important;
+                display: grid;
+                grid-template-columns: auto auto 1fr auto auto;
+                grid-template-rows: auto auto;
+                align-items: center;
+                gap: 5px 10px;
+                padding-top: calc(10px + env(safe-area-inset-top)) !important;
+                padding-bottom: 8px;
+                padding-left: 10px;
+                padding-right: 10px;
+            }
+
+            .header-left,
+            .header-right {
+                display: contents;
+            }
+
+            #btn-menu-toggle {
+                grid-row: 1;
+                grid-column: 1;
+            }
+
+            h1 {
+                grid-row: 1;
+                grid-column: 2;
+                margin: 0;
+                font-size: 1.2rem;
+                white-space: nowrap;
+            }
+
+            #btn-settings {
+                grid-row: 1;
+                grid-column: 4;
+            }
+
+            #btn-help {
+                grid-row: 1;
+                grid-column: 5;
+            }
+
+            #clock {
+                grid-row: 2;
+                grid-column: 1 / 4;
+                font-size: 1.0rem;
+                color: #ccc;
+                margin-top: 2px;
+            }
+
+            #header-loc-select {
+                grid-row: 2;
+                grid-column: 4 / 6;
+                width: 100%;
+                margin-top: 2px;
+            }
+
+            #station-status,
+            #conn-status {
+                display: none !important;
+            }
+
+            aside {
+                top: auto !important;
+                position: relative !important;
+                height: 100% !important;
+                transform: translateX(-100%);
+            }
+
+            aside.visible {
+                transform: translateX(0) !important;
+            }
+        }
+    </style>
 </head>
+
 <body>
-<div id="app-container">
-<header>
-    <div class="header-left">
-        <button id="btn-menu-toggle" title="サイドバー表示切替">☰</button>
-        <h1><span id="conn-status" class="status-dot"></span> J-Quake</h1>
-        <div id="clock">00:00:00</div>
-        <div id="station-status"></div>
-    </div>
-    <div class="header-right">
-        <select id="header-loc-select" title="登録地点へジャンプ" style="max-width:120px; font-size:0.8rem;">
-            <option value="">📍 登録地点</option>
-        </select>
-        <button id="btn-settings" class="icon-btn">⚙️</button>
-        <button id="btn-help" class="icon-btn" title="ヘルプ">❓</button>
-    </div>
-</header>
-
-<!-- Sidebar -->
-<aside id="quake-list-area">
-    <div class="sidebar-header">
-        <span style="font-size:0.8rem; color:#aaa;">地震履歴</span>
-        <button id="btn-pin-sidebar" title="リストをピン留め（地図を分割）">📌 ピン留め</button>
-    </div>
-    <div id="list-container"></div>
-    <div style="display: flex; border-top: 1px solid #333; margin-top:auto;">
-        <button id="btn-load-more" style="flex:1; padding:12px; background:#222; border:none; color:#888; cursor:pointer;">さらに読み込む</button>
-    </div>
-</aside>
-
-<!-- Resizer -->
-<div id="gutter"></div>
-
-<!-- Map Area -->
-<main>
-    <!-- Map Tool Panel -->
-    <div id="map-tool-container">
-        <div id="tool-toggle-btn">🛠️ 表示・ツール</div>
-        <div id="tool-panel-content">
-            <div class="tool-section-label">絞り込み</div>
-            <div class="tool-row">
-                <select id="filter-min-shindo" class="tool-control">
-                    <option value="0">全表示</option>
-                    <option value="30">震度3以上</option>
-                    <option value="40">震度4以上</option>
+    <div id="app-container">
+        <header>
+            <div class="header-left">
+                <button id="btn-menu-toggle" title="サイドバー表示切替">☰</button>
+                <h1><span id="conn-status" class="status-dot"></span> J-Quake</h1>
+                <div id="clock">00:00:00</div>
+                <div id="station-status"></div>
+            </div>
+            <div class="header-right">
+                <select id="header-loc-select" title="登録地点へジャンプ" style="max-width:120px; font-size:0.8rem;">
+                    <option value="">📍 登録地点</option>
                 </select>
+                <button id="btn-settings" class="icon-btn">⚙️</button>
+                <button id="btn-help" class="icon-btn" title="ヘルプ">❓</button>
+            </div>
+        </header>
+
+        <!-- Sidebar -->
+        <aside id="quake-list-area">
+            <div class="sidebar-header">
+                <span style="font-size:0.8rem; color:#aaa;">地震履歴</span>
+                <button id="btn-pin-sidebar" title="リストをピン留め（地図を分割）">📌 ピン留め</button>
+            </div>
+            <div id="list-container"></div>
+            <div style="display: flex; border-top: 1px solid #333; margin-top:auto;">
+                <button id="btn-load-more"
+                    style="flex:1; padding:12px; background:#222; border:none; color:#888; cursor:pointer;">さらに読み込む</button>
+            </div>
+        </aside>
+
+        <!-- Resizer -->
+        <div id="gutter"></div>
+
+        <!-- Map Area -->
+        <main>
+            <!-- Map Tool Panel -->
+            <div id="map-tool-container">
+                <div id="tool-toggle-btn">🛠️ 表示・ツール</div>
+                <div id="tool-panel-content">
+                    <div class="tool-section-label">絞り込み</div>
+                    <div class="tool-row">
+                        <select id="filter-min-shindo" class="tool-control">
+                            <option value="0">全表示</option>
+                            <option value="30">震度3以上</option>
+                            <option value="40">震度4以上</option>
+                        </select>
+                    </div>
+
+                    <div class="tool-section-label">マップ表示</div>
+                    <div class="tool-row">
+                        <button id="btn-points-toggle" class="icon-btn active" style="width:100%">📍 観測点</button>
+                        <button id="btn-tide-toggle" class="icon-btn" style="width:100%">🌊 潮位観測</button>
+                    </div>
+
+                    <div class="tool-section-label">追尾</div>
+                    <div class="tool-row">
+                        <button id="btn-auto-zoom" class="icon-btn active" style="width:100%">🎯 新着追尾</button>
+                        <button id="btn-list-zoom" class="icon-btn" style="width:100%">👆 クリック</button>
+                    </div>
+
+                    <div class="tool-section-label">その他</div>
+                    <div class="tool-row">
+                        <button id="btn-audio" class="icon-btn" style="width:100%">🔇 音声</button>
+                        <button id="btn-screenshot" class="icon-btn" style="width:100%">📷 保存</button>
+                    </div>
+                </div>
             </div>
 
-            <div class="tool-section-label">マップ表示</div>
-            <div class="tool-row">
-                <button id="btn-points-toggle" class="icon-btn active" style="width:100%">📍 観測点</button>
-                <button id="btn-tide-toggle" class="icon-btn" style="width:100%">🌊 潮位観測</button>
+            <!-- GPS Button -->
+            <button id="btn-gps-main" title="現在地へ移動">🎯</button>
+
+            <!-- Tsunami Panel -->
+            <div id="tsunami-panel">
+                <div class="tsunami-header">
+                    <span>🌊 津波情報</span>
+                    <button class="close-tsunami-btn" onclick="clearTsunamiData()" title="情報を消去">×</button>
+                </div>
+                <div id="tsunami-content">現在、津波警報等は発表されていません。</div>
             </div>
 
-            <div class="tool-section-label">追尾</div>
-            <div class="tool-row">
-                <button id="btn-auto-zoom" class="icon-btn active" style="width:100%">🎯 新着追尾</button>
-                <button id="btn-list-zoom" class="icon-btn" style="width:100%">👆 クリック</button>
+            <!-- Info Panel -->
+            <div id="latest-info-panel" title="クリックして詳細を表示">
+                <div class="panel-row">
+                    <span style="color:#aaa; font-size:0.75rem;">発生時刻</span>
+                    <span id="p-time" class="mag-depth">--/-- --:--</span>
+                </div>
+                <div id="p-place" class="big-place">データ待機中</div>
+                <div style="margin-top:2px; display:flex; flex-direction:column; gap:0px;">
+                    <span id="p-mag" class="mag-depth">マグニチュード ---</span>
+                    <span id="p-depth" class="mag-depth">震源の深さ ---</span>
+                </div>
+                <div class="shindo-display">
+                    <div id="p-shindo-box" class="intensity-box" style="background:#444;">-</div>
+                    <div id="p-shindo-text" style="font-size:1.2rem; font-weight:bold;">-</div>
+                </div>
+                <div class="click-hint">👆 詳細</div>
             </div>
 
-            <div class="tool-section-label">その他</div>
-            <div class="tool-row">
-                <button id="btn-audio" class="icon-btn" style="width:100%">🔇 音声</button>
-                <button id="btn-screenshot" class="icon-btn" style="width:100%">📷 保存</button>
+            <div id="eew-overlay">
+                <div style="font-weight:bold; font-size:1.1rem;">⚠️ 緊急地震速報</div>
+                <div id="eew-text" style="margin-top:5px; font-size:0.9rem;">詳細を受信中...</div>
             </div>
-        </div>
+
+            <!-- New Multi-Alert Stack Container (replaces personal-alert) -->
+            <div id="alert-stack-container"></div>
+
+            <!-- 潮位凡例 -->
+            <div id="tide-legend">
+                <div style="font-weight:bold; margin-bottom:2px; border-bottom:1px solid #ccc; text-align:center;">凡例
+                </div>
+                <div class="legend-item"><span class="legend-icon" id="leg-jma"></span> 気象庁</div>
+                <div class="legend-item"><span class="legend-icon" id="leg-jcg"></span> 海上保安庁</div>
+                <div class="legend-item"><span class="legend-icon" id="leg-gsi"></span> 国土地理院</div>
+                <div class="legend-item"><span class="legend-icon" id="leg-port"></span> 港湾局</div>
+                <div class="legend-item"><span class="legend-icon" id="leg-riv"></span> 水管理・国土</div>
+                <div class="legend-item"><span class="legend-icon" id="leg-pref"></span> 自治体等</div>
+            </div>
+
+            <div id="map"></div>
+        </main>
     </div>
 
-    <!-- GPS Button -->
-    <button id="btn-gps-main" title="現在地へ移動">🎯</button>
+    <!-- Modal Settings (Tabbed) -->
+    <div id="modal-overlay" class="modal-overlay-common">
+        <div id="modal-window" class="modal-window-common" style="width:500px;">
+            <div class="modal-header" id="modal-header-drag">
+                <span>⚙️ 設定</span>
+                <button class="btn-close" id="modal-close">×</button>
+            </div>
 
-    <!-- Tsunami Panel -->
-    <div id="tsunami-panel">
-        <div class="tsunami-header">
-            <span>🌊 津波情報</span>
-            <button class="close-tsunami-btn" onclick="clearTsunamiData()" title="情報を消去">×</button>
-        </div>
-        <div id="tsunami-content">現在、津波警報等は発表されていません。</div>
-    </div>
+            <!-- Tab Headers -->
+            <div class="tab-header">
+                <button class="tab-btn active" onclick="switchTab('tab-general')">全般・起動</button>
+                <button class="tab-btn" onclick="switchTab('tab-loc')">地点登録</button>
+                <button class="tab-btn" onclick="switchTab('tab-color')">表示・色</button>
+                <button class="tab-btn" onclick="switchTab('tab-system')">システム</button>
+            </div>
 
-    <!-- Info Panel -->
-    <div id="latest-info-panel" title="クリックして詳細を表示">
-        <div class="panel-row">
-            <span style="color:#aaa; font-size:0.75rem;">発生時刻</span>
-            <span id="p-time" class="mag-depth">--/-- --:--</span>
-        </div>
-        <div id="p-place" class="big-place">データ待機中</div>
-        <div style="margin-top:2px; display:flex; flex-direction:column; gap:0px;">
-            <span id="p-mag" class="mag-depth">マグニチュード ---</span>
-            <span id="p-depth" class="mag-depth">震源の深さ ---</span>
-        </div>
-        <div class="shindo-display">
-            <div id="p-shindo-box" class="intensity-box" style="background:#444;">-</div>
-            <div id="p-shindo-text" style="font-size:1.2rem; font-weight:bold;">-</div>
-        </div>
-        <div class="click-hint">👆 詳細</div>
-    </div>
+            <div class="modal-content" style="padding-top:0;">
 
-    <div id="eew-overlay">
-        <div style="font-weight:bold; font-size:1.1rem;">⚠️ 緊急地震速報</div>
-        <div id="eew-text" style="margin-top:5px; font-size:0.9rem;">詳細を受信中...</div>
-    </div>
+                <!-- Tab 1: General & Startup -->
+                <div id="tab-general" class="tab-content active">
+                    <div class="form-group" style="margin-top:15px;">
+                        <label class="form-label" style="font-weight:bold; color:#2196F3;">🚀 起動時の状態設定</label>
+                        <div style="font-size:0.8rem; color:#888; margin-bottom:10px;">アプリ起動時（再読み込み時）の初期状態を設定します。</div>
 
-    <div id="personal-alert">
-        <div id="alert-location-name">現在地</div>
-        <div style="font-size:0.9rem; margin-bottom:5px;">予想震度</div>
-        <div id="alert-est-shindo">震度4</div>
-        <div style="font-size:0.9rem;">到達まで</div>
-        <div id="alert-countdown">0</div>
-        <div id="alert-message">揺れに備えてください</div>
-        <button onclick="stopAlert()" style="background:#fff; color:#000; border:none; padding:5px 10px; margin-top:10px; border-radius:4px; cursor:pointer;">閉じる</button>
-    </div>
+                        <div class="checkbox-row">
+                            <label for="st-pin">📌 左パネルをピン留めする</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="st-pin">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="checkbox-row">
+                            <label for="st-audio">🔊 音声をONにする</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="st-audio">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="checkbox-row">
+                            <label for="st-auto-zoom">🎯 新着地震への追尾をON</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="st-auto-zoom">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="checkbox-row">
+                            <label for="st-click-zoom">👆 クリック時のズームをON</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="st-click-zoom">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="checkbox-row">
+                            <label for="st-points">📍 観測点（数値）を表示</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="st-points">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="checkbox-row">
+                            <label for="st-tide">🌊 潮位観測所を表示</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="st-tide">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
 
-    <!-- 潮位凡例 -->
-    <div id="tide-legend">
-        <div style="font-weight:bold; margin-bottom:2px; border-bottom:1px solid #ccc; text-align:center;">凡例</div>
-        <div class="legend-item"><span class="legend-icon" id="leg-jma"></span> 気象庁</div>
-        <div class="legend-item"><span class="legend-icon" id="leg-jcg"></span> 海上保安庁</div>
-        <div class="legend-item"><span class="legend-icon" id="leg-gsi"></span> 国土地理院</div>
-        <div class="legend-item"><span class="legend-icon" id="leg-port"></span> 港湾局</div>
-        <div class="legend-item"><span class="legend-icon" id="leg-riv"></span> 水管理・国土</div>
-        <div class="legend-item"><span class="legend-icon" id="leg-pref"></span> 自治体等</div>
-    </div>
-
-    <div id="map"></div>
-</main>
-</div>
-
-<!-- Modal Settings (Tabbed) -->
-<div id="modal-overlay" class="modal-overlay-common">
-    <div id="modal-window" class="modal-window-common" style="width:500px;">
-        <div class="modal-header" id="modal-header-drag">
-            <span>⚙️ 設定</span>
-            <button class="btn-close" id="modal-close">×</button>
-        </div>
-
-        <!-- Tab Headers -->
-        <div class="tab-header">
-            <button class="tab-btn active" onclick="switchTab('tab-general')">全般・起動</button>
-            <button class="tab-btn" onclick="switchTab('tab-loc')">地点登録</button>
-            <button class="tab-btn" onclick="switchTab('tab-color')">表示・色</button>
-            <button class="tab-btn" onclick="switchTab('tab-system')">システム</button>
-        </div>
-
-        <div class="modal-content" style="padding-top:0;">
-            
-           <!-- Tab 1: General & Startup -->
-            <div id="tab-general" class="tab-content active">
-                <div class="form-group" style="margin-top:15px;">
-                    <label class="form-label" style="font-weight:bold; color:#2196F3;">🚀 起動時の状態設定</label>
-                    <div style="font-size:0.8rem; color:#888; margin-bottom:10px;">アプリ起動時（再読み込み時）の初期状態を設定します。</div>
-                    
-                    <div class="checkbox-row">
-                        <label for="st-pin">📌 左パネルをピン留めする</label>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="st-pin">
-                            <span class="slider"></span>
-                        </label>
+                        <div style="margin-top:10px;">
+                            <label class="form-label">起動時の地図スタイル</label>
+                            <select id="st-map-layer">
+                                <option value="dark">ダーク (英字)</option>
+                                <option value="std">標準 (日本語)</option>
+                                <option value="pale">淡色 (日本語)</option>
+                                <option value="photo">航空写真</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="checkbox-row">
-                        <label for="st-audio">🔊 音声をONにする</label>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="st-audio">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="checkbox-row">
-                        <label for="st-auto-zoom">🎯 新着地震への追尾をON</label>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="st-auto-zoom">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-<div class="checkbox-row">
-                        <label for="st-click-zoom">👆 クリック時のズームをON</label>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="st-click-zoom">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="checkbox-row">
-                        <label for="st-points">📍 観測点（数値）を表示</label>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="st-points">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="checkbox-row">
-                        <label for="st-tide">🌊 潮位観測所を表示</label>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="st-tide">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    
-                    <div style="margin-top:10px;">
-                        <label class="form-label">起動時の地図スタイル</label>
-                        <select id="st-map-layer">
-                            <option value="dark">ダーク (英字)</option>
-                            <option value="std">標準 (日本語)</option>
-                            <option value="pale">淡色 (日本語)</option>
-                            <option value="photo">航空写真</option>
+
+                    <div class="form-group">
+                        <label class="form-label">通知する最小震度（パーソナル予報）</label>
+                        <select id="input-alert-threshold">
+                            <option value="10">震度1以上</option>
+                            <option value="30" selected>震度3以上</option>
+                            <option value="40">震度4以上</option>
                         </select>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">通知する最小震度（パーソナル予報）</label>
-                    <select id="input-alert-threshold">
-                        <option value="10">震度1以上</option>
-                        <option value="30" selected>震度3以上</option>
-                        <option value="40">震度4以上</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Tab 2: Locations -->
-            <div id="tab-loc" class="tab-content">
-                <div class="form-group" style="margin-top:15px;">
-                    <label class="form-label" style="font-weight:bold; color:#2196F3;">📍 マイロケーション</label>
-                    <div id="settings-loc-list" style="margin-bottom:10px;"></div>
-                    <div style="display:grid; grid-template-columns: 2fr 1.5fr 1.5fr 1fr; gap:5px; align-items:end;">
-                        <div><label class="form-label">名称</label><input type="text" id="new-loc-name" placeholder="自宅"></div>
-                        <div><label class="form-label">緯度</label><input type="number" id="new-loc-lat" step="0.0001" placeholder="35.xxxx"></div>
-                        <div><label class="form-label">経度</label><input type="number" id="new-loc-lon" step="0.0001" placeholder="139.xxxx"></div>
-                        <button class="icon-btn" onclick="addLocation()" style="justify-content:center;">＋</button>
-                    </div>
-                    <div style="display:flex; gap:5px; margin-top:5px;">
-                        <button class="icon-btn" onclick="startMapPick()" style="flex:1; justify-content:center; background:#283593;">🗺️ 地図指定</button>
-                        <button class="icon-btn" onclick="getCurrentLocationForInput()" style="flex:1; justify-content:center;">📡 GPS取得</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tab 3: Colors -->
-            <div id="tab-color" class="tab-content">
-                <div class="form-group" style="margin-top:15px;">
-                    <label class="form-label">震度別カラー設定</label>
-                    <div class="color-grid" id="color-settings-grid"></div>
-                </div>
-            </div>
-
-            <!-- Tab 4: System -->
-            <div id="tab-system" class="tab-content">
-                <div class="form-group" style="margin-top:15px;">
-                    <label class="form-label" style="font-weight:bold; color:#2196F3;">💾 設定のバックアップ</label>
-                    <div style="display:flex; gap:10px;">
-                        <button class="icon-btn" onclick="exportConfig()" style="flex:1; justify-content:center;">📤 保存</button>
-                        <button class="icon-btn" onclick="document.getElementById('import-file').click()" style="flex:1; justify-content:center;">📥 読込</button>
-                        <input type="file" id="import-file" style="display:none" onchange="importConfig(this)">
+                <!-- Tab 2: Locations -->
+                <div id="tab-loc" class="tab-content">
+                    <div class="form-group" style="margin-top:15px;">
+                        <label class="form-label" style="font-weight:bold; color:#2196F3;">📍 マイロケーション</label>
+                        <div style="font-size:0.8rem; color:#888; margin-bottom:10px;">
+                            チェックを入れた地点のみ、震度予想（カウントダウン）が表示されます。
+                        </div>
+                        <div id="settings-loc-list" style="margin-bottom:10px;"></div>
+                        <div
+                            style="display:grid; grid-template-columns: 2fr 1.5fr 1.5fr 1fr; gap:5px; align-items:end;">
+                            <div><label class="form-label">名称</label><input type="text" id="new-loc-name"
+                                    placeholder="自宅"></div>
+                            <div><label class="form-label">緯度</label><input type="number" id="new-loc-lat" step="0.0001"
+                                    placeholder="35.xxxx"></div>
+                            <div><label class="form-label">経度</label><input type="number" id="new-loc-lon" step="0.0001"
+                                    placeholder="139.xxxx"></div>
+                            <button class="icon-btn" onclick="addLocation()" style="justify-content:center;">＋</button>
+                        </div>
+                        <div style="display:flex; gap:5px; margin-top:5px;">
+                            <button class="icon-btn" onclick="startMapPick()"
+                                style="flex:1; justify-content:center; background:#283593;">🗺️ 地図指定</button>
+                            <button class="icon-btn" onclick="getCurrentLocationForInput()"
+                                style="flex:1; justify-content:center;">📡 GPS取得</button>
+                        </div>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">デモ実行（テスト用）</label>
-                    <div style="display:flex; gap:10px;">
-                        <button class="icon-btn" onclick="demoEEW()" style="flex:1; justify-content:center; background:#b71c1c;">⚠️ EEWデモ</button>
-                        <button class="icon-btn" onclick="demoTsunami()" style="flex:1; justify-content:center; background:#006064;">🌊 津波デモ</button>
+                <!-- Tab 3: Colors -->
+                <div id="tab-color" class="tab-content">
+                    <div class="form-group" style="margin-top:15px;">
+                        <label class="form-label">震度別カラー設定</label>
+                        <div class="color-grid" id="color-settings-grid"></div>
                     </div>
                 </div>
-            </div>
 
-        </div>
-        <div class="btn-row">
-            <button class="btn-cancel" id="btn-cancel-settings">キャンセル</button>
-            <button class="btn-primary" id="btn-save-settings">設定を保存</button>
+                <!-- Tab 4: System -->
+                <div id="tab-system" class="tab-content">
+                    <div class="form-group" style="margin-top:15px;">
+                        <label class="form-label" style="font-weight:bold; color:#2196F3;">💾 設定のバックアップ</label>
+                        <div style="display:flex; gap:10px;">
+                            <button class="icon-btn" onclick="exportConfig()" style="flex:1; justify-content:center;">📤
+                                保存</button>
+                            <button class="icon-btn" onclick="document.getElementById('import-file').click()"
+                                style="flex:1; justify-content:center;">📥 読込</button>
+                            <input type="file" id="import-file" style="display:none" onchange="importConfig(this)">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">デモ実行（テスト用）</label>
+                        <div style="display:flex; gap:10px;">
+                            <button class="icon-btn" onclick="demoEEW()"
+                                style="flex:1; justify-content:center; background:#b71c1c;">⚠️ EEWデモ</button>
+                            <button class="icon-btn" onclick="demoTsunami()"
+                                style="flex:1; justify-content:center; background:#006064;">🌊 津波デモ</button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <div class="btn-row">
+                <button class="btn-cancel" id="btn-cancel-settings">キャンセル</button>
+                <button class="btn-primary" id="btn-save-settings">設定を保存</button>
+            </div>
         </div>
     </div>
-</div>
 
-<!-- Quake Detail Modal -->
-<div id="detail-modal-overlay" class="modal-overlay-common">
-    <div id="detail-modal-window" class="modal-window-common">
-        <div class="modal-header">
-            <span id="detail-title">各地の震度</span>
-            <button class="btn-close" id="detail-modal-close">×</button>
-        </div>
-        <div class="modal-content" id="detail-content">
-            <!-- Content Injected via JS -->
-            データを選択してください。
-        </div>
-    </div>
-</div>
-
-<!-- Help Modal -->
-<div id="help-modal-overlay" class="modal-overlay-common">
-    <div id="help-modal-window" class="modal-window-common">
-        <div class="modal-header">
-            <span>📖 J-Quake ヘルプ</span>
-            <button class="btn-close" id="help-modal-close">×</button>
-        </div>
-        <div class="modal-content">
-            <section style="margin-bottom: 20px;">
-                <h3 style="margin-top:0; color:#fff;">📌 このアプリについて</h3>
-                <p>P2P地震情報のAPIを利用し、リアルタイムで地震情報・津波情報・緊急地震速報を表示するWebアプリケーションです。</p>
-            </section>
-            <hr style="border-color:#333; margin:20px 0;">
-
-            <section style="margin-bottom: 20px;">
-                <h3 style="color:#fff;">🗺️ 地図の見方</h3>
-                <ul>
-                    <li><span style="color:#2196F3; font-weight:bold;">青い波紋 (P波)</span>: 初期微動。カタカタ揺れます。</li>
-                    <li><span style="color:#f44336; font-weight:bold;">赤い波紋 (S波)</span>: 主要動。ユサユサ大きく揺れます。</li>
-                    <li><strong>丸いマーカー</strong>: 震源地を表します。円の大きさはマグニチュード、色は震度に対応します。</li>
-                    <li><strong>四角い数値アイコン</strong>: 各観測点の震度を表示しています。</li>
-                </ul>
-            </section>
-            <hr style="border-color:#333; margin:20px 0;">
-
-            <section style="margin-bottom: 20px;">
-                <h3 style="color:#fff;">🛠️ ツールバーの機能</h3>
-                <p>地図左下の「🛠️ 表示・ツール」から以下の機能が使えます。</p>
-                <ul>
-                    <li><strong>🎯 新着追尾</strong>: 新しい地震が発生した際、自動的にその場所に地図を移動します。</li>
-                    <li><strong>🔇 音声</strong>: 地震発生時に情報を読み上げます（ブラウザの音声機能を使用）。</li>
-                    <li><strong>📍 観測点</strong>: 各地の震度観測点の表示/非表示を切り替えます。</li>
-                    <li><strong>🌊 潮位観測</strong>: 日本各地の潮位観測所を表示します。クリックで気象庁の潮位グラフへ飛びます。</li>
-                    <li><strong>📷 保存</strong>: 現在の画面を画像としてダウンロードします。</li>
-                </ul>
-            </section>
-            <hr style="border-color:#333; margin:20px 0;">
-
-            <section style="margin-bottom: 20px;">
-                <h3 style="color:#fff;">⚠️ データ・免責事項</h3>
-                <p>本アプリの地震情報はP2P地震情報のAPI、地図データは国土地理院・OpenStreetMap等のオープンデータを使用しています。</p>
-                <p>情報の正確性には万全を期していますが、本アプリの利用により生じた損害について開発者は責任を負いません。命に関わる判断はテレビ・ラジオ等の公式情報に従ってください。</p>
-            </section>
-            <hr style="border-color:#333; margin:20px 0;">
-
-            <section style="margin-bottom: 20px;">
-                <h3 style="color:#fff;">⚙️ 設定・起動設定</h3>
-                <p>右上の歯車アイコンから設定画面を開けます。</p>
-                <ul>
-                    <li><strong>起動設定</strong>: 「全般・起動」タブで、アプリを開いた時の初期状態（サイドバー固定、音声ON/OFF、地図レイヤーなど）を設定できます。</li>
-                    <li><strong>マイロケーション</strong>: 自宅や職場を登録しておくと、リストからすぐに地図移動できます。</li>
-                    <li><strong>バックアップ</strong>: 設定内容をファイルに保存・復元できます。</li>
-                </ul>
-            </section>
-            
-            <section>
-                <h3 style="color:#fff;">ℹ️ 最終更新日</h3>
-                <p> 2025年12月10日</p>
-            </section>
+    <!-- Quake Detail Modal -->
+    <div id="detail-modal-overlay" class="modal-overlay-common">
+        <div id="detail-modal-window" class="modal-window-common">
+            <div class="modal-header">
+                <span id="detail-title">各地の震度</span>
+                <button class="btn-close" id="detail-modal-close">×</button>
+            </div>
+            <div class="modal-content" id="detail-content">
+                <!-- Content Injected via JS -->
+                データを選択してください。
+            </div>
         </div>
     </div>
-</div>
 
-<script>
-// --- Configuration & Default Settings ---
-const DEFAULT_CONFIG = {
-    version: 7, // Increment for map layer logic
-    markerBaseSize: 5,
-    colors: {
-        10: "#4caf50", 20: "#8bc34a", 30: "#ffeb3b", 40: "#ffc107",
-        45: "#ff9800", 50: "#ff5722", 55: "#e91e63", 60: "#d32f2f", 70: "#b71c1c"
-    },
-    savedLocations: [{ name: "東京駅", lat: 35.6812, lon: 139.7671 }],
-    alertThreshold: 30,
-    sWaveSpeed: 4.0,
-    startup: {
-        sidebarPinned: true,
-        audioOn: false,
-        autoZoom: true,
-clickZoom: true,
-        showPoints: true,
-        showTide: true,
-        // ★ここを書き換えます
-        // 画面幅が600px以下(スマホ)なら "pale"(淡色)、それ以外は "dark" になります
-        mapLayer: (window.innerWidth <= 600) ? "pale" : "dark" 
-    }
-};
+    <!-- Help Modal -->
+    <div id="help-modal-overlay" class="modal-overlay-common">
+        <div id="help-modal-window" class="modal-window-common">
+            <div class="modal-header">
+                <span>📖 J-Quake ヘルプ</span>
+                <button class="btn-close" id="help-modal-close">×</button>
+            </div>
+            <div class="modal-content">
+                <section style="margin-bottom: 20px;">
+                    <h3 style="margin-top:0; color:#fff;">📌 このアプリについて</h3>
+                    <p>P2P地震情報のAPIを利用し、リアルタイムで地震情報・津波情報・緊急地震速報を表示するWebアプリケーションです。</p>
+                </section>
+                <hr style="border-color:#333; margin:20px 0;">
 
-let config;
-try {
-    const stored = localStorage.getItem("jq_config_v6");
-    if (stored) {
-        const parsed = JSON.parse(stored);
-        // Merge with defaults to ensure new fields exist
-        config = { ...DEFAULT_CONFIG, ...parsed, startup: { ...DEFAULT_CONFIG.startup, ...(parsed.startup || {}) } };
-    } else {
-        config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
-    }
-} catch (e) { config = JSON.parse(JSON.stringify(DEFAULT_CONFIG)); }
-let configBackup = null;
+                <section style="margin-bottom: 20px;">
+                    <h3 style="color:#fff;">🗺️ 地図の見方</h3>
+                    <ul>
+                        <li><span style="color:#2196F3; font-weight:bold;">青い波紋 (P波)</span>: 初期微動。カタカタ揺れます。</li>
+                        <li><span style="color:#f44336; font-weight:bold;">赤い波紋 (S波)</span>: 主要動。ユサユサ大きく揺れます。</li>
+                        <li><strong>丸いマーカー</strong>: 震源地を表します。円の大きさはマグニチュード、色は震度に対応します。</li>
+                        <li><strong>四角い数値アイコン</strong>: 各観測点の震度を表示しています。</li>
+                    </ul>
+                </section>
+                <hr style="border-color:#333; margin:20px 0;">
 
-// --- Global Variables ---
-const WS_URL = "wss://api.p2pquake.net/v2/ws";
-const HISTORY_API = "https://api.p2pquake.net/v2/history?codes=551";
-const JAPAN_GEOJSON_URL = "https://raw.githubusercontent.com/dataofjapan/land/master/japan.geojson";
+                <section style="margin-bottom: 20px;">
+                    <h3 style="color:#fff;">🛠️ ツールバーの機能</h3>
+                    <p>地図左下の「🛠️ 表示・ツール」から以下の機能が使えます。</p>
+                    <ul>
+                        <li><strong>🎯 新着追尾</strong>: 新しい地震が発生した際、自動的にその場所に地図を移動します。</li>
+                        <li><strong>🔇 音声</strong>: 地震発生時に情報を読み上げます（ブラウザの音声機能を使用）。</li>
+                        <li><strong>📍 観測点</strong>: 各地の震度観測点の表示/非表示を切り替えます。</li>
+                        <li><strong>🌊 潮位観測</strong>: 日本各地の潮位観測所を表示します。クリックで気象庁の潮位グラフへ飛びます。</li>
+                        <li><strong>📷 保存</strong>: 現在の画面を画像としてダウンロードします。</li>
+                    </ul>
+                </section>
+                <hr style="border-color:#333; margin:20px 0;">
 
-const STATION_LOCATIONS = { 
-    "北海道札幌市中央区": {lat: 43.062, lon: 141.354}, 
-    "東京都千代田区": {lat: 35.694, lon: 139.754}, 
-    "愛知県名古屋市中区": {lat: 35.180, lon: 136.906},
-    "大阪府大阪市中央区": {lat: 34.693, lon: 135.502},
-    "福岡県福岡市博多区": {lat: 33.606, lon: 130.418}
-};
+                <section style="margin-bottom: 20px;">
+                    <h3 style="color:#fff;">⚠️ データ・免責事項</h3>
+                    <p>本アプリの地震情報はP2P地震情報のAPI、地図データは国土地理院・OpenStreetMap等のオープンデータを使用しています。</p>
+                    <p>情報の正確性には万全を期していますが、本アプリの利用により生じた損害について開発者は責任を負いません。命に関わる判断はテレビ・ラジオ等の公式情報に従ってください。</p>
+                </section>
+                <hr style="border-color:#333; margin:20px 0;">
 
-let map;
-let markers = {};
-let quakeData = [];
-let fetchOffset = 0;
-// Startup defaults will be overwritten by config in init
-let isAudioOn = false;
-let isAutoZoom = true;
-let isListClickZoom = false;
-let isPointsVisible = true;
-let isTideVisible = false;
+                <section style="margin-bottom: 20px;">
+                    <h3 style="color:#fff;">⚙️ 設定・起動設定</h3>
+                    <p>右上の歯車アイコンから設定画面を開けます。</p>
+                    <ul>
+                        <li><strong>起動設定</strong>: 「全般・起動」タブで、アプリを開いた時の初期状態（サイドバー固定、音声ON/OFF、地図レイヤーなど）を設定できます。</li>
+                        <li><strong>マイロケーション</strong>:
+                            自宅や職場を登録しておくと、リストからすぐに地図移動できます。また、設定震度以上の揺れが予測されると、登録地点のカウントダウンが地図左上に表示されます。</li>
+                        <li><strong>バックアップ</strong>: 設定内容をファイルに保存・復元できます。</li>
+                    </ul>
+                </section>
 
-let isPickingLocation = false; 
-let socket = null;
-let alertTimerInterval = null;
-let isToolLocked = false;
-let currentQuakeId = null; 
+                <section>
+                    <h3 style="color:#fff;">ℹ️ 最終更新日</h3>
+                    <p> 2025年12月12日</p>
+                </section>
+            </div>
+        </div>
+    </div>
 
-// Sidebar State
-let isSidebarPinned = false; 
-let isSidebarVisible = false; 
+    <script>
+        // --- Configuration & Default Settings ---
+        const DEFAULT_CONFIG = {
+            version: 8, // Incremented
+            markerBaseSize: 5,
+            colors: {
+                10: "#4caf50", 20: "#8bc34a", 30: "#ffeb3b", 40: "#ffc107",
+                45: "#ff9800", 50: "#ff5722", 55: "#e91e63", 60: "#d32f2f", 70: "#b71c1c"
+            },
+            // savedLocations now includes enabled: true/false
+            savedLocations: [{ name: "東京駅", lat: 35.6812, lon: 139.7671, enabled: true }],
+            alertThreshold: 30,
+            sWaveSpeed: 4.0,
+            startup: {
+                sidebarPinned: true,
+                audioOn: false,
+                autoZoom: true,
+                clickZoom: true,
+                showPoints: true,
+                showTide: true,
+                mapLayer: (window.innerWidth <= 600) ? "pale" : "dark"
+            }
+        };
 
-let pWaveLayer, sWaveLayer, currentWaveTarget, pointsLayerGroup, tsunamiLayerGroup, tideLayerGroup, geoJsonData;
-let userLocationMarkers = [];
+        let config;
+        try {
+            const stored = localStorage.getItem("jq_config_v6");
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                // Merge with defaults
+                config = { ...DEFAULT_CONFIG, ...parsed, startup: { ...DEFAULT_CONFIG.startup, ...(parsed.startup || {}) } };
+                // Ensure savedLocations have 'enabled' property (migration)
+                if (config.savedLocations) {
+                    config.savedLocations.forEach(l => { if (typeof l.enabled === 'undefined') l.enabled = true; });
+                }
+            } else {
+                config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+            }
+        } catch (e) { config = JSON.parse(JSON.stringify(DEFAULT_CONFIG)); }
+        let configBackup = null;
 
-// ▼ Raw Tide Data ▼
-const TIDE_STATIONS_RAW = `1	枝幸	港湾局	北海道 枝幸郡 枝幸町 幸町	44°56′	142°35′
+        // --- Global Variables ---
+        const WS_URL = "wss://api.p2pquake.net/v2/ws";
+        const HISTORY_API = "https://api.p2pquake.net/v2/history?codes=551";
+        const JAPAN_GEOJSON_URL = "https://raw.githubusercontent.com/dataofjapan/land/master/japan.geojson";
+
+        const STATION_LOCATIONS = {
+            "北海道札幌市中央区": { lat: 43.062, lon: 141.354 },
+            "東京都千代田区": { lat: 35.694, lon: 139.754 },
+            "愛知県名古屋市中区": { lat: 35.180, lon: 136.906 },
+            "大阪府大阪市中央区": { lat: 34.693, lon: 135.502 },
+            "福岡県福岡市博多区": { lat: 33.606, lon: 130.418 }
+        };
+
+        let map;
+        let markers = {};
+        let quakeData = [];
+        let fetchOffset = 0;
+        // Startup defaults will be overwritten by config in init
+        let isAudioOn = false;
+        let isAutoZoom = true;
+        let isListClickZoom = false;
+        let isPointsVisible = true;
+        let isTideVisible = false;
+
+        let isPickingLocation = false;
+        let socket = null;
+        let alertTimerInterval = null;
+        let isToolLocked = false;
+        let currentQuakeId = null;
+        let activeMultiAlerts = []; // Store active alert objects
+
+        // Sidebar State
+        let isSidebarPinned = false;
+        let isSidebarVisible = false;
+
+        let pWaveLayer, sWaveLayer, currentWaveTarget, pointsLayerGroup, tsunamiLayerGroup, tideLayerGroup, geoJsonData;
+        let userLocationMarkers = [];
+
+        // ▼ Raw Tide Data (Same as previous) ▼
+        // TIDE_STATIONS_RAW definition moved to the end of the file for maintainability.
+
+        // SVG Icons
+        function getTideSvg(type) {
+            const s = 'stroke="black" stroke-width="2"';
+            if (type == 'jma') return `<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" fill="#ffff00" ${s}/></svg>`;
+            if (type == 'jcg') return `<svg viewBox="0 0 20 20"><polygon points="2,2 18,2 10,18" fill="#00ffff" ${s}/></svg>`;
+            if (type == 'gsi') return `<svg viewBox="0 0 20 20"><rect x="3" y="3" width="14" height="14" fill="#00ff00" ${s}/></svg>`;
+            if (type == 'port') return `<svg viewBox="0 0 20 20"><polygon points="10,2 18,10 10,18 2,10" fill="#ff0000" ${s}/></svg>`;
+            if (type == 'riv') return `<svg viewBox="0 0 20 20"><polygon points="10,2 18,18 2,18" fill="#d3d3d3" ${s}/></svg>`;
+            return `<svg viewBox="0 0 20 20"><polygon points="10,1 12,7 19,7 13,11 15,18 10,14 5,18 7,11 1,7 8,7" fill="#0000ff" ${s}/></svg>`;
+        }
+
+        // --- Initialization ---
+        window.onload = async () => {
+            initMap();
+            initResizer();
+            await loadExternalStations();
+            applyStartupSettings(); // Apply saved startup settings
+            connectWebSocket();
+            fetchHistory(0);
+            loadGeoJSON();
+            setInterval(() => { document.getElementById("clock").textContent = new Date().toLocaleTimeString('ja-JP'); }, 1000);
+
+            // Sidebar & GPS Bindings
+            document.getElementById("btn-menu-toggle").onclick = toggleSidebar;
+            document.getElementById("btn-pin-sidebar").onclick = toggleSidebarPin;
+            document.getElementById("btn-gps-main").onclick = flyToCurrentLocation;
+
+            // Existing Bindings
+            document.getElementById("btn-audio").onclick = toggleAudio;
+            document.getElementById("btn-auto-zoom").onclick = toggleAutoZoom;
+            document.getElementById("btn-list-zoom").onclick = toggleListClickZoom;
+            document.getElementById("btn-points-toggle").onclick = togglePoints;
+            document.getElementById("btn-load-more").onclick = () => { fetchOffset += 20; fetchHistory(fetchOffset); };
+            document.getElementById("btn-settings").onclick = openSettings;
+            document.getElementById("modal-close").onclick = cancelSettings;
+            document.getElementById("btn-cancel-settings").onclick = cancelSettings;
+            document.getElementById("btn-save-settings").onclick = saveSettings;
+            document.getElementById("btn-screenshot").onclick = takeScreenshot;
+            document.getElementById("btn-tide-toggle").onclick = toggleTide;
+            document.getElementById("filter-min-shindo").onchange = rebuildList;
+            document.getElementById("header-loc-select").onchange = (e) => { if (e.target.value !== "") jumpToLocation(e.target.value); };
+
+            // Help Modal Bindings
+            document.getElementById("btn-help").onclick = () => { document.getElementById("help-modal-overlay").style.display = "block"; };
+            document.getElementById("help-modal-close").onclick = () => { document.getElementById("help-modal-overlay").style.display = "none"; };
+
+            // Detail Modal Bindings
+            document.getElementById("detail-modal-close").onclick = () => { document.getElementById("detail-modal-overlay").style.display = "none"; };
+            document.getElementById("latest-info-panel").onclick = openDetailModal;
+
+            // Common Modal Overlay Close
+            document.querySelectorAll('.modal-overlay-common').forEach(el => {
+                el.addEventListener('click', (e) => { if (e.target === el) el.style.display = "none"; });
+            });
+
+            ['jma', 'jcg', 'gsi', 'port', 'riv', 'pref'].forEach(k => { document.getElementById(`leg-${k}`).innerHTML = getTideSvg(k); });
+
+            initDraggableModal();
+            animationLoop();
+            updateUserMarkersAndDropdown();
+
+            // Tool Panel Hover
+            const toolContainer = document.getElementById("map-tool-container");
+            const toolBtn = document.getElementById("tool-toggle-btn");
+            const toolPanel = document.getElementById("tool-panel-content");
+
+            toolContainer.addEventListener('mouseenter', () => { if (!isToolLocked) toolPanel.style.display = 'flex'; });
+            toolContainer.addEventListener('mouseleave', () => { if (!isToolLocked) toolPanel.style.display = 'none'; });
+            toolBtn.addEventListener('click', () => {
+                isToolLocked = !isToolLocked;
+                if (isToolLocked) {
+                    toolBtn.classList.add('pinned');
+                    toolBtn.innerHTML = "📌 ツール (固定)";
+                    toolPanel.style.display = 'flex';
+                } else {
+                    toolBtn.classList.remove('pinned');
+                    toolBtn.innerHTML = "🛠️ 表示・ツール";
+                    if (!toolContainer.matches(':hover')) toolPanel.style.display = 'none';
+                }
+            });
+        };
+
+        function applyStartupSettings() {
+            const s = config.startup;
+
+            // Audio
+            isAudioOn = s.audioOn;
+            updateBtn("btn-audio", isAudioOn, "🔊 音声", "🔇 音声");
+
+            // Auto Zoom
+            isAutoZoom = s.autoZoom;
+            updateBtn("btn-auto-zoom", isAutoZoom, "🎯 新着追尾", "🎯 新着追尾");
+
+            // Click Zoom
+            isListClickZoom = s.clickZoom;
+            updateBtn("btn-list-zoom", isListClickZoom, "👆 クリック", "👆 クリック");
+
+            // Points
+            isPointsVisible = s.showPoints;
+            updateBtn("btn-points-toggle", isPointsVisible, "📍 観測点", "📍 観測点");
+            if (isPointsVisible) renderObservationPoints(quakeData[0]); // Initial render attempt
+
+            // Tide
+            if (s.showTide) toggleTide(); // This sets variable and renders
+
+            // Sidebar Pin
+            if (s.sidebarPinned) {
+                isSidebarVisible = true;
+                isSidebarPinned = true;
+                document.getElementById("quake-list-area").classList.add('visible');
+                document.getElementById("app-container").classList.add('pinned');
+
+                const btn = document.getElementById("btn-pin-sidebar");
+                btn.classList.add("active");
+                btn.innerHTML = "📌 ピン留め中";
+
+                setTimeout(() => map.invalidateSize(), 300);
+            }
+        }
+
+        // --- Sidebar Logic ---
+        function toggleSidebar() {
+            isSidebarVisible = !isSidebarVisible;
+            const sidebar = document.getElementById("quake-list-area");
+            const container = document.getElementById("app-container");
+
+            if (isSidebarVisible) {
+                sidebar.classList.add('visible');
+                if (isSidebarPinned) container.classList.add('pinned');
+            } else {
+                sidebar.classList.remove('visible');
+                container.classList.remove('pinned');
+            }
+        }
+
+        function toggleSidebarPin() {
+            isSidebarPinned = !isSidebarPinned;
+            const btn = document.getElementById("btn-pin-sidebar");
+            const container = document.getElementById("app-container");
+
+            if (isSidebarPinned) {
+                btn.classList.add("active");
+                btn.innerHTML = "📌 ピン留め中";
+                if (isSidebarVisible) container.classList.add("pinned");
+            } else {
+                btn.classList.remove("active");
+                btn.innerHTML = "📌 ピン留め";
+                container.classList.remove("pinned");
+            }
+            setTimeout(() => map.invalidateSize(), 300);
+        }
+
+        // --- GPS Logic ---
+        function flyToCurrentLocation() {
+            if (!navigator.geolocation) { alert("お使いの端末はGPSに対応していません。"); return; }
+            const btn = document.getElementById("btn-gps-main");
+            btn.style.background = "#e3f2fd";
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const lat = pos.coords.latitude;
+                    const lon = pos.coords.longitude;
+                    map.flyTo([lat, lon], 12);
+                    L.circleMarker([lat, lon], { radius: 8, color: '#2196F3', fillColor: '#2196F3', fillOpacity: 0.3 })
+                        .addTo(map).bindPopup("現在地").openPopup();
+                    L.circleMarker([lat, lon], { radius: 3, color: '#fff', fillColor: '#2196F3', fillOpacity: 1 }).addTo(map);
+                    btn.style.background = "#fff";
+                },
+                (err) => { alert("現在地を取得できませんでした。"); btn.style.background = "#fff"; },
+                { timeout: 10000 }
+            );
+        }
+
+        // --- Main App Logic ---
+        async function loadExternalStations() {
+            const statusDiv = document.getElementById("station-status");
+            try {
+                const response = await fetch("https://raw.githubusercontent.com/iku55/jma_int_stations/main/stations.json");
+                if (!response.ok) throw new Error("err");
+                const data = await response.json();
+                data.forEach(item => { if (item.name && item.lat) STATION_LOCATIONS[item.name] = { lat: parseFloat(item.lat), lon: parseFloat(item.lon) }; });
+                statusDiv.textContent = `観測点: ${Object.keys(STATION_LOCATIONS).length}`;
+            } catch (e) { statusDiv.textContent = "Data Error"; }
+        }
+
+        function initMap() {
+            // Define layers first
+            const cartoDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; CARTO', maxZoom: 19 });
+            const gsiStd = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', { attribution: '&copy; 国土地理院', maxZoom: 18 });
+            const gsiPale = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', { attribution: '&copy; 国土地理院', maxZoom: 18 });
+            const gsiPhoto = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg', { attribution: '&copy; 国土地理院', maxZoom: 18 });
+
+            // Map string key to layer object
+            const layerMap = {
+                "dark": cartoDark,
+                "std": gsiStd,
+                "pale": gsiPale,
+                "photo": gsiPhoto
+            };
+
+            // Determine initial layer based on config
+            const initialLayer = layerMap[config.startup.mapLayer] || cartoDark;
+
+            map = L.map('map', { zoomControl: false, preferCanvas: true, layers: [initialLayer] }).setView([36.5, 138], 5);
+
+            L.control.layers({
+                "ダーク (英字)": cartoDark,
+                "標準 (日本語)": gsiStd,
+                "淡色 (日本語)": gsiPale,
+                "航空写真": gsiPhoto
+            }, null, { position: 'topright' }).addTo(map);
+
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+            tsunamiLayerGroup = L.layerGroup().addTo(map);
+            tideLayerGroup = L.layerGroup().addTo(map);
+            pWaveLayer = L.circle([0, 0], { radius: 0, color: '#2196F3', weight: 1, fill: false, opacity: 0 }).addTo(map);
+            sWaveLayer = L.circle([0, 0], { radius: 0, color: '#f44336', weight: 2, fill: false, opacity: 0 }).addTo(map);
+            pointsLayerGroup = L.layerGroup().addTo(map);
+
+            map.on('click', (e) => {
+                if (isPickingLocation) {
+                    document.getElementById("new-loc-lat").value = e.latlng.lat.toFixed(4);
+                    document.getElementById("new-loc-lon").value = e.latlng.lng.toFixed(4);
+                    isPickingLocation = false;
+                    document.getElementById("map").classList.remove("crosshair-cursor");
+                    document.getElementById("modal-overlay").style.display = "block";
+                } else {
+                    if (!isSidebarPinned && isSidebarVisible) toggleSidebar();
+                }
+            });
+        }
+
+        function connectWebSocket() {
+            if (socket) socket.close();
+            socket = new WebSocket(WS_URL);
+            socket.onopen = () => document.getElementById("conn-status").className = "status-dot status-connected";
+            socket.onmessage = (e) => {
+                try {
+                    const data = JSON.parse(e.data);
+                    if (data.code === 551) {
+                        if (!quakeData.find(q => q.id === data.id)) {
+                            quakeData.unshift(data);
+                            if (quakeData.length > 200) quakeData.pop();
+                            rebuildList();
+                            const minShindo = parseInt(document.getElementById("filter-min-shindo").value) || 0;
+                            if (data.earthquake.maxScale >= minShindo) {
+                                selectQuake(data.id, 'auto');
+                                speak(`震度${formatShindo(data.earthquake.maxScale).text}、${data.earthquake.hypocenter.name}`);
+                            }
+                        }
+                    }
+                    if (data.code === 554 || data.code === 556) handleEEW(data);
+                    if (data.code === 552) handleTsunami(data);
+                } catch (err) { }
+            };
+            socket.onclose = () => { document.getElementById("conn-status").className = "status-dot status-error"; setTimeout(connectWebSocket, 5000); };
+        }
+
+        async function fetchHistory(offset) {
+            const btn = document.getElementById("btn-load-more"); btn.textContent = "読み込み中...";
+            try {
+                const res = await fetch(`${HISTORY_API}&limit=20&offset=${offset}`);
+                const newDetail = await res.json();
+                const cleanNew = newDetail.filter(item => !quakeData.find(q => q.id === item.id));
+                if (cleanNew.length > 0) {
+                    quakeData = quakeData.concat(cleanNew).sort((a, b) => new Date(b.earthquake.time) - new Date(a.earthquake.time));
+                    rebuildList();
+                    if (offset === 0 && cleanNew.length > 0) selectQuake(cleanNew[0].id, 'auto');
+                }
+                btn.textContent = "さらに読み込む";
+            } catch (e) { btn.textContent = "取得失敗"; }
+        }
+
+        function rebuildList() {
+            const container = document.getElementById("list-container"); container.innerHTML = "";
+            const minShindo = parseInt(document.getElementById("filter-min-shindo").value) || 0;
+            const visibleData = quakeData.filter(d => d.code === 551 && d.earthquake.maxScale >= minShindo);
+
+            // 日付ごとのグループ化
+            const groups = {}; const dates = [];
+            visibleData.forEach(d => {
+                const dateStr = d.earthquake.time.split(' ')[0];
+                if (!groups[dateStr]) { groups[dateStr] = []; dates.push(dateStr); }
+                groups[dateStr].push(d);
+            });
+
+            const visibleIds = visibleData.map(d => d.id);
+            Object.keys(markers).forEach(id => { if (!visibleIds.includes(id)) { map.removeLayer(markers[id]); delete markers[id]; } });
+
+            dates.forEach((date, idx) => {
+                const details = document.createElement("details"); details.className = "quake-group";
+                if (idx === 0) details.open = true;
+                const summary = document.createElement("summary");
+                summary.innerHTML = `<span>📅 ${date}</span> <span>${groups[date].length}件</span>`;
+                details.appendChild(summary);
+                groups[date].forEach(data => {
+                    details.appendChild(createQuakeItem(data));
+                    createMarker(data);
+                });
+                container.appendChild(details);
+            });
+        }
+
+        function createQuakeItem(data) {
+            const q = data.earthquake; const s = formatShindo(q.maxScale);
+            const item = document.createElement("div"); item.className = "quake-item"; item.id = `list-${data.id}`;
+            item.innerHTML = `<div class="intensity-box" style="background:${s.color};">${s.text}</div><div class="quake-info"><span class="quake-place">${q.hypocenter.name}</span><span class="quake-time">${q.time.split(' ')[1]}</span></div>`;
+            item.onclick = () => selectQuake(data.id, 'list');
+            return item;
+        }
+
+        function createMarker(data) {
+            if (data.earthquake.hypocenter.latitude != -200 && !markers[data.id]) {
+                const s = formatShindo(data.earthquake.maxScale);
+                const m = L.circleMarker([data.earthquake.hypocenter.latitude, data.earthquake.hypocenter.longitude], {
+                    radius: config.markerBaseSize + (Math.sqrt(data.earthquake.maxScale - 10) * 1.5),
+                    color: '#fff', weight: 1, fillColor: s.color, fillOpacity: 0.8
+                }).addTo(map);
+                m.on('click', () => selectQuake(data.id, 'map'));
+                markers[data.id] = m;
+            }
+        }
+
+        function selectQuake(id, source) {
+            currentQuakeId = id; // Update global selection
+            const data = quakeData.find(q => q.id === id); if (!data) return;
+            document.querySelectorAll('.quake-item').forEach(el => el.classList.remove('active'));
+            document.getElementById(`list-${id}`)?.classList.add('active');
+
+            updatePanel(data);
+            if (markers[id]) {
+                Object.values(markers).forEach(m => m.setStyle({ weight: 1, color: '#fff' }));
+                markers[id].setStyle({ weight: 3, color: '#00ffff' }).bringToFront();
+                if ((source === 'auto' && isAutoZoom) || ((source === 'list' || source === 'map') && isListClickZoom)) {
+                    map.flyTo(markers[id].getLatLng(), 7);
+                }
+            }
+            renderObservationPoints(data);
+            startWaveAnimation(data);
+
+            if (source === 'list' && !isSidebarPinned && isSidebarVisible) toggleSidebar();
+        }
+
+        function updatePanel(d) {
+            const q = d.earthquake; const s = formatShindo(q.maxScale);
+            document.getElementById("p-time").innerText = q.time.substring(0, 16);
+            document.getElementById("p-place").innerText = q.hypocenter.name;
+            document.getElementById("p-mag").innerText = "M " + ((q.hypocenter.magnitude != -1) ? q.hypocenter.magnitude : "-");
+            document.getElementById("p-depth").innerText = "深さ " + ((q.hypocenter.depth != -1) ? q.hypocenter.depth + "km" : "-");
+            document.getElementById("p-shindo-box").innerText = s.text;
+            document.getElementById("p-shindo-box").style.background = s.color;
+            document.getElementById("p-shindo-text").innerText = s.fullText;
+        }
+
+        // Updated Render Function for Shindo Icons on Map
+        function renderObservationPoints(d) {
+            pointsLayerGroup.clearLayers();
+            if (!isPointsVisible || !d || !d.points) return;
+            d.points.forEach(p => {
+                let coord = STATION_LOCATIONS[p.addr];
+                if (!coord) {
+                    const key = Object.keys(STATION_LOCATIONS).find(k => p.addr.includes(k) || k.includes(p.addr));
+                    if (key) coord = STATION_LOCATIONS[key];
+                }
+                if (coord) {
+                    const s = formatShindo(p.scale);
+                    // Use divIcon to show number
+                    const myIcon = L.divIcon({
+                        className: '', // Clear default class to remove square box background
+                        html: `<div class="map-shindo-icon" style="background:${s.color}; width:20px; height:20px;">${s.text}</div>`,
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10]
+                    });
+
+                    L.marker([coord.lat, coord.lon], { icon: myIcon, zIndexOffset: p.scale * 100 }) // Higher intensity on top
+                        .bindTooltip(`${p.addr} : 震度${s.text}`).addTo(pointsLayerGroup);
+                }
+            });
+        }
+
+        // Detail Modal Logic
+        function openDetailModal() {
+            if (!currentQuakeId) return;
+            const data = quakeData.find(q => q.id === currentQuakeId);
+            if (!data || !data.points) return;
+
+            const contentDiv = document.getElementById('detail-content');
+            document.getElementById('detail-title').innerText = `${data.earthquake.hypocenter.name} (最大震度${formatShindo(data.earthquake.maxScale).text})`;
+
+            // Group by Prefecture
+            const pointsByPref = {};
+            data.points.forEach(p => {
+                if (!pointsByPref[p.pref]) pointsByPref[p.pref] = [];
+                pointsByPref[p.pref].push(p);
+            });
+
+            let html = "";
+            // Sort Prefectures by max intensity within them
+            const sortedPrefs = Object.keys(pointsByPref).sort((a, b) => {
+                const maxA = Math.max(...pointsByPref[a].map(p => p.scale));
+                const maxB = Math.max(...pointsByPref[b].map(p => p.scale));
+                return maxB - maxA;
+            });
+
+            sortedPrefs.forEach(pref => {
+                // Sort points in pref by intensity
+                pointsByPref[pref].sort((a, b) => b.scale - a.scale);
+
+                html += `<div class="detail-section">`;
+                html += `<div class="detail-pref-header">${pref}</div>`;
+                html += `<div class="detail-area-row">`;
+                pointsByPref[pref].forEach(p => {
+                    const s = formatShindo(p.scale);
+                    html += `<div class="detail-point-badge">
+                <span class="point-shindo" style="background:${s.color}">${s.text}</span>
+                <span>${p.addr}</span>
+            </div>`;
+                });
+                html += `</div></div>`;
+            });
+
+            contentDiv.innerHTML = html;
+            document.getElementById('detail-modal-overlay').style.display = "block";
+        }
+
+        // Utils
+        function getTimestampFilename(p, e) { const n = new Date(); return `${p}_${n.toISOString().slice(0, 10).replace(/-/g, "")}${n.getHours()}${n.getMinutes()}.${e}`; }
+        async function takeScreenshot() {
+            const btn = document.getElementById("btn-screenshot"); btn.innerHTML = "⏳";
+            try {
+                const c = await html2canvas(document.getElementById("app-container"), { useCORS: true, allowTaint: false });
+                const l = document.createElement('a'); l.download = getTimestampFilename("J-Quake", "png"); l.href = c.toDataURL(); l.click();
+            } catch (e) { }
+            btn.innerHTML = "📷 保存";
+        }
+
+        function exportConfig() {
+            const dl = document.createElement('a');
+            dl.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(config));
+            dl.download = getTimestampFilename("J-Quake_設定", "json");
+            dl.click();
+        }
+        function importConfig(input) {
+            const f = input.files[0]; if (!f) return;
+            const r = new FileReader(); r.onload = e => { try { config = JSON.parse(e.target.result); saveSettings(); location.reload(); } catch (x) { alert("Error"); } };
+            r.readAsText(f);
+        }
+
+        function handleTsunami(data) {
+            tsunamiLayerGroup.clearLayers();
+            const p = document.getElementById("tsunami-panel");
+            if (data.cancelled || !data.areas || !data.areas.length) { p.style.display = "none"; return; }
+            p.style.display = "block";
+            let maxGrade = 0; const grades = { MajorWarning: 3, Warning: 2, Watch: 1, Unknown: 0 };
+            data.areas.forEach(a => { if (grades[a.grade] > maxGrade) maxGrade = grades[a.grade]; });
+            const msgs = { 3: "大津波警報", 2: "津波警報", 1: "津波注意報" };
+            document.getElementById("tsunami-content").innerHTML = `<span style="font-size:1.3rem; font-weight:bold; color:${maxGrade == 3 ? '#aa00aa' : maxGrade == 2 ? '#ff2800' : '#f2e700'}">${msgs[maxGrade] || "不明"}</span> が発表されています。`;
+            if (geoJsonData) {
+                L.geoJSON(geoJsonData, {
+                    style: f => {
+                        const name = f.properties.nam_ja || "";
+                        const area = data.areas.find(a => name.includes(a.name));
+                        if (area) {
+                            const c = area.grade == "MajorWarning" ? "#aa00aa" : area.grade == "Warning" ? "#ff2800" : "#f2e700";
+                            return { color: c, weight: 2, opacity: 1, fillOpacity: 0.5, fillColor: c };
+                        }
+                        return { opacity: 0, fillOpacity: 0 };
+                    }
+                }).addTo(tsunamiLayerGroup);
+            }
+        }
+        function clearTsunamiData() { tsunamiLayerGroup.clearLayers(); document.getElementById("tsunami-panel").style.display = "none"; }
+        async function loadGeoJSON() { try { const r = await fetch(JAPAN_GEOJSON_URL); geoJsonData = await r.json(); } catch (e) { } }
+
+        function handleEEW(data) { showEEWOverlay(data); if (data.code === 556 && !data.cancelled) checkPersonalAlert(data); }
+
+        // Modified Personal Alert Logic (Multi-Location)
+        function checkPersonalAlert(data) {
+            const eq = data.earthquake; if (!eq) return;
+
+            // Filter enabled locations
+            const targets = config.savedLocations.filter(l => l.enabled !== false);
+            if (targets.length === 0) return;
+
+            const results = [];
+            targets.forEach(loc => {
+                const d = getDistance(loc.lat, loc.lon, eq.hypocenter.latitude, eq.hypocenter.longitude);
+                const s = predictIntensity(eq.magnitude, d, parseInt(eq.hypocenter.depth));
+                // Only consider if greater than threshold
+                if (s >= config.alertThreshold) {
+                    results.push({
+                        name: loc.name,
+                        shindo: s,
+                        dist: d,
+                        arrivalTime: Date.now() + (d / config.sWaveSpeed) * 1000
+                    });
+                }
+            });
+
+            // Sort by Intensity (desc) then Arrival (asc)
+            results.sort((a, b) => b.shindo - a.shindo || a.arrivalTime - b.arrivalTime);
+
+            // Take top 3
+            const topAlerts = results.slice(0, 3);
+
+            if (topAlerts.length > 0) {
+                startMultiAlert(topAlerts);
+                const maxS = topAlerts[0].shindo;
+                speak(`緊急地震速報。${topAlerts[0].name}など、予測震度${formatShindo(maxS).text}`);
+            }
+        }
+
+        function startMultiAlert(alerts) {
+            activeMultiAlerts = alerts;
+            renderMultiAlerts();
+            if (alertTimerInterval) clearInterval(alertTimerInterval);
+            alertTimerInterval = setInterval(updateMultiAlertsTimer, 100);
+        }
+
+        function renderMultiAlerts() {
+            const container = document.getElementById("alert-stack-container");
+            container.innerHTML = "";
+            activeMultiAlerts.forEach((a, idx) => {
+                const s = formatShindo(a.shindo);
+                const div = document.createElement("div");
+                div.className = "mini-alert-box";
+                div.id = `alert-box-${idx}`;
+                div.innerHTML = `
+            <div class="mini-alert-header">
+                <span>${a.name}</span>
+                <span>予測震度</span>
+                ${idx === 0 ? '<button class="mini-alert-close" onclick="stopAlert()" title="閉じる">×</button>' : ''}
+            </div>
+            <div class="mini-alert-body">
+                <span class="mini-est-shindo">${s.fullText}</span>
+                <div>
+                    <span class="mini-countdown" id="alert-timer-${idx}">0</span>
+                    <span class="mini-sec-unit">秒</span>
+                </div>
+            </div>
+        `;
+                container.appendChild(div);
+            });
+        }
+
+        function updateMultiAlertsTimer() {
+            if (!activeMultiAlerts.length) return;
+            let anyActive = false;
+            const now = Date.now();
+
+            activeMultiAlerts.forEach((a, idx) => {
+                const el = document.getElementById(`alert-timer-${idx}`);
+                if (el) {
+                    const left = (a.arrivalTime - now) / 1000;
+                    if (left > -60) {
+                        el.innerText = left <= 0 ? "到達" : left.toFixed(1);
+                        anyActive = true;
+                    } else {
+                        el.innerText = "終了";
+                    }
+                }
+            });
+
+            if (!anyActive) stopAlert(); // Auto close if all passed long ago
+        }
+
+        function showEEWOverlay(data) {
+            const el = document.getElementById("eew-overlay"); el.style.display = "block";
+            if (data.cancelled) { el.innerText = "キャンセル"; setTimeout(() => el.style.display = "none", 3000); return; }
+            document.getElementById("eew-text").innerText = data.earthquake ? `${data.earthquake.hypocenter.name} M${data.earthquake.magnitude} 最大${formatShindo(data.earthquake.maxScale).text}` : "詳細解析中";
+            setTimeout(() => el.style.display = "none", 60000);
+        }
+        function stopAlert() {
+            document.getElementById("alert-stack-container").innerHTML = "";
+            activeMultiAlerts = [];
+            clearInterval(alertTimerInterval);
+        }
+
+        function getDistance(lat1, lon1, lat2, lon2) { const R = 6371; const dLat = (lat2 - lat1) * Math.PI / 180; const dLon = (lon2 - lon1) * Math.PI / 180; const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2; return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)); }
+        function predictIntensity(m, d, depth) { if (m < 1) return 0; const x = Math.max(Math.sqrt(d ** 2 + depth ** 2), 3); const pgv = Math.pow(10, 0.58 * m - Math.log10(x) - 0.002 * x - 0.6) * 2.0; let i = 2.68 + 1.94 * Math.log10(pgv); return i < 2.5 ? 20 : i < 3.5 ? 30 : i < 4.5 ? 40 : i < 5.0 ? 45 : i < 5.5 ? 50 : i < 6.0 ? 55 : 60; }
+        function formatShindo(s) { const c = config.colors; const t = { 10: "1", 20: "2", 30: "3", 40: "4", 45: "5-", 50: "5+", 55: "6-", 60: "6+", 70: "7" }; const f = { 10: "震度1", 20: "震度2", 30: "震度3", 40: "震度4", 45: "5弱", 50: "5強", 55: "6弱", 60: "6強", 70: "震度7" }; return { color: c[s] || "#777", text: t[s] || "?", fullText: f[s] || "不明" }; }
+
+        function startWaveAnimation(d) { const t = new Date(d.earthquake.time).getTime(); if ((Date.now() - t) / 1000 > 300) { currentWaveTarget = null; return; } currentWaveTarget = { lat: d.earthquake.hypocenter.latitude, lng: d.earthquake.hypocenter.longitude, time: t }; }
+        function animationLoop() {
+            if (currentWaveTarget) {
+                const e = (Date.now() - currentWaveTarget.time) / 1000;
+                if (e > 0) { pWaveLayer.setLatLng([currentWaveTarget.lat, currentWaveTarget.lng]).setRadius(e * 6.5 * 1000).setStyle({ opacity: 1 }); sWaveLayer.setLatLng([currentWaveTarget.lat, currentWaveTarget.lng]).setRadius(e * config.sWaveSpeed * 1000).setStyle({ opacity: 1 }); }
+            }
+            requestAnimationFrame(animationLoop);
+        }
+
+        function toggleAudio() { isAudioOn = !isAudioOn; updateBtn("btn-audio", isAudioOn, "🔊 音声", "🔇 音声"); }
+        function toggleAutoZoom() { isAutoZoom = !isAutoZoom; updateBtn("btn-auto-zoom", isAutoZoom, "🎯 新着追尾", "🎯 新着追尾"); }
+        function toggleListClickZoom() { isListClickZoom = !isListClickZoom; updateBtn("btn-list-zoom", isListClickZoom, "👆 クリック", "👆 クリック"); }
+        function togglePoints() { isPointsVisible = !isPointsVisible; updateBtn("btn-points-toggle", isPointsVisible, "📍 観測点", "📍 観測点"); if (document.querySelector('.quake-item.active')) selectQuake(document.querySelector('.quake-item.active').id.replace('list-', ''), 'none'); }
+        function updateBtn(id, state, onTxt, offTxt) { const b = document.getElementById(id); b.classList.toggle("active", state); b.innerText = state ? onTxt : offTxt; }
+        function speak(t) { if (isAudioOn) { const u = new SpeechSynthesisUtterance(t); u.lang = "ja-JP"; window.speechSynthesis.speak(u); } }
+
+        function toggleTide() {
+            isTideVisible = !isTideVisible;
+            updateBtn("btn-tide-toggle", isTideVisible, "🌊 潮位観測", "🌊 潮位観測");
+            const legend = document.getElementById("tide-legend");
+            if (isTideVisible) { legend.style.display = "block"; renderTideStations(); } else { legend.style.display = "none"; tideLayerGroup.clearLayers(); }
+        }
+        function dmsToDecimal(s) { const m = s.match(/(\d+)°(\d+)′/); return m ? parseFloat(m[1]) + (parseFloat(m[2]) / 60) : null; }
+        function renderTideStations() {
+            tideLayerGroup.clearLayers();
+            TIDE_STATIONS_RAW.trim().split('\n').forEach(line => {
+                const c = line.split(/\t/); if (c.length < 6) return;
+                const lat = dmsToDecimal(c[4]), lon = dmsToDecimal(c[5]); if (!lat) return;
+                let type = 'pref';
+                if (c[2].includes("気象庁")) type = 'jma'; else if (c[2].includes("海上保安庁")) type = 'jcg'; else if (c[2].includes("地理院")) type = 'gsi'; else if (c[2].includes("港湾局")) type = 'port'; else if (c[2].includes("水管理")) type = 'riv';
+                L.marker([lat, lon], { icon: L.divIcon({ className: '', html: getTideSvg(type), iconSize: [16, 16] }) })
+                    .bindTooltip(`${c[1]}`, { direction: 'top', offset: [0, -10] }).addTo(tideLayerGroup).on('click', () => window.open(`https://www.jma.go.jp/bosai/map.html#12/${lat}/${lon}/&contents=tidelevel`, '_blank'));
+            });
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+            document.getElementById(tabId).classList.add('active');
+            const buttons = document.querySelectorAll('.tab-btn');
+            if (tabId === 'tab-general') buttons[0].classList.add('active');
+            if (tabId === 'tab-loc') buttons[1].classList.add('active');
+            if (tabId === 'tab-color') buttons[2].classList.add('active');
+            if (tabId === 'tab-system') buttons[3].classList.add('active');
+        }
+
+        function openSettings() {
+            configBackup = JSON.parse(JSON.stringify(config));
+            document.getElementById("modal-overlay").style.display = "block";
+            switchTab('tab-general'); // Reset to first tab
+
+            // Populate Startup Checkboxes
+            document.getElementById("st-pin").checked = config.startup.sidebarPinned;
+            document.getElementById("st-audio").checked = config.startup.audioOn;
+            document.getElementById("st-auto-zoom").checked = config.startup.autoZoom;
+            document.getElementById("st-click-zoom").checked = config.startup.clickZoom;
+            document.getElementById("st-points").checked = config.startup.showPoints;
+            document.getElementById("st-tide").checked = config.startup.showTide;
+
+            // Populate Map Layer
+            document.getElementById("st-map-layer").value = config.startup.mapLayer || "dark";
+
+            // Populate Threshold
+            document.getElementById("input-alert-threshold").value = config.alertThreshold;
+
+            renderSavedLocationsSettings();
+            const g = document.getElementById("color-settings-grid"); g.innerHTML = "";
+            const L = { 10: "1", 20: "2", 30: "3", 40: "4", 45: "5-", 50: "5+", 55: "6-", 60: "6+", 70: "7" };
+            Object.keys(config.colors).forEach(k => {
+                const d = document.createElement("div"); d.className = "color-item";
+                d.innerHTML = `<span style="font-weight:bold;width:30px;">${L[k]}</span><input type="color" value="${config.colors[k]}" oninput="config.colors[${k}]=this.value;rebuildList()">`;
+                g.appendChild(d);
+            });
+        }
+
+        // Updated Location Settings Render (Checkboxes)
+        function renderSavedLocationsSettings() {
+            const list = document.getElementById("settings-loc-list"); list.innerHTML = "";
+            config.savedLocations.forEach((l, i) => {
+                const d = document.createElement("div"); d.className = "loc-list-item";
+                // Checkbox binding
+                const checked = l.enabled !== false ? "checked" : "";
+                d.innerHTML = `
+            <label class="loc-list-label">
+                <input type="checkbox" class="loc-checkbox" ${checked} onchange="toggleLocEnabled(${i}, this.checked)">
+                ${l.name}
+            </label>
+            <button style="background:#d32f2f;color:#fff;border:none;border-radius:2px;cursor:pointer;padding:2px 5px;" onclick="removeLocation(${i})">削除</button>
+        `;
+                list.appendChild(d);
+            });
+        }
+        function toggleLocEnabled(idx, val) {
+            if (config.savedLocations[idx]) config.savedLocations[idx].enabled = val;
+        }
+
+        function addLocation() {
+            const n = document.getElementById("new-loc-name").value; const la = parseFloat(document.getElementById("new-loc-lat").value); const lo = parseFloat(document.getElementById("new-loc-lon").value);
+            if (n && !isNaN(la) && !isNaN(lo)) { config.savedLocations.push({ name: n, lat: la, lon: lo, enabled: true }); renderSavedLocationsSettings(); document.getElementById("new-loc-name").value = ""; }
+        }
+        function removeLocation(i) { config.savedLocations.splice(i, 1); renderSavedLocationsSettings(); }
+        function getCurrentLocationForInput() { navigator.geolocation.getCurrentPosition(p => { document.getElementById("new-loc-lat").value = p.coords.latitude.toFixed(4); document.getElementById("new-loc-lon").value = p.coords.longitude.toFixed(4); }); }
+
+        function saveSettings() {
+            // Save Startup Configs
+            config.startup.sidebarPinned = document.getElementById("st-pin").checked;
+            config.startup.audioOn = document.getElementById("st-audio").checked;
+            config.startup.autoZoom = document.getElementById("st-auto-zoom").checked;
+            config.startup.clickZoom = document.getElementById("st-click-zoom").checked;
+            config.startup.showPoints = document.getElementById("st-points").checked;
+            config.startup.showTide = document.getElementById("st-tide").checked;
+            config.startup.mapLayer = document.getElementById("st-map-layer").value; // Save Map Layer
+
+            config.alertThreshold = parseInt(document.getElementById("input-alert-threshold").value);
+
+            localStorage.setItem("jq_config_v6", JSON.stringify(config));
+            configBackup = null;
+            document.getElementById("modal-overlay").style.display = "none";
+            updateUserMarkersAndDropdown();
+
+            // Apply changes immediately where possible
+            applyStartupSettings();
+        }
+
+        function cancelSettings() { if (configBackup) { config = configBackup; rebuildList(); updateUserMarkersAndDropdown(); } document.getElementById("modal-overlay").style.display = "none"; }
+        function updateUserMarkersAndDropdown() {
+            userLocationMarkers.forEach(m => map.removeLayer(m)); userLocationMarkers = [];
+            const sel = document.getElementById("header-loc-select"); sel.innerHTML = '<option value="">📍登録地点</option>';
+            config.savedLocations.forEach((l, i) => {
+                const o = document.createElement("option"); o.value = i; o.textContent = l.name; sel.appendChild(o);
+                const m = L.marker([l.lat, l.lon], { icon: L.divIcon({ className: 'user-icon', html: '<div style="background:#2196F3;width:12px;height:12px;border-radius:50%;border:2px solid white;"></div>', iconSize: [16, 16] }) }).addTo(map).bindTooltip(l.name);
+                userLocationMarkers.push(m);
+            });
+        }
+        function jumpToLocation(i) { const l = config.savedLocations[i]; if (l) map.flyTo([l.lat, l.lon], 9); }
+        function startMapPick() { document.getElementById("modal-overlay").style.display = "none"; isPickingLocation = true; document.getElementById("map").classList.add("crosshair-cursor"); alert("地図上の地点をクリックしてください。"); }
+        function demoTsunami() { if (!geoJsonData) { alert("地図データ読込中..."); return; } handleTsunami({ code: 552, areas: [{ name: "千葉県", grade: "MajorWarning" }, { name: "東京都", grade: "Warning" }, { name: "北海道", grade: "Watch" }, { name: "沖縄県", grade: "Watch" }] }); document.getElementById("modal-overlay").style.display = "none"; }
+        function demoEEW() {
+            document.getElementById("modal-overlay").style.display = "none";
+            const now = new Date();
+            const timeStr = `${now.getFullYear()}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getDate().toString().padStart(2, '0')} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+            const mockData = {
+                code: 556, cancelled: false,
+                earthquake: { originTime: timeStr, time: timeStr, hypocenter: { name: "紀伊半島沖（訓練）", latitude: 33.0, longitude: 136.0, depth: 10, magnitude: 7.8 }, maxScale: 60 },
+                issue: { type: "Focus" }
+            };
+            handleEEW(mockData); startWaveAnimation(mockData);
+            if (config.savedLocations.length === 0) alert("マイロケーション未登録のため、カウントダウンは表示されません。");
+        }
+        function initDraggableModal() {
+            const draggables = document.querySelectorAll('.modal-window-common');
+            draggables.forEach(m => {
+                const h = m.querySelector('.modal-header');
+                if (!h) return;
+                let d = false, sx, sy, il, it;
+                h.addEventListener("mousedown", e => { d = true; sx = e.clientX; sy = e.clientY; const r = m.getBoundingClientRect(); il = r.left; it = r.top; m.style.left = il + "px"; m.style.top = it + "px"; m.style.transform = "none"; });
+                window.addEventListener("mousemove", e => { if (d) { m.style.left = (il + e.clientX - sx) + "px"; m.style.top = (it + e.clientY - sy) + "px"; } });
+                window.addEventListener("mouseup", () => d = false);
+            });
+        }
+        // Resizer
+        function initResizer() {
+            const gutter = document.getElementById('gutter');
+            const container = document.getElementById('app-container');
+            let isResizing = false;
+
+            gutter.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                e.preventDefault();
+                container.classList.add('resizing');
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!isResizing) return;
+                let newWidth = Math.max(200, Math.min(600, e.clientX));
+                document.documentElement.style.setProperty('--sidebar-width', `${newWidth}px`);
+                map.invalidateSize();
+            });
+
+            window.addEventListener('mouseup', () => {
+                if (isResizing) {
+                    isResizing = false;
+                    container.classList.remove('resizing');
+                    setTimeout(() => map.invalidateSize(), 0);
+                }
+            });
+        }
+        // Tide Data Definitions (Moved for Readability)
+        const TIDE_STATIONS_RAW = `1	枝幸	港湾局	北海道 枝幸郡 枝幸町 幸町	44°56′	142°35′
 2	沓形	港湾局	北海道 利尻郡 利尻町 沓形	45°11′	141°8′
 3	稚内	気象庁	北海道 稚内市 新港町	45°24′	141°41′
 4	留萌	港湾局	北海道 留萌市 大町１丁目	43°57′	141°38′
@@ -987,704 +2504,7 @@ const TIDE_STATIONS_RAW = `1	枝幸	港湾局	北海道 枝幸郡 枝幸町 幸�
 186	平良	港湾局	沖縄県 宮古島市 平良西里	24°49′	125°17′
 187	石垣	気象庁	沖縄県 石垣市 八島町２丁目	24°20′	124°10′
 188	与那国	気象庁	沖縄県 八重山郡 与那国町 久部良	24°27′	122°57′`;
-
-// SVG Icons
-function getTideSvg(type) {
-    const s = 'stroke="black" stroke-width="2"';
-    if(type=='jma') return `<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" fill="#ffff00" ${s}/></svg>`;
-    if(type=='jcg') return `<svg viewBox="0 0 20 20"><polygon points="2,2 18,2 10,18" fill="#00ffff" ${s}/></svg>`;
-    if(type=='gsi') return `<svg viewBox="0 0 20 20"><rect x="3" y="3" width="14" height="14" fill="#00ff00" ${s}/></svg>`;
-    if(type=='port') return `<svg viewBox="0 0 20 20"><polygon points="10,2 18,10 10,18 2,10" fill="#ff0000" ${s}/></svg>`;
-    if(type=='riv') return `<svg viewBox="0 0 20 20"><polygon points="10,2 18,18 2,18" fill="#d3d3d3" ${s}/></svg>`;
-    return `<svg viewBox="0 0 20 20"><polygon points="10,1 12,7 19,7 13,11 15,18 10,14 5,18 7,11 1,7 8,7" fill="#0000ff" ${s}/></svg>`;
-}
-
-// --- Initialization ---
-window.onload = async () => {
-    initMap();
-    initResizer();
-    await loadExternalStations();
-    applyStartupSettings(); // Apply saved startup settings
-    connectWebSocket();
-    fetchHistory(0);
-    loadGeoJSON();
-    setInterval(() => { document.getElementById("clock").textContent = new Date().toLocaleTimeString('ja-JP'); }, 1000);
-
-    // Sidebar & GPS Bindings
-    document.getElementById("btn-menu-toggle").onclick = toggleSidebar;
-    document.getElementById("btn-pin-sidebar").onclick = toggleSidebarPin;
-    document.getElementById("btn-gps-main").onclick = flyToCurrentLocation;
-
-    // Existing Bindings
-    document.getElementById("btn-audio").onclick = toggleAudio;
-    document.getElementById("btn-auto-zoom").onclick = toggleAutoZoom;
-    document.getElementById("btn-list-zoom").onclick = toggleListClickZoom;
-    document.getElementById("btn-points-toggle").onclick = togglePoints;
-    document.getElementById("btn-load-more").onclick = () => { fetchOffset += 20; fetchHistory(fetchOffset); };
-    document.getElementById("btn-settings").onclick = openSettings;
-    document.getElementById("modal-close").onclick = cancelSettings;
-    document.getElementById("btn-cancel-settings").onclick = cancelSettings;
-    document.getElementById("btn-save-settings").onclick = saveSettings;
-    document.getElementById("btn-screenshot").onclick = takeScreenshot;
-    document.getElementById("btn-tide-toggle").onclick = toggleTide;
-    document.getElementById("filter-min-shindo").onchange = rebuildList;
-    document.getElementById("header-loc-select").onchange = (e) => { if(e.target.value !== "") jumpToLocation(e.target.value); };
-    
-    // Help Modal Bindings
-    document.getElementById("btn-help").onclick = () => { document.getElementById("help-modal-overlay").style.display = "block"; };
-    document.getElementById("help-modal-close").onclick = () => { document.getElementById("help-modal-overlay").style.display = "none"; };
-    
-    // Detail Modal Bindings
-    document.getElementById("detail-modal-close").onclick = () => { document.getElementById("detail-modal-overlay").style.display = "none"; };
-    document.getElementById("latest-info-panel").onclick = openDetailModal;
-
-    // Common Modal Overlay Close
-    document.querySelectorAll('.modal-overlay-common').forEach(el => {
-        el.addEventListener('click', (e) => { if(e.target === el) el.style.display = "none"; });
-    });
-
-    ['jma','jcg','gsi','port','riv','pref'].forEach(k => { document.getElementById(`leg-${k}`).innerHTML = getTideSvg(k); });
-
-    initDraggableModal();
-    animationLoop();
-    updateUserMarkersAndDropdown();
-    
-    // Tool Panel Hover
-    const toolContainer = document.getElementById("map-tool-container");
-    const toolBtn = document.getElementById("tool-toggle-btn");
-    const toolPanel = document.getElementById("tool-panel-content");
-    
-    toolContainer.addEventListener('mouseenter', () => { if(!isToolLocked) toolPanel.style.display = 'flex'; });
-    toolContainer.addEventListener('mouseleave', () => { if(!isToolLocked) toolPanel.style.display = 'none'; });
-    toolBtn.addEventListener('click', () => {
-        isToolLocked = !isToolLocked;
-        if(isToolLocked) {
-            toolBtn.classList.add('pinned');
-            toolBtn.innerHTML = "📌 ツール (固定)";
-            toolPanel.style.display = 'flex';
-        } else {
-            toolBtn.classList.remove('pinned');
-            toolBtn.innerHTML = "🛠️ 表示・ツール";
-            if(!toolContainer.matches(':hover')) toolPanel.style.display = 'none';
-        }
-    });
-};
-
-function applyStartupSettings() {
-    const s = config.startup;
-    
-    // Audio
-    isAudioOn = s.audioOn;
-    updateBtn("btn-audio", isAudioOn, "🔊 音声", "🔇 音声");
-
-    // Auto Zoom
-    isAutoZoom = s.autoZoom;
-    updateBtn("btn-auto-zoom", isAutoZoom, "🎯 新着追尾", "🎯 新着追尾");
-    // ↓↓↓ ここに追加 ↓↓↓
-    // Click Zoom
-    isListClickZoom = s.clickZoom;
-    updateBtn("btn-list-zoom", isListClickZoom, "👆 クリック", "👆 クリック");
-    // ↑↑↑ ここまで ↑↑↑
-    // Points
-    isPointsVisible = s.showPoints;
-    updateBtn("btn-points-toggle", isPointsVisible, "📍 観測点", "📍 観測点");
-    if(isPointsVisible) renderObservationPoints(quakeData[0]); // Initial render attempt
-
-    // Tide
-    if(s.showTide) toggleTide(); // This sets variable and renders
-
-    // Sidebar Pin
-    if (s.sidebarPinned) {
-        isSidebarVisible = true;
-        isSidebarPinned = true;
-        document.getElementById("quake-list-area").classList.add('visible');
-        document.getElementById("app-container").classList.add('pinned');
-        
-        const btn = document.getElementById("btn-pin-sidebar");
-        btn.classList.add("active");
-        btn.innerHTML = "📌 ピン留め中";
-        
-        setTimeout(() => map.invalidateSize(), 300);
-    }
-}
-
-// --- Sidebar Logic ---
-function toggleSidebar() {
-    isSidebarVisible = !isSidebarVisible;
-    const sidebar = document.getElementById("quake-list-area");
-    const container = document.getElementById("app-container");
-    
-    if (isSidebarVisible) {
-        sidebar.classList.add('visible');
-        if(isSidebarPinned) container.classList.add('pinned');
-    } else {
-        sidebar.classList.remove('visible');
-        container.classList.remove('pinned');
-    }
-}
-
-function toggleSidebarPin() {
-    isSidebarPinned = !isSidebarPinned;
-    const btn = document.getElementById("btn-pin-sidebar");
-    const container = document.getElementById("app-container");
-    
-    if (isSidebarPinned) {
-        btn.classList.add("active");
-        btn.innerHTML = "📌 ピン留め中";
-        if (isSidebarVisible) container.classList.add("pinned");
-    } else {
-        btn.classList.remove("active");
-        btn.innerHTML = "📌 ピン留め";
-        container.classList.remove("pinned");
-    }
-    setTimeout(() => map.invalidateSize(), 300);
-}
-
-// --- GPS Logic ---
-function flyToCurrentLocation() {
-    if (!navigator.geolocation) { alert("お使いの端末はGPSに対応していません。"); return; }
-    const btn = document.getElementById("btn-gps-main");
-    btn.style.background = "#e3f2fd";
-    navigator.geolocation.getCurrentPosition(
-        (pos) => {
-            const lat = pos.coords.latitude;
-            const lon = pos.coords.longitude;
-            map.flyTo([lat, lon], 12);
-            L.circleMarker([lat, lon], { radius: 8, color: '#2196F3', fillColor: '#2196F3', fillOpacity: 0.3 })
-             .addTo(map).bindPopup("現在地").openPopup();
-             L.circleMarker([lat, lon], { radius: 3, color: '#fff', fillColor: '#2196F3', fillOpacity: 1 }).addTo(map);
-             btn.style.background = "#fff";
-        },
-        (err) => { alert("現在地を取得できませんでした。"); btn.style.background = "#fff"; },
-        { timeout: 10000 }
-    );
-}
-
-// --- Main App Logic ---
-async function loadExternalStations() {
-    const statusDiv = document.getElementById("station-status");
-    try {
-        const response = await fetch("https://raw.githubusercontent.com/iku55/jma_int_stations/main/stations.json");
-        if (!response.ok) throw new Error("err");
-        const data = await response.json();
-        data.forEach(item => { if (item.name && item.lat) STATION_LOCATIONS[item.name] = { lat: parseFloat(item.lat), lon: parseFloat(item.lon) }; });
-        statusDiv.textContent = `観測点: ${Object.keys(STATION_LOCATIONS).length}`;
-    } catch (e) { statusDiv.textContent = "Data Error"; }
-}
-
-function initMap() {
-    // Define layers first
-    const cartoDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; CARTO', maxZoom: 19 });
-    const gsiStd = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', { attribution: '&copy; 国土地理院', maxZoom: 18 });
-    const gsiPale = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', { attribution: '&copy; 国土地理院', maxZoom: 18 });
-    const gsiPhoto = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg', { attribution: '&copy; 国土地理院', maxZoom: 18 });
-    
-    // Map string key to layer object
-    const layerMap = {
-        "dark": cartoDark,
-        "std": gsiStd,
-        "pale": gsiPale,
-        "photo": gsiPhoto
-    };
-
-    // Determine initial layer based on config
-    const initialLayer = layerMap[config.startup.mapLayer] || cartoDark;
-
-    map = L.map('map', { zoomControl: false, preferCanvas: true, layers: [initialLayer] }).setView([36.5, 138], 5);
-    
-    L.control.layers({
-        "ダーク (英字)": cartoDark,
-        "標準 (日本語)": gsiStd,
-        "淡色 (日本語)": gsiPale,
-        "航空写真": gsiPhoto
-    }, null, { position: 'topright' }).addTo(map);
-
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
-
-    tsunamiLayerGroup = L.layerGroup().addTo(map);
-    tideLayerGroup = L.layerGroup().addTo(map);
-    pWaveLayer = L.circle([0,0], { radius: 0, color: '#2196F3', weight: 1, fill: false, opacity: 0 }).addTo(map);
-    sWaveLayer = L.circle([0,0], { radius: 0, color: '#f44336', weight: 2, fill: false, opacity: 0 }).addTo(map);
-    pointsLayerGroup = L.layerGroup().addTo(map);
-
-    map.on('click', (e) => {
-        if(isPickingLocation) {
-            document.getElementById("new-loc-lat").value = e.latlng.lat.toFixed(4);
-            document.getElementById("new-loc-lon").value = e.latlng.lng.toFixed(4);
-            isPickingLocation = false;
-            document.getElementById("map").classList.remove("crosshair-cursor");
-            document.getElementById("modal-overlay").style.display = "block"; 
-        } else {
-            if(!isSidebarPinned && isSidebarVisible) toggleSidebar();
-        }
-    });
-}
-
-function connectWebSocket() {
-    if(socket) socket.close();
-    socket = new WebSocket(WS_URL);
-    socket.onopen = () => document.getElementById("conn-status").className = "status-dot status-connected";
-    socket.onmessage = (e) => {
-        try {
-            const data = JSON.parse(e.data);
-            if(data.code===551) {
-                if(!quakeData.find(q=>q.id===data.id)) {
-                    quakeData.unshift(data);
-                    if(quakeData.length > 200) quakeData.pop();
-                    rebuildList();
-                    const minShindo = parseInt(document.getElementById("filter-min-shindo").value) || 0;
-                    if(data.earthquake.maxScale >= minShindo) {
-                        selectQuake(data.id, 'auto');
-                        speak(`震度${formatShindo(data.earthquake.maxScale).text}、${data.earthquake.hypocenter.name}`);
-                    }
-                }
-            }
-            if(data.code===554||data.code===556) handleEEW(data);
-            if(data.code===552) handleTsunami(data);
-        } catch(err){}
-    };
-    socket.onclose = () => { document.getElementById("conn-status").className = "status-dot status-error"; setTimeout(connectWebSocket, 5000); };
-}
-
-async function fetchHistory(offset) {
-    const btn = document.getElementById("btn-load-more"); btn.textContent = "読み込み中...";
-    try {
-        const res = await fetch(`${HISTORY_API}&limit=20&offset=${offset}`);
-        const newDetail = await res.json();
-        const cleanNew = newDetail.filter(item => !quakeData.find(q => q.id === item.id));
-        if(cleanNew.length > 0) {
-            quakeData = quakeData.concat(cleanNew).sort((a,b) => new Date(b.earthquake.time) - new Date(a.earthquake.time));
-            rebuildList();
-            if(offset===0 && cleanNew.length > 0) selectQuake(cleanNew[0].id, 'auto');
-        }
-        btn.textContent = "さらに読み込む";
-    } catch(e) { btn.textContent = "取得失敗"; }
-}
-
-function rebuildList() {
-    const container = document.getElementById("list-container"); container.innerHTML = "";
-    const minShindo = parseInt(document.getElementById("filter-min-shindo").value) || 0;
-    const visibleData = quakeData.filter(d => d.code === 551 && d.earthquake.maxScale >= minShindo);
-    
-    // 日付ごとのグループ化
-    const groups = {}; const dates = [];
-    visibleData.forEach(d => {
-        const dateStr = d.earthquake.time.split(' ')[0];
-        if(!groups[dateStr]) { groups[dateStr] = []; dates.push(dateStr); }
-        groups[dateStr].push(d);
-    });
-
-    const visibleIds = visibleData.map(d => d.id);
-    Object.keys(markers).forEach(id => { if(!visibleIds.includes(id)) { map.removeLayer(markers[id]); delete markers[id]; } });
-
-    dates.forEach((date, idx) => {
-        const details = document.createElement("details"); details.className = "quake-group";
-        if(idx === 0) details.open = true;
-        const summary = document.createElement("summary");
-        summary.innerHTML = `<span>📅 ${date}</span> <span>${groups[date].length}件</span>`;
-        details.appendChild(summary);
-        groups[date].forEach(data => {
-            details.appendChild(createQuakeItem(data));
-            createMarker(data);
-        });
-        container.appendChild(details);
-    });
-}
-
-function createQuakeItem(data) {
-    const q = data.earthquake; const s = formatShindo(q.maxScale);
-    const item = document.createElement("div"); item.className = "quake-item"; item.id = `list-${data.id}`;
-    item.innerHTML = `<div class="intensity-box" style="background:${s.color};">${s.text}</div><div class="quake-info"><span class="quake-place">${q.hypocenter.name}</span><span class="quake-time">${q.time.split(' ')[1]}</span></div>`;
-    item.onclick = () => selectQuake(data.id, 'list');
-    return item;
-}
-
-function createMarker(data) {
-    if (data.earthquake.hypocenter.latitude != -200 && !markers[data.id]) {
-        const s = formatShindo(data.earthquake.maxScale);
-        const m = L.circleMarker([data.earthquake.hypocenter.latitude, data.earthquake.hypocenter.longitude], {
-            radius: config.markerBaseSize + (Math.sqrt(data.earthquake.maxScale-10)*1.5), 
-            color: '#fff', weight: 1, fillColor: s.color, fillOpacity: 0.8
-        }).addTo(map);
-        m.on('click', () => selectQuake(data.id, 'map'));
-        markers[data.id] = m;
-    }
-}
-
-function selectQuake(id, source) {
-    currentQuakeId = id; // Update global selection
-    const data = quakeData.find(q=>q.id===id); if(!data) return;
-    document.querySelectorAll('.quake-item').forEach(el => el.classList.remove('active'));
-    document.getElementById(`list-${id}`)?.classList.add('active');
-    
-    updatePanel(data);
-    if(markers[id]) {
-        Object.values(markers).forEach(m => m.setStyle({weight:1, color:'#fff'}));
-        markers[id].setStyle({weight:3, color:'#00ffff'}).bringToFront();
-        if((source==='auto' && isAutoZoom) || ((source==='list' || source==='map') && isListClickZoom)) {
-            map.flyTo(markers[id].getLatLng(), 7);
-        }
-    }
-    renderObservationPoints(data);
-    startWaveAnimation(data);
-
-    if(source === 'list' && !isSidebarPinned && isSidebarVisible) toggleSidebar();
-}
-
-function updatePanel(d){ 
-    const q = d.earthquake; const s = formatShindo(q.maxScale);
-    document.getElementById("p-time").innerText = q.time.substring(0, 16);
-    document.getElementById("p-place").innerText = q.hypocenter.name;
-    document.getElementById("p-mag").innerText = "M " + ((q.hypocenter.magnitude!=-1)?q.hypocenter.magnitude:"-"); 
-    document.getElementById("p-depth").innerText = "深さ " + ((q.hypocenter.depth!=-1)?q.hypocenter.depth+"km":"-");
-    document.getElementById("p-shindo-box").innerText = s.text; 
-    document.getElementById("p-shindo-box").style.background = s.color; 
-    document.getElementById("p-shindo-text").innerText = s.fullText;
-}
-
-// Updated Render Function for Shindo Icons on Map
-function renderObservationPoints(d){
-    pointsLayerGroup.clearLayers();
-    if(!isPointsVisible||!d || !d.points)return;
-    d.points.forEach(p=>{
-        let coord = STATION_LOCATIONS[p.addr];
-        if(!coord) {
-             const key = Object.keys(STATION_LOCATIONS).find(k => p.addr.includes(k) || k.includes(p.addr));
-             if(key) coord = STATION_LOCATIONS[key];
-        }
-        if(coord) {
-            const s = formatShindo(p.scale);
-            // Use divIcon to show number
-            const myIcon = L.divIcon({
-                className: '', // Clear default class to remove square box background
-                html: `<div class="map-shindo-icon" style="background:${s.color}; width:20px; height:20px;">${s.text}</div>`,
-                iconSize: [20, 20],
-                iconAnchor: [10, 10]
-            });
-
-            L.marker([coord.lat, coord.lon], { icon: myIcon, zIndexOffset: p.scale * 100 }) // Higher intensity on top
-            .bindTooltip(`${p.addr} : 震度${s.text}`).addTo(pointsLayerGroup);
-        }
-    });
-}
-
-// Detail Modal Logic
-function openDetailModal() {
-    if(!currentQuakeId) return;
-    const data = quakeData.find(q => q.id === currentQuakeId);
-    if(!data || !data.points) return;
-
-    const contentDiv = document.getElementById('detail-content');
-    document.getElementById('detail-title').innerText = `${data.earthquake.hypocenter.name} (最大震度${formatShindo(data.earthquake.maxScale).text})`;
-    
-    // Group by Prefecture
-    const pointsByPref = {};
-    data.points.forEach(p => {
-        if(!pointsByPref[p.pref]) pointsByPref[p.pref] = [];
-        pointsByPref[p.pref].push(p);
-    });
-
-    let html = "";
-    // Sort Prefectures by max intensity within them
-    const sortedPrefs = Object.keys(pointsByPref).sort((a,b) => {
-        const maxA = Math.max(...pointsByPref[a].map(p=>p.scale));
-        const maxB = Math.max(...pointsByPref[b].map(p=>p.scale));
-        return maxB - maxA;
-    });
-
-    sortedPrefs.forEach(pref => {
-        // Sort points in pref by intensity
-        pointsByPref[pref].sort((a,b) => b.scale - a.scale);
-
-        html += `<div class="detail-section">`;
-        html += `<div class="detail-pref-header">${pref}</div>`;
-        html += `<div class="detail-area-row">`;
-        pointsByPref[pref].forEach(p => {
-            const s = formatShindo(p.scale);
-            html += `<div class="detail-point-badge">
-                <span class="point-shindo" style="background:${s.color}">${s.text}</span>
-                <span>${p.addr}</span>
-            </div>`;
-        });
-        html += `</div></div>`;
-    });
-
-    contentDiv.innerHTML = html;
-    document.getElementById('detail-modal-overlay').style.display = "block";
-}
-
-// Utils
-function getTimestampFilename(p, e) { const n=new Date(); return `${p}_${n.toISOString().slice(0,10).replace(/-/g,"")}${n.getHours()}${n.getMinutes()}.${e}`; }
-async function takeScreenshot() {
-    const btn=document.getElementById("btn-screenshot"); btn.innerHTML="⏳";
-    try {
-        const c = await html2canvas(document.getElementById("app-container"), {useCORS:true, allowTaint:false});
-        const l = document.createElement('a'); l.download = getTimestampFilename("J-Quake","png"); l.href = c.toDataURL(); l.click();
-    } catch(e){}
-    btn.innerHTML="📷 保存";
-}
-
-function exportConfig() {
-    const dl = document.createElement('a'); 
-    dl.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(config));
-    dl.download = getTimestampFilename("J-Quake_設定", "json"); 
-    dl.click();
-}
-function importConfig(input) {
-    const f=input.files[0]; if(!f) return;
-    const r=new FileReader(); r.onload=e=>{ try{ config=JSON.parse(e.target.result); saveSettings(); location.reload(); }catch(x){alert("Error");}};
-    r.readAsText(f);
-}
-
-function handleTsunami(data){
-    tsunamiLayerGroup.clearLayers();
-    const p=document.getElementById("tsunami-panel");
-    if(data.cancelled||!data.areas||!data.areas.length){ p.style.display="none"; return;}
-    p.style.display="block";
-    let maxGrade = 0; const grades={MajorWarning:3, Warning:2, Watch:1, Unknown:0};
-    data.areas.forEach(a=>{ if(grades[a.grade]>maxGrade) maxGrade=grades[a.grade]; });
-    const msgs = {3:"大津波警報", 2:"津波警報", 1:"津波注意報"};
-    document.getElementById("tsunami-content").innerHTML = `<span style="font-size:1.3rem; font-weight:bold; color:${maxGrade==3?'#aa00aa':maxGrade==2?'#ff2800':'#f2e700'}">${msgs[maxGrade]||"不明"}</span> が発表されています。`;
-    if(geoJsonData){
-         L.geoJSON(geoJsonData, {
-            style: f => {
-                const name = f.properties.nam_ja || "";
-                const area = data.areas.find(a => name.includes(a.name));
-                if(area) {
-                    const c = area.grade=="MajorWarning"?"#aa00aa":area.grade=="Warning"?"#ff2800":"#f2e700";
-                    return {color:c, weight:2, opacity:1, fillOpacity:0.5, fillColor:c};
-                }
-                return {opacity:0, fillOpacity:0};
-            }
-        }).addTo(tsunamiLayerGroup);
-    }
-}
-function clearTsunamiData() { tsunamiLayerGroup.clearLayers(); document.getElementById("tsunami-panel").style.display = "none"; }
-async function loadGeoJSON() { try{const r=await fetch(JAPAN_GEOJSON_URL); geoJsonData=await r.json();}catch(e){} }
-
-function handleEEW(data){ showEEWOverlay(data); if(data.code===556 && !data.cancelled) checkPersonalAlert(data); }
-function checkPersonalAlert(data){
-    const eq=data.earthquake; if(!eq) return;
-    let maxScale=-1, targetLoc=null, targetDist=0;
-    config.savedLocations.forEach(loc=>{
-        const d=getDistance(loc.lat,loc.lon,eq.hypocenter.latitude,eq.hypocenter.longitude);
-        const s=predictIntensity(eq.magnitude, d, parseInt(eq.hypocenter.depth));
-        if(s>maxScale){ maxScale=s; targetLoc=loc; targetDist=d;}
-    });
-    if(targetLoc && maxScale>=config.alertThreshold) triggerPersonalAlert(Date.now()+(targetDist/config.sWaveSpeed)*1000, maxScale, targetLoc.name);
-}
-function triggerPersonalAlert(arrTime, scale, name){
-    document.getElementById("personal-alert").style.display="block";
-    document.getElementById("alert-location-name").textContent = name;
-    document.getElementById("alert-est-shindo").textContent = "予測 "+formatShindo(scale).fullText;
-    speak(`緊急地震速報。${name}、予測震度${formatShindo(scale).text}`);
-    if(alertTimerInterval) clearInterval(alertTimerInterval);
-    alertTimerInterval=setInterval(()=>{
-        const left=(arrTime-Date.now())/1000;
-        document.getElementById("alert-countdown").textContent = left<=0?"到達":left.toFixed(1);
-        if(left<-60) stopAlert();
-    },100);
-}
-function showEEWOverlay(data){
-    const el=document.getElementById("eew-overlay"); el.style.display="block";
-    if(data.cancelled){el.innerText="キャンセル"; setTimeout(()=>el.style.display="none",3000); return;}
-    document.getElementById("eew-text").innerText = data.earthquake ? `${data.earthquake.hypocenter.name} M${data.earthquake.magnitude} 最大${formatShindo(data.earthquake.maxScale).text}` : "詳細解析中";
-    setTimeout(()=>el.style.display="none", 60000);
-}
-function stopAlert(){ document.getElementById("personal-alert").style.display="none"; clearInterval(alertTimerInterval); }
-
-function getDistance(lat1,lon1,lat2,lon2){ const R=6371; const dLat=(lat2-lat1)*Math.PI/180; const dLon=(lon2-lon1)*Math.PI/180; const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2; return R*2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); }
-function predictIntensity(m,d,depth){ if(m<1)return 0; const x=Math.max(Math.sqrt(d**2+depth**2),3); const pgv=Math.pow(10,0.58*m-Math.log10(x)-0.002*x-0.6)*2.0; let i=2.68+1.94*Math.log10(pgv); return i<2.5?20:i<3.5?30:i<4.5?40:i<5.0?45:i<5.5?50:i<6.0?55:60; }
-function formatShindo(s){ const c=config.colors; const t={10:"1",20:"2",30:"3",40:"4",45:"5-",50:"5+",55:"6-",60:"6+",70:"7"}; const f={10:"震度1",20:"震度2",30:"震度3",40:"震度4",45:"5弱",50:"5強",55:"6弱",60:"6強",70:"震度7"}; return {color:c[s]||"#777", text:t[s]||"?", fullText:f[s]||"不明"}; }
-
-function startWaveAnimation(d){ const t=new Date(d.earthquake.time).getTime(); if((Date.now()-t)/1000>300){currentWaveTarget=null; return;} currentWaveTarget={lat:d.earthquake.hypocenter.latitude, lng:d.earthquake.hypocenter.longitude, time:t}; }
-function animationLoop(){
-    if(currentWaveTarget){
-        const e=(Date.now()-currentWaveTarget.time)/1000;
-        if(e>0){pWaveLayer.setLatLng([currentWaveTarget.lat,currentWaveTarget.lng]).setRadius(e*6.5*1000).setStyle({opacity:1}); sWaveLayer.setLatLng([currentWaveTarget.lat,currentWaveTarget.lng]).setRadius(e*config.sWaveSpeed*1000).setStyle({opacity:1});}
-    }
-    requestAnimationFrame(animationLoop);
-}
-
-function toggleAudio(){ isAudioOn=!isAudioOn; updateBtn("btn-audio", isAudioOn, "🔊 音声", "🔇 音声"); }
-function toggleAutoZoom(){ isAutoZoom=!isAutoZoom; updateBtn("btn-auto-zoom", isAutoZoom, "🎯 新着追尾", "🎯 新着追尾"); }
-function toggleListClickZoom(){ isListClickZoom=!isListClickZoom; updateBtn("btn-list-zoom", isListClickZoom, "👆 クリック", "👆 クリック"); }
-function togglePoints(){ isPointsVisible=!isPointsVisible; updateBtn("btn-points-toggle", isPointsVisible, "📍 観測点", "📍 観測点"); if(document.querySelector('.quake-item.active')) selectQuake(document.querySelector('.quake-item.active').id.replace('list-',''),'none'); }
-function updateBtn(id, state, onTxt, offTxt){ const b=document.getElementById(id); b.classList.toggle("active", state); b.innerText=state?onTxt:offTxt; }
-function speak(t){ if(isAudioOn){ const u=new SpeechSynthesisUtterance(t); u.lang="ja-JP"; window.speechSynthesis.speak(u); } }
-
-function toggleTide() {
-    isTideVisible = !isTideVisible;
-    updateBtn("btn-tide-toggle", isTideVisible, "🌊 潮位観測", "🌊 潮位観測");
-    const legend = document.getElementById("tide-legend");
-    if (isTideVisible) { legend.style.display = "block"; renderTideStations(); } else { legend.style.display = "none"; tideLayerGroup.clearLayers(); }
-}
-function dmsToDecimal(s) { const m=s.match(/(\d+)°(\d+)′/); return m ? parseFloat(m[1])+(parseFloat(m[2])/60) : null; }
-function renderTideStations() {
-    tideLayerGroup.clearLayers();
-    TIDE_STATIONS_RAW.trim().split('\n').forEach(line => {
-        const c = line.split(/\t/); if (c.length < 6) return;
-        const lat = dmsToDecimal(c[4]), lon = dmsToDecimal(c[5]); if (!lat) return;
-        let type = 'pref'; 
-        if (c[2].includes("気象庁")) type = 'jma'; else if (c[2].includes("海上保安庁")) type = 'jcg'; else if (c[2].includes("地理院")) type = 'gsi'; else if (c[2].includes("港湾局")) type = 'port'; else if (c[2].includes("水管理")) type = 'riv';
-        L.marker([lat, lon], { icon: L.divIcon({ className:'', html:getTideSvg(type), iconSize:[16,16] }) })
-         .bindTooltip(`${c[1]}`,{direction:'top',offset:[0,-10]}).addTo(tideLayerGroup).on('click',()=>window.open(`https://www.jma.go.jp/bosai/map.html#12/${lat}/${lon}/&contents=tidelevel`,'_blank'));
-    });
-}
-
-function switchTab(tabId) {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    
-    // Find button that calls this function with tabId (simple approach)
-    // Actually, event.target is safer but we passed tabId directly.
-    // Let's iterate buttons to match onclick content or use index.
-    // Simpler: Just rely on the passed ID for content, and logic for button class.
-    
-    document.getElementById(tabId).classList.add('active');
-    // Highlight the clicked button (Need reference, so let's just re-bind or use event)
-    const buttons = document.querySelectorAll('.tab-btn');
-    if(tabId === 'tab-general') buttons[0].classList.add('active');
-    if(tabId === 'tab-loc') buttons[1].classList.add('active');
-    if(tabId === 'tab-color') buttons[2].classList.add('active');
-    if(tabId === 'tab-system') buttons[3].classList.add('active');
-}
-
-function openSettings(){
-    configBackup=JSON.parse(JSON.stringify(config));
-    document.getElementById("modal-overlay").style.display="block";
-    switchTab('tab-general'); // Reset to first tab
-
-    // Populate Startup Checkboxes
-    document.getElementById("st-pin").checked = config.startup.sidebarPinned;
-    document.getElementById("st-audio").checked = config.startup.audioOn;
-    document.getElementById("st-auto-zoom").checked = config.startup.autoZoom;
-    document.getElementById("st-click-zoom").checked = config.startup.clickZoom; // ← これを追加
-    document.getElementById("st-points").checked = config.startup.showPoints;
-    document.getElementById("st-tide").checked = config.startup.showTide;
-    
-    // Populate Map Layer
-    document.getElementById("st-map-layer").value = config.startup.mapLayer || "dark";
-    
-    // Populate Threshold
-    document.getElementById("input-alert-threshold").value = config.alertThreshold;
-
-    renderSavedLocationsSettings();
-    const g=document.getElementById("color-settings-grid"); g.innerHTML="";
-    const L={10:"1",20:"2",30:"3",40:"4",45:"5-",50:"5+",55:"6-",60:"6+",70:"7"};
-    Object.keys(config.colors).forEach(k=>{
-        const d=document.createElement("div"); d.className="color-item";
-        d.innerHTML=`<span style="font-weight:bold;width:30px;">${L[k]}</span><input type="color" value="${config.colors[k]}" oninput="config.colors[${k}]=this.value;rebuildList()">`;
-        g.appendChild(d);
-    });
-}
-function renderSavedLocationsSettings(){
-    const list=document.getElementById("settings-loc-list"); list.innerHTML="";
-    config.savedLocations.forEach((l,i)=>{
-        const d=document.createElement("div"); d.className="loc-list-item";
-        d.innerHTML=`<span>${l.name}</span><button style="background:#d32f2f;color:#fff;border:none;border-radius:2px;cursor:pointer;padding:2px 5px;" onclick="removeLocation(${i})">削除</button>`;
-        list.appendChild(d);
-    });
-}
-function addLocation(){
-    const n=document.getElementById("new-loc-name").value; const la=parseFloat(document.getElementById("new-loc-lat").value); const lo=parseFloat(document.getElementById("new-loc-lon").value);
-    if(n&&!isNaN(la)&&!isNaN(lo)){ config.savedLocations.push({name:n,lat:la,lon:lo}); renderSavedLocationsSettings(); document.getElementById("new-loc-name").value=""; }
-}
-function removeLocation(i){ config.savedLocations.splice(i,1); renderSavedLocationsSettings(); }
-function getCurrentLocationForInput(){ navigator.geolocation.getCurrentPosition(p=>{ document.getElementById("new-loc-lat").value=p.coords.latitude.toFixed(4); document.getElementById("new-loc-lon").value=p.coords.longitude.toFixed(4); }); }
-
-function saveSettings(){ 
-    // Save Startup Configs
-    config.startup.sidebarPinned = document.getElementById("st-pin").checked;
-    config.startup.audioOn = document.getElementById("st-audio").checked;
-    config.startup.autoZoom = document.getElementById("st-auto-zoom").checked;
-config.startup.clickZoom = document.getElementById("st-click-zoom").checked; // ← これを追加
-    config.startup.showPoints = document.getElementById("st-points").checked;
-    config.startup.showTide = document.getElementById("st-tide").checked;
-    config.startup.mapLayer = document.getElementById("st-map-layer").value; // Save Map Layer
-    
-    config.alertThreshold = parseInt(document.getElementById("input-alert-threshold").value);
-
-    localStorage.setItem("jq_config_v6", JSON.stringify(config)); 
-    configBackup=null; 
-    document.getElementById("modal-overlay").style.display="none"; 
-    updateUserMarkersAndDropdown(); 
-    
-    // Apply changes immediately where possible
-    applyStartupSettings();
-}
-
-function cancelSettings(){ if(configBackup){config=configBackup; rebuildList(); updateUserMarkersAndDropdown();} document.getElementById("modal-overlay").style.display="none"; }
-function updateUserMarkersAndDropdown(){
-    userLocationMarkers.forEach(m=>map.removeLayer(m)); userLocationMarkers=[];
-    const sel=document.getElementById("header-loc-select"); sel.innerHTML='<option value="">📍登録地点</option>';
-    config.savedLocations.forEach((l,i)=>{
-        const o=document.createElement("option"); o.value=i; o.textContent=l.name; sel.appendChild(o);
-        const m=L.marker([l.lat,l.lon],{icon:L.divIcon({className:'user-icon',html:'<div style="background:#2196F3;width:12px;height:12px;border-radius:50%;border:2px solid white;"></div>',iconSize:[16,16]})}).addTo(map).bindTooltip(l.name);
-        userLocationMarkers.push(m);
-    });
-}
-function jumpToLocation(i){ const l=config.savedLocations[i]; if(l) map.flyTo([l.lat,l.lon],9); }
-function startMapPick() { document.getElementById("modal-overlay").style.display = "none"; isPickingLocation = true; document.getElementById("map").classList.add("crosshair-cursor"); alert("地図上の地点をクリックしてください。"); }
-function demoTsunami(){ if(!geoJsonData) { alert("地図データ読込中..."); return; } handleTsunami({ code: 552, areas: [{name: "千葉県", grade: "MajorWarning"}, {name: "東京都", grade: "Warning"},{name: "北海道", grade: "Watch"},{name: "沖縄県", grade: "Watch"}]}); document.getElementById("modal-overlay").style.display="none"; }
-function demoEEW() {
-    document.getElementById("modal-overlay").style.display = "none";
-    const now = new Date();
-    const timeStr = `${now.getFullYear()}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getDate().toString().padStart(2,'0')} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
-    const mockData = {
-        code: 556, cancelled: false,
-        earthquake: { originTime: timeStr, time: timeStr, hypocenter: { name: "紀伊半島沖（訓練）", latitude: 33.0, longitude: 136.0, depth: 10, magnitude: 7.8 }, maxScale: 60 },
-        issue: { type: "Focus" } 
-    };
-    handleEEW(mockData); startWaveAnimation(mockData);
-    if (config.savedLocations.length === 0) alert("マイロケーション未登録のため、カウントダウンは表示されません。");
-}
-function initDraggableModal(){
-    const draggables = document.querySelectorAll('.modal-window-common');
-    draggables.forEach(m => {
-        const h = m.querySelector('.modal-header');
-        if(!h) return;
-        let d=false,sx,sy,il,it;
-        h.addEventListener("mousedown",e=>{d=true;sx=e.clientX;sy=e.clientY;const r=m.getBoundingClientRect();il=r.left;it=r.top;m.style.left=il+"px";m.style.top=it+"px";m.style.transform="none";});
-        window.addEventListener("mousemove",e=>{if(d){m.style.left=(il+e.clientX-sx)+"px";m.style.top=(it+e.clientY-sy)+"px";}});
-        window.addEventListener("mouseup",()=>d=false);
-    });
-}
-// リサイズ機能の修正版
-function initResizer(){
-    const gutter = document.getElementById('gutter');
-    const container = document.getElementById('app-container');
-    let isResizing = false;
-
-    gutter.addEventListener('mousedown', (e) => {
-        isResizing = true;
-        e.preventDefault();
-        // ドラッグ中はアニメーションを無効化して追従性を良くする
-        container.classList.add('resizing');
-    });
-
-    window.addEventListener('mousemove', (e) => {
-        if (!isResizing) return;
-        
-        // 最小200px ～ 最大600px の範囲で制限
-        let newWidth = Math.max(200, Math.min(600, e.clientX));
-        
-        // CSS変数を更新する（これにより #app-container.pinned の幅が変わる）
-        document.documentElement.style.setProperty('--sidebar-width', `${newWidth}px`);
-        
-        // 地図のサイズが変わるので再描画を通知
-        map.invalidateSize();
-    });
-
-    window.addEventListener('mouseup', () => {
-        if (isResizing) {
-            isResizing = false;
-            container.classList.remove('resizing');
-            // ドラッグ終了後に地図を最終調整
-            setTimeout(() => map.invalidateSize(), 0);
-        }
-    });
-}
-</script>
+    </script>
 </body>
+
 </html>
