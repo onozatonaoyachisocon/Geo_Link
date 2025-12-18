@@ -13,6 +13,8 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <!-- html2canvas -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <!-- Google Fonts -->
     <link
@@ -554,20 +556,17 @@
             animation: flash 1s infinite alternate;
         }
 
-        /* ▼▼▼ New Multi-Alert Container ▼▼▼ */
+        /* ▼▼▼ Alert Stack ▼▼▼ */
         #alert-stack-container {
             position: absolute;
             top: 160px;
-            /* Below the EEW overlay */
             right: 10px;
-            /* Align to right */
             width: 240px;
             z-index: 2000;
             display: flex;
             flex-direction: column;
             gap: 8px;
             pointer-events: none;
-            /* Let clicks pass through */
         }
 
         .mini-alert-box {
@@ -578,7 +577,6 @@
             border: 1px solid #ff8a80;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
             pointer-events: auto;
-            /* Enable clicks on the box itself */
             animation: flash 1s infinite alternate;
             transition: opacity 0.3s;
         }
@@ -628,8 +626,6 @@
             padding: 0;
             margin-left: 5px;
         }
-
-        /* ▲▲▲ End New Alert CSS ▲▲▲ */
 
         #tide-legend {
             display: none;
@@ -905,6 +901,7 @@
 
         input[type="number"],
         input[type="text"],
+        input[type="date"],
         select {
             background: #333;
             border: 1px solid #555;
@@ -1007,6 +1004,108 @@
             text-shadow: 0 0 1px rgba(255, 255, 255, 0.5);
         }
 
+        /* ▼▼▼ Search Result Table Styles ▼▼▼ */
+        .search-res-row {
+            display: flex;
+            align-items: center;
+            padding: 8px 10px;
+            border-bottom: 1px solid #333;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .search-res-row:hover {
+            background: #333;
+        }
+
+        .search-res-time {
+            font-size: 0.8rem;
+            color: #aaa;
+            width: 110px;
+            flex-shrink: 0;
+        }
+
+        .search-res-place {
+            flex: 1;
+            font-weight: bold;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin: 0 10px;
+        }
+
+        .search-res-mag {
+            width: 50px;
+            font-size: 0.8rem;
+            color: #bbb;
+        }
+
+        .search-res-shindo {
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            font-weight: bold;
+            color: #000;
+            font-size: 0.9rem;
+        }
+
+        /* グラフ用タブ・コンテナのスタイル */
+        .chart-tab-header {
+            display: flex;
+            background: #222;
+            border-radius: 4px 4px 0 0;
+            margin-top: 10px;
+            border-bottom: 1px solid #444;
+        }
+
+        .chart-tab-btn {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #888;
+            padding: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: 0.2s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .chart-tab-btn:hover {
+            background: #333;
+            color: #fff;
+        }
+
+        .chart-tab-btn.active {
+            color: var(--accent-blue);
+            border-bottom-color: var(--accent-blue);
+            font-weight: bold;
+            background: #2a2a2a;
+        }
+
+        .chart-container-wrapper {
+            background: #1e1e1e;
+            border: 1px solid #444;
+            border-top: none;
+            padding: 10px;
+            border-radius: 0 0 4px 4px;
+            margin-bottom: 15px;
+            height: 220px;
+            /* 高さを固定 */
+        }
+
+        .chart-content {
+            display: none;
+            width: 100%;
+            height: 100%;
+        }
+
+        .chart-content.active {
+            display: block;
+        }
+
         /* Scrollbar */
         ::-webkit-scrollbar {
             width: 8px;
@@ -1065,12 +1164,17 @@
 
             #btn-settings {
                 grid-row: 1;
+                grid-column: 5;
+            }
+
+            #btn-search {
+                grid-row: 1;
                 grid-column: 4;
             }
 
             #btn-help {
                 grid-row: 1;
-                grid-column: 5;
+                grid-column: 6;
             }
 
             #clock {
@@ -1083,7 +1187,7 @@
 
             #header-loc-select {
                 grid-row: 2;
-                grid-column: 4 / 6;
+                grid-column: 4 / 7;
                 width: 100%;
                 margin-top: 2px;
             }
@@ -1103,6 +1207,11 @@
             aside.visible {
                 transform: translateX(0) !important;
             }
+
+            /* 検索モーダルレスポンシブ */
+            .form-group {
+                grid-template-columns: 1fr !important;
+            }
         }
     </style>
 </head>
@@ -1120,6 +1229,8 @@
                 <select id="header-loc-select" title="登録地点へジャンプ" style="max-width:120px; font-size:0.8rem;">
                     <option value="">📍 登録地点</option>
                 </select>
+                <!-- Search Button Added -->
+                <button id="btn-search" class="icon-btn" title="過去の地震を検索">🔍 検索</button>
                 <button id="btn-settings" class="icon-btn">⚙️</button>
                 <button id="btn-help" class="icon-btn" title="ヘルプ">❓</button>
             </div>
@@ -1211,7 +1322,7 @@
                 <div id="eew-text" style="margin-top:5px; font-size:0.9rem;">詳細を受信中...</div>
             </div>
 
-            <!-- New Multi-Alert Stack Container (replaces personal-alert) -->
+            <!-- Multi-Alert Stack Container -->
             <div id="alert-stack-container"></div>
 
             <!-- 潮位凡例 -->
@@ -1385,6 +1496,140 @@
         </div>
     </div>
 
+    <!-- Search Modal (Updated!) -->
+    <div id="search-modal-overlay" class="modal-overlay-common">
+        <div id="search-modal-window" class="modal-window-common" style="width:700px; max-height:90vh;">
+            <div class="modal-header">
+                <span>🔍 地震履歴検索・分析</span>
+                <button class="btn-close" id="search-modal-close">×</button>
+            </div>
+            <div class="modal-content">
+                <!-- Search Form -->
+                <div class="form-group" style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <div>
+                        <label class="form-label">開始日 (YYYY-MM-DD)</label>
+                        <input type="date" id="search-start-date">
+                    </div>
+                    <div>
+                        <label class="form-label">終了日 (YYYY-MM-DD)</label>
+                        <input type="date" id="search-end-date">
+                    </div>
+                    <div>
+                        <label class="form-label">最小震度</label>
+                        <select id="search-min-shindo">
+                            <option value="10">震度1以上</option>
+                            <option value="30" selected>震度3以上</option>
+                            <option value="40">震度4以上</option>
+                            <option value="50">5弱以上</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">検索件数上限 (API負荷軽減)</label>
+                        <select id="search-fetch-limit">
+                            <option value="100">最新 100件から検索</option>
+                            <option value="300" selected>最新 300件から検索</option>
+                            <option value="1000">最新 1000件から検索</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">エリア指定 (スペース区切りでOR検索)</label>
+                    <div style="display:flex; gap:5px; flex-wrap:wrap;">
+                        <!-- Preset Select -->
+                        <select id="search-area-preset" style="width:180px; flex-shrink:0;">
+                            <option value="">▼ 地域プリセット</option>
+
+                            <!-- 北海道・東北 -->
+                            <option value="北海道 根室 釧路 十勝 オホーツク 宗谷 留萌 上川 空知 石狩 後志 胆振 日高 渡島 檜山">北海道全域
+                            </option>
+                            <option value="青森 岩手 宮城 秋田 山形 福島 三陸">東北地方</option>
+                            <option value="青森県東方沖 三陸沖 宮城県沖 福島県沖 茨城県沖">東北〜北関東(太平洋側)</option>
+
+                            <!-- 関東・中部・北陸 -->
+                            <option value="東京 千葉 神奈川 埼玉 茨城 栃木 群馬 房総 相模">関東地方</option>
+                            <option value="新潟 佐渡 富山 石川 能登 福井 若狭">北陸・新潟(能登含む)</option>
+                            <option value="長野 岐阜 山梨 静岡 愛知">中部・東海(内陸含む)</option>
+                            <option value="遠州灘 駿河湾 三河湾 伊勢湾 紀伊水道">東海〜紀伊半島 沿岸</option>
+
+                            <!-- 近畿・中国・四国 -->
+                            <option value="大阪 兵庫 京都 滋賀 奈良 和歌山 淡路">近畿地方</option>
+                            <option value="鳥取 島根 岡山 広島 山口">中国地方</option>
+                            <option value="徳島 香川 愛媛 高知 土佐湾 紀伊水道 豊後水道">四国地方</option>
+                            <option value="鳥取 島根 岡山 広島 山口 徳島 香川 愛媛 高知">中国・四国全域</option>
+
+                            <!-- 九州・沖縄 -->
+                            <option value="福岡 佐賀 長崎 熊本 大分 宮崎 鹿児島 天草">九州地方(内陸・沿岸)</option>
+                            <option value="日向灘 豊後水道 大隅 種子島 屋久島 奄美">九州 太平洋側・南西諸島</option>
+                            <option value="沖縄 宮古 石垣 与那国 八重山">沖縄県全域</option>
+
+                            <!-- 広域・特殊 -->
+                            <option value="静岡 愛知 三重 和歌山 徳島 高知 宮崎 日向灘 紀伊水道 豊後水道 土佐湾 遠州灘">南海トラフ想定エリア</option>
+                            <option value="北海道西方沖 日本海 青森県西方沖 秋田 山形 新潟 佐渡 富山 石川 能登 福井 若狭 山陰 鳥取 島根">日本海側ライン
+                            </option>
+                        </select>
+                        <!-- Keyword Input -->
+                        <input type="text" id="search-area-keyword" placeholder="例: 青森 三陸 (スペースで複数指定)"
+                            style="flex:1; min-width:200px;">
+                    </div>
+
+                    <div style="font-size:0.75rem; color:#888; margin-top:5px;">
+                        ※期間指定はAPIの仕様上、最新データから遡ってフィルタリングします。
+                    </div>
+                </div>
+
+                <div class="btn-row" style="margin-top:10px; padding:0; background:transparent; border:none;">
+                    <button class="btn-primary" id="btn-execute-search" style="background:#00bcd4;">検索・プロット実行</button>
+                    <button class="btn-cancel" id="btn-clear-search" style="flex:0.5;">クリア</button>
+                </div>
+
+                <hr style="border-color:#333; margin:20px 0;">
+
+                <!-- ▼▼▼ グラフ・分析エリア ▼▼▼ -->
+                <div id="analysis-area" style="display:none;">
+                    <div class="chart-tab-header">
+                        <button class="chart-tab-btn active" onclick="switchChartTab('chart-time')">📅 時系列・震度</button>
+                        <button class="chart-tab-btn" onclick="switchChartTab('chart-scatter')">📊 M vs 深さ</button>
+                        <button class="chart-tab-btn" onclick="switchChartTab('chart-depth')">📉 深さ時系列</button>
+                        <button class="chart-tab-btn" onclick="switchChartTab('chart-ranking')">🏆 地域ランキング</button>
+                    </div>
+                    <div class="chart-container-wrapper">
+                        <!-- グラフ1: 時系列 -->
+                        <div id="chart-time" class="chart-content active">
+                            <canvas id="canvas-time"></canvas>
+                        </div>
+                        <!-- グラフ2: 散布図 (M vs 深さ) -->
+                        <div id="chart-scatter" class="chart-content">
+                            <canvas id="canvas-scatter"></canvas>
+                        </div>
+                        <!-- グラフ3: 深さ時系列 (新規) -->
+                        <div id="chart-depth" class="chart-content">
+                            <canvas id="canvas-depth"></canvas>
+                        </div>
+                        <!-- グラフ4: ランキング -->
+                        <div id="chart-ranking" class="chart-content">
+                            <canvas id="canvas-ranking"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <!-- ▲▲▲ グラフ・分析エリア ▲▲▲ -->
+
+                <!-- Result List -->
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <h3 style="margin:0; font-size:1rem; color:#fff;">検索結果: <span id="search-result-count">0</span>件</h3>
+                    <button id="btn-close-modal-keep-map" class="icon-btn">地図を見る</button>
+                </div>
+
+                <div id="search-result-list"
+                    style="max-height:300px; overflow-y:auto; border:1px solid #444; border-radius:4px;">
+                    <!-- JS Generated -->
+                    <div style="padding:20px; text-align:center; color:#888;">条件を指定して検索してください</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
     <!-- Quake Detail Modal -->
     <div id="detail-modal-overlay" class="modal-overlay-common">
         <div id="detail-modal-window" class="modal-window-common">
@@ -1416,7 +1661,8 @@
                 <section style="margin-bottom: 20px;">
                     <h3 style="color:#fff;">🗺️ 地図の見方</h3>
                     <ul>
-                        <li><span style="color:#2196F3; font-weight:bold;">青い波紋 (P波)</span>: 初期微動。カタカタ揺れます。</li>
+                        <li><span style="color:#2196F3; font-weight:bold;">青い波紋 (P波)</span>: 初期微動。カタカタ揺れます。
+                        </li>
                         <li><span style="color:#f44336; font-weight:bold;">赤い波紋 (S波)</span>: 主要動。ユサユサ大きく揺れます。</li>
                         <li><strong>丸いマーカー</strong>: 震源地を表します。円の大きさはマグニチュード、色は震度に対応します。</li>
                         <li><strong>四角い数値アイコン</strong>: 各観測点の震度を表示しています。</li>
@@ -1425,14 +1671,12 @@
                 <hr style="border-color:#333; margin:20px 0;">
 
                 <section style="margin-bottom: 20px;">
-                    <h3 style="color:#fff;">🛠️ ツールバーの機能</h3>
-                    <p>地図左下の「🛠️ 表示・ツール」から以下の機能が使えます。</p>
+                    <h3 style="color:#fff;">🛠️ ツール・検索</h3>
                     <ul>
                         <li><strong>🎯 新着追尾</strong>: 新しい地震が発生した際、自動的にその場所に地図を移動します。</li>
-                        <li><strong>🔇 音声</strong>: 地震発生時に情報を読み上げます（ブラウザの音声機能を使用）。</li>
+                        <li><strong>🔍 検索・分析</strong>: 右上の虫眼鏡アイコンから、過去の地震を検索して地図上にプロットします。さらに、グラフによる傾向分析も可能です。</li>
                         <li><strong>📍 観測点</strong>: 各地の震度観測点の表示/非表示を切り替えます。</li>
                         <li><strong>🌊 潮位観測</strong>: 日本各地の潮位観測所を表示します。クリックで気象庁の潮位グラフへ飛びます。</li>
-                        <li><strong>📷 保存</strong>: 現在の画面を画像としてダウンロードします。</li>
                     </ul>
                 </section>
                 <hr style="border-color:#333; margin:20px 0;">
@@ -1444,20 +1688,9 @@
                 </section>
                 <hr style="border-color:#333; margin:20px 0;">
 
-                <section style="margin-bottom: 20px;">
-                    <h3 style="color:#fff;">⚙️ 設定・起動設定</h3>
-                    <p>右上の歯車アイコンから設定画面を開けます。</p>
-                    <ul>
-                        <li><strong>起動設定</strong>: 「全般・起動」タブで、アプリを開いた時の初期状態（サイドバー固定、音声ON/OFF、地図レイヤーなど）を設定できます。</li>
-                        <li><strong>マイロケーション</strong>:
-                            自宅や職場を登録しておくと、リストからすぐに地図移動できます。また、設定震度以上の揺れが予測されると、登録地点のカウントダウンが地図左上に表示されます。</li>
-                        <li><strong>バックアップ</strong>: 設定内容をファイルに保存・復元できます。</li>
-                    </ul>
-                </section>
-
                 <section>
                     <h3 style="color:#fff;">ℹ️ 最終更新日</h3>
-                    <p> 2025年12月12日</p>
+                    <p> 2025年12月18日 (Ver.39 Analysis+)</p>
                 </section>
             </div>
         </div>
@@ -1542,6 +1775,12 @@
         let pWaveLayer, sWaveLayer, currentWaveTarget, pointsLayerGroup, tsunamiLayerGroup, tideLayerGroup, geoJsonData;
         let userLocationMarkers = [];
 
+        // Search Layer
+        let searchLayerGroup = null;
+
+        // Graph Variables
+        const charts = { time: null, scatter: null, ranking: null, depth: null };
+
         // ▼ Raw Tide Data (Same as previous) ▼
         // TIDE_STATIONS_RAW definition moved to the end of the file for maintainability.
 
@@ -1565,6 +1804,7 @@
             connectWebSocket();
             fetchHistory(0);
             loadGeoJSON();
+            initSearchFeature(); // Init Search Feature
             setInterval(() => { document.getElementById("clock").textContent = new Date().toLocaleTimeString('ja-JP'); }, 1000);
 
             // Sidebar & GPS Bindings
@@ -1626,6 +1866,488 @@
                 }
             });
         };
+
+        // --- Search Feature Implementation ---
+        function initSearchFeature() {
+            if (map && !searchLayerGroup) {
+                searchLayerGroup = L.layerGroup().addTo(map);
+            }
+
+            document.getElementById('btn-search').onclick = () => {
+                document.getElementById('search-modal-overlay').style.display = 'block';
+                // Init Date
+                if (!document.getElementById('search-end-date').value) {
+                    const now = new Date();
+                    document.getElementById('search-end-date').value = now.toISOString().split('T')[0];
+                    now.setMonth(now.getMonth() - 1);
+                    document.getElementById('search-start-date').value = now.toISOString().split('T')[0];
+                }
+            };
+
+            document.getElementById('search-modal-close').onclick = () => {
+                document.getElementById('search-modal-overlay').style.display = 'none';
+            };
+            document.getElementById('btn-close-modal-keep-map').onclick = () => {
+                document.getElementById('search-modal-overlay').style.display = 'none';
+            };
+
+            // Preset handler
+            document.getElementById('search-area-preset').onchange = (e) => {
+                const val = e.target.value;
+                if (val) {
+                    document.getElementById('search-area-keyword').value = val;
+                }
+            };
+
+            document.getElementById('btn-execute-search').onclick = executeSearchAndPlot;
+            document.getElementById('btn-clear-search').onclick = clearSearchResults;
+        }
+
+        async function executeSearchAndPlot() {
+            const btn = document.getElementById('btn-execute-search');
+            const resultList = document.getElementById('search-result-list');
+            const countSpan = document.getElementById('search-result-count');
+
+            const startDate = new Date(document.getElementById('search-start-date').value);
+            const endDate = new Date(document.getElementById('search-end-date').value);
+            endDate.setHours(23, 59, 59);
+
+            const minShindo = parseInt(document.getElementById('search-min-shindo').value);
+            const rawKeywords = document.getElementById('search-area-keyword').value;
+            // Split by space or comma, full-width space support
+            const keywords = rawKeywords.replace(/　/g, ' ').split(/[\s,]+/).filter(k => k !== "");
+
+            const fetchLimit = parseInt(document.getElementById('search-fetch-limit').value);
+
+            btn.textContent = "データ取得中...";
+            btn.disabled = true;
+            resultList.innerHTML = '<div style="padding:20px; text-align:center;">データを取得・解析中...</div>';
+
+            if (!searchLayerGroup) searchLayerGroup = L.layerGroup().addTo(map);
+            searchLayerGroup.clearLayers();
+
+            try {
+                let matchedQuakes = [];
+                let offset = 0;
+                const batchSize = 100;
+                let keepFetching = true;
+
+                while (keepFetching && offset < fetchLimit) {
+                    const url = `https://api.p2pquake.net/v2/history?codes=551&limit=${batchSize}&offset=${offset}`;
+                    const res = await fetch(url);
+                    const data = await res.json();
+
+                    if (data.length === 0) break;
+
+                    for (const item of data) {
+                        const qTime = new Date(item.earthquake.time);
+                        if (qTime > endDate) continue;
+                        if (qTime < startDate) {
+                            keepFetching = false;
+                            break;
+                        }
+
+                        const maxScale = item.earthquake.maxScale;
+                        const name = item.earthquake.hypocenter.name;
+
+                        if (maxScale >= minShindo) {
+                            let isMatch = false;
+                            if (keywords.length === 0) {
+                                isMatch = true;
+                            } else {
+                                // OR Search
+                                isMatch = keywords.some(k => name.indexOf(k) > -1);
+                            }
+
+                            if (isMatch) {
+                                matchedQuakes.push(item);
+                            }
+                        }
+                    }
+                    offset += batchSize;
+                    await new Promise(r => setTimeout(r, 100));
+                }
+
+                countSpan.textContent = matchedQuakes.length;
+                renderSearchResultList(matchedQuakes);
+                plotQuakesOnMap(matchedQuakes);
+
+                // ★★★ グラフ描画実行 ★★★
+                renderSearchGraphs(matchedQuakes);
+
+                if (matchedQuakes.length === 0) {
+                    resultList.innerHTML = '<div style="padding:20px; text-align:center;">条件に一致する地震は見つかりませんでした。</div>';
+                }
+
+            } catch (e) {
+                console.error(e);
+                resultList.innerHTML = '<div style="color:red; padding:10px;">エラーが発生しました。</div>';
+            } finally {
+                btn.textContent = "検索・プロット実行";
+                btn.disabled = false;
+            }
+        }
+
+        // --- Chart & Analysis Logic (Updated) ---
+        function switchChartTab(targetId) {
+            document.querySelectorAll('.chart-tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.getAttribute('onclick').includes(targetId)) {
+                    btn.classList.add('active');
+                }
+            });
+            document.querySelectorAll('.chart-content').forEach(div => {
+                div.classList.remove('active');
+            });
+            document.getElementById(targetId).classList.add('active');
+
+            const key = targetId.replace('chart-', '');
+            if (charts[key]) {
+                setTimeout(() => { charts[key].resize(); }, 0);
+            }
+        }
+
+        function renderSearchGraphs(quakes) {
+            const container = document.getElementById('analysis-area');
+
+            if (!quakes || quakes.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+            container.style.display = 'block';
+
+            if (charts.time) charts.time.destroy();
+            if (charts.scatter) charts.scatter.destroy();
+            if (charts.ranking) charts.ranking.destroy();
+            if (charts.depth) charts.depth.destroy();
+
+            Chart.defaults.color = '#aaa';
+            Chart.defaults.borderColor = '#444';
+
+            const sortedQuakes = [...quakes].sort((a, b) => new Date(a.earthquake.time) - new Date(b.earthquake.time));
+
+            drawTimeChart(sortedQuakes);
+            drawScatterChart(quakes); // M vs Depth
+            drawDepthChart(sortedQuakes); // Time vs Depth
+            drawRankingChart(quakes);
+        }
+
+        function drawTimeChart(quakes) {
+            const ctx = document.getElementById('canvas-time').getContext('2d');
+            
+            // 1. 集計用マップを作成
+            const dateMap = {};
+            quakes.forEach(q => {
+                const dateStr = q.earthquake.time.substring(5, 10); // MM-DD
+                const s = formatShindo(q.earthquake.maxScale).text;
+                if (!dateMap[dateStr]) dateMap[dateStr] = {};
+                if (!dateMap[dateStr][s]) dateMap[dateStr][s] = 0;
+                dateMap[dateStr][s]++;
+            });
+
+            // 2. 日付範囲の補完（0回の日も埋める）
+            if (quakes.length > 0) {
+                const startDate = new Date(quakes[0].earthquake.time.substring(0, 10));
+                const endDate = new Date(quakes[quakes.length - 1].earthquake.time.substring(0, 10));
+                
+                // ループ用
+                for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                    const m = (d.getMonth() + 1).toString().padStart(2, '0');
+                    const day = d.getDate().toString().padStart(2, '0');
+                    const key = `${m}-${day}`;
+                    if (!dateMap[key]) {
+                        dateMap[key] = {}; // 空のオブジェクトで初期化（データなし）
+                    }
+                }
+            }
+
+            // 日付順にキーをソート
+            const labels = Object.keys(dateMap).sort();
+
+            const shindoOrder = ["1", "2", "3", "4", "5-", "5+", "6-", "6+", "7"];
+            const datasets = [];
+
+            shindoOrder.forEach(sKey => {
+                // この震度のデータが存在するか確認（全期間通して）
+                const hasData = labels.some(date => dateMap[date] && dateMap[date][sKey] > 0);
+
+                if (hasData) {
+                    const data = labels.map(date => {
+                        return (dateMap[date] && dateMap[date][sKey]) ? dateMap[date][sKey] : 0;
+                    });
+
+                    // Match map colors
+                    const colorKey = Object.keys(config.colors).find(k => formatShindo(k).text === sKey) || 10;
+                    datasets.push({
+                        label: `震度${sKey}`,
+                        data: data,
+                        backgroundColor: config.colors[colorKey] || '#777',
+                        stack: 'stack1'
+                    });
+                }
+            });
+
+            charts.time = new Chart(ctx, {
+                type: 'bar',
+                data: { labels, datasets: datasets.reverse() },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { title: { display: false }, tooltip: { mode: 'index', intersect: false } },
+                    scales: { 
+                        x: { stacked: true }, 
+                        y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } } 
+                    }
+                }
+            });
+        }
+
+        // Modified Scatter Chart: X=Mag, Y=Depth, Color=Shindo
+        function drawScatterChart(quakes) {
+            const ctx = document.getElementById('canvas-scatter').getContext('2d');
+            const dataPoints = quakes.map(q => {
+                const mag = q.earthquake.hypocenter.magnitude;
+                const scale = q.earthquake.maxScale;
+                const depth = q.earthquake.hypocenter.depth;
+                const s = formatShindo(scale);
+                
+                // M不明、震度不明、深さ不明(-1) は除外
+                if (mag === -1 || scale === -1 || depth === -1) return null;
+
+                return {
+                    x: mag,      // 横軸：マグニチュード
+                    y: depth,    // 縦軸：深さ
+                    r: 6,        // 点の大きさ
+                    backgroundColor: s.color, // 色：震度
+                    place: q.earthquake.hypocenter.name,
+                    time: q.earthquake.time.substring(5, 16),
+                    shindoText: s.text
+                };
+            }).filter(p => p !== null);
+
+            charts.scatter = new Chart(ctx, {
+                type: 'bubble',
+                data: {
+                    datasets: [{
+                        label: '地震分布',
+                        data: dataPoints,
+                        backgroundColor: dataPoints.map(d => d.backgroundColor), // 個別の震度色を適用
+                        borderColor: '#fff',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }, // 色がバラバラなので凡例非表示
+                        title: {
+                            display: true,
+                            text: '色は震度 (X:マグニチュード / Y:深さ)',
+                            font: { size: 11 }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => {
+                                    const p = ctx.raw;
+                                    return `${p.place}: M${p.x} / 深さ${p.y}km / 震度${p.shindoText}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'マグニチュード' },
+                            suggestedMin: 1
+                        },
+                        y: {
+                            title: { display: true, text: '深さ (km)' },
+                            reverse: true, // 深さは下に行くほど値を大きくする
+                            min: 0
+                        }
+                    }
+                }
+            });
+        }
+
+        // New Depth Chart: X=Time, Y=Depth
+        function drawDepthChart(quakes) {
+            const ctx = document.getElementById('canvas-depth').getContext('2d');
+            
+            // データ作成：X=時間(UNIX Time), Y=深さ
+            const dataPoints = quakes.map(q => {
+                const depth = q.earthquake.hypocenter.depth;
+                if (depth === -1) return null;
+                
+                const s = formatShindo(q.earthquake.maxScale);
+                
+                return {
+                    x: new Date(q.earthquake.time).getTime(),
+                    y: depth,
+                    place: q.earthquake.hypocenter.name,
+                    shindoColor: s.color,
+                    shindoText: s.text,
+                    mag: q.earthquake.hypocenter.magnitude
+                };
+            }).filter(p => p !== null);
+
+            charts.depth = new Chart(ctx, {
+                type: 'scatter', // 線で結ばない散布図形式
+                data: {
+                    datasets: [{
+                        label: '震源の深さ推移',
+                        data: dataPoints,
+                        backgroundColor: dataPoints.map(d => d.shindoColor), // ここも震度色にすると分かりやすい
+                        borderColor: '#fff',
+                        borderWidth: 1,
+                        pointRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => {
+                                    const p = ctx.raw;
+                                    const d = new Date(p.x);
+                                    // 日時フォーマット
+                                    const dateStr = `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
+                                    return `${dateStr} ${p.place} (M${p.mag} / ${p.y}km)`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear', // 時間軸として扱う
+                            position: 'bottom',
+                            ticks: {
+                                callback: function(value) {
+                                    const d = new Date(value);
+                                    return `${d.getMonth()+1}/${d.getDate()}`; // 目盛りは日付
+                                },
+                                maxRotation: 0
+                            }
+                        },
+                        y: {
+                            title: { display: true, text: '深さ (km)' },
+                            reverse: true, // 浅い方を上に
+                            min: 0
+                        }
+                    }
+                }
+            });
+        }
+
+        function drawRankingChart(quakes) {
+            const ctx = document.getElementById('canvas-ranking').getContext('2d');
+            const counts = {};
+            quakes.forEach(q => {
+                const place = q.earthquake.hypocenter.name;
+                counts[place] = (counts[place] || 0) + 1;
+            });
+            const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+            charts.ranking = new Chart(ctx, {
+                type: 'bar',
+                indexAxis: 'y',
+                data: {
+                    labels: sorted.map(d => d[0]),
+                    datasets: [{
+                        label: '発生回数',
+                        data: sorted.map(d => d[1]),
+                        backgroundColor: '#26c6da',
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: { legend: { display: false } },
+                    scales: { x: { beginAtZero: true } }
+                }
+            });
+        }
+
+        function renderSearchResultList(quakes) {
+            const container = document.getElementById('search-result-list');
+            container.innerHTML = "";
+
+            quakes.forEach(q => {
+                const s = formatShindo(q.earthquake.maxScale);
+                const div = document.createElement('div');
+                div.className = 'search-res-row';
+                div.innerHTML = `
+                    <div class="search-res-shindo" style="background:${s.color}">${s.text}</div>
+                    <div class="search-res-place">${q.earthquake.hypocenter.name}</div>
+                    <div class="search-res-mag">M${q.earthquake.hypocenter.magnitude}</div>
+                    <div class="search-res-time">${q.earthquake.time.substring(5, 16)}</div>
+                `;
+                div.onclick = () => {
+                    const lat = q.earthquake.hypocenter.latitude;
+                    const lon = q.earthquake.hypocenter.longitude;
+                    if (lat !== -200) {
+                        map.flyTo([lat, lon], 8);
+                        document.getElementById('search-modal-overlay').style.display = 'none';
+                    } else {
+                        alert("震源位置情報がありません。");
+                    }
+                };
+                container.appendChild(div);
+            });
+        }
+
+        function plotQuakesOnMap(quakes) {
+            if (!searchLayerGroup) return;
+            const latlngs = [];
+
+            quakes.forEach(q => {
+                const lat = q.earthquake.hypocenter.latitude;
+                const lon = q.earthquake.hypocenter.longitude;
+
+                if (lat === -200) return;
+
+                const s = formatShindo(q.earthquake.maxScale);
+                const marker = L.circleMarker([lat, lon], {
+                    radius: 6 + (Math.sqrt(q.earthquake.maxScale - 10)),
+                    color: '#fff',
+                    weight: 2,
+                    fillColor: s.color,
+                    fillOpacity: 0.9
+                });
+
+                const popupContent = `
+                    <div style="text-align:center; font-family:sans-serif;">
+                        <div style="font-size:0.8rem;">${q.earthquake.time}</div>
+                        <div style="font-weight:bold; font-size:1rem; margin:5px 0;">${q.earthquake.hypocenter.name}</div>
+                        <div style="display:flex; justify-content:center; gap:10px; align-items:center;">
+                            <span style="background:${s.color}; padding:2px 8px; border-radius:4px; font-weight:bold;">震度${s.text}</span>
+                            <span>M${q.earthquake.hypocenter.magnitude}</span>
+                        </div>
+                    </div>
+                `;
+
+                marker.bindPopup(popupContent);
+                searchLayerGroup.addLayer(marker);
+                latlngs.push([lat, lon]);
+            });
+
+            if (latlngs.length > 0) {
+                const bounds = L.latLngBounds(latlngs);
+                map.fitBounds(bounds, { padding: [50, 50] });
+            }
+        }
+
+        function clearSearchResults() {
+            if (searchLayerGroup) searchLayerGroup.clearLayers();
+            document.getElementById('search-result-list').innerHTML = '';
+            document.getElementById('search-result-count').textContent = '0';
+            document.getElementById('analysis-area').style.display = 'none';
+        }
 
         function applyStartupSettings() {
             const s = config.startup;
