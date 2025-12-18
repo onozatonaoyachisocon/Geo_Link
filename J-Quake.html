@@ -1479,6 +1479,20 @@
 
                     <div class="form-group">
                         <label class="form-label">デモ実行（テスト用）</label>
+                        
+                        <!-- ▼▼▼ 追加: 震源地選択セレクトボックス ▼▼▼ -->
+                        <div style="margin-bottom:10px;">
+                            <label class="form-label" style="font-size:0.8rem;">デモ震源地を選択</label>
+                            <select id="demo-location-select">
+                                <option value="33.0,136.0,紀伊半島沖（訓練）">紀伊半島沖 (南海トラフ想定)</option>
+                                <option value="35.0,139.3,相模湾（訓練）">相模湾 (首都直下想定)</option>
+                                <option value="37.5,137.3,能登半島沖（訓練）">能登半島沖</option>
+                                <option value="38.1,142.9,三陸沖（訓練）">三陸沖 (東北地方太平洋沖)</option>
+                                <option value="35.69,139.76,東京都千代田区（訓練）">東京都直下</option>
+                            </select>
+                        </div>
+                        <!-- ▲▲▲ 追加ここまで ▲▲▲ -->
+
                         <div style="display:flex; gap:10px;">
                             <button class="icon-btn" onclick="demoEEW()"
                                 style="flex:1; justify-content:center; background:#b71c1c;">⚠️ EEWデモ</button>
@@ -2849,7 +2863,15 @@
         function predictIntensity(m, d, depth) { if (m < 1) return 0; const x = Math.max(Math.sqrt(d ** 2 + depth ** 2), 3); const pgv = Math.pow(10, 0.58 * m - Math.log10(x) - 0.002 * x - 0.6) * 2.0; let i = 2.68 + 1.94 * Math.log10(pgv); return i < 2.5 ? 20 : i < 3.5 ? 30 : i < 4.5 ? 40 : i < 5.0 ? 45 : i < 5.5 ? 50 : i < 6.0 ? 55 : 60; }
         function formatShindo(s) { const c = config.colors; const t = { 10: "1", 20: "2", 30: "3", 40: "4", 45: "5-", 50: "5+", 55: "6-", 60: "6+", 70: "7" }; const f = { 10: "震度1", 20: "震度2", 30: "震度3", 40: "震度4", 45: "5弱", 50: "5強", 55: "6弱", 60: "6強", 70: "震度7" }; return { color: c[s] || "#777", text: t[s] || "?", fullText: f[s] || "不明" }; }
 
-        function startWaveAnimation(d) { const t = new Date(d.earthquake.time).getTime(); if ((Date.now() - t) / 1000 > 300) { currentWaveTarget = null; return; } currentWaveTarget = { lat: d.earthquake.hypocenter.latitude, lng: d.earthquake.hypocenter.longitude, time: t }; }
+        function startWaveAnimation(d) {
+            // Fix: Reset layers immediately to prevent ghosting
+            if (pWaveLayer) pWaveLayer.setRadius(0).setStyle({ opacity: 0 });
+            if (sWaveLayer) sWaveLayer.setRadius(0).setStyle({ opacity: 0 });
+
+            const t = new Date(d.earthquake.time).getTime();
+            if ((Date.now() - t) / 1000 > 300) { currentWaveTarget = null; return; }
+            currentWaveTarget = { lat: d.earthquake.hypocenter.latitude, lng: d.earthquake.hypocenter.longitude, time: t };
+        }
         function animationLoop() {
             if (currentWaveTarget) {
                 const e = (Date.now() - currentWaveTarget.time) / 1000;
@@ -2987,18 +3009,28 @@
         function jumpToLocation(i) { const l = config.savedLocations[i]; if (l) map.flyTo([l.lat, l.lon], 9); }
         function startMapPick() { document.getElementById("modal-overlay").style.display = "none"; isPickingLocation = true; document.getElementById("map").classList.add("crosshair-cursor"); alert("地図上の地点をクリックしてください。"); }
         function demoTsunami() { if (!geoJsonData) { alert("地図データ読込中..."); return; } handleTsunami({ code: 552, areas: [{ name: "千葉県", grade: "MajorWarning" }, { name: "東京都", grade: "Warning" }, { name: "北海道", grade: "Watch" }, { name: "沖縄県", grade: "Watch" }] }); document.getElementById("modal-overlay").style.display = "none"; }
+        
         function demoEEW() {
             document.getElementById("modal-overlay").style.display = "none";
+            // Get selected location
+            const select = document.getElementById("demo-location-select");
+            const val = select ? select.value : "33.0,136.0,紀伊半島沖（訓練）";
+            const parts = val.split(',');
+            const lat = parseFloat(parts[0]);
+            const lon = parseFloat(parts[1]);
+            const name = parts[2];
+
             const now = new Date();
             const timeStr = `${now.getFullYear()}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getDate().toString().padStart(2, '0')} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
             const mockData = {
                 code: 556, cancelled: false,
-                earthquake: { originTime: timeStr, time: timeStr, hypocenter: { name: "紀伊半島沖（訓練）", latitude: 33.0, longitude: 136.0, depth: 10, magnitude: 7.8 }, maxScale: 60 },
+                earthquake: { originTime: timeStr, time: timeStr, hypocenter: { name: name, latitude: lat, longitude: lon, depth: 10, magnitude: 7.8 }, maxScale: 60 },
                 issue: { type: "Focus" }
             };
             handleEEW(mockData); startWaveAnimation(mockData);
-            if (config.savedLocations.length === 0) alert("マイロケーション未登録のため、カウントダウンは表示されません。");
+            if (config.savedLocations.filter(l => l.enabled).length === 0) alert("マイロケーション未登録または無効のため、カウントダウンは表示されません。\n地図上の波紋のみ表示されます。");
         }
+
         function initDraggableModal() {
             const draggables = document.querySelectorAll('.modal-window-common');
             draggables.forEach(m => {
